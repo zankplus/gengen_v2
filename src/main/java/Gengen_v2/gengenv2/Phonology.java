@@ -11,11 +11,13 @@ import java.util.Random;
 public class Phonology
 {
 	// General properties
-	double[] prominences;	// prominence of each phonetic property in the language
+	double[] prominences;		// prominence of each consonantal phonetic property in the language
+	double[] vowelProminences;	// prominence of each vocalic phonetic property
 	double[] codaProminence;
 	
 	// Phonetic properties
-	Phoneme[] inv;			// language's phoneme inventory
+	Phoneme[] cInv;			// language's CONSONANT inventory
+	Phoneme[] vInv;			// language's VOWEL inventory
 	
 	ArrayList<SyllableSegment>[] onsets, nuclei, codas; 
 	
@@ -25,13 +27,22 @@ public class Phonology
 	boolean[][] validCodaTransitions;
 	double[] clusterLeadProminences;		// how much each category lends itself to being followed by another sound in a cluster
 	double[] clusterFollowProminences;		// like above,  but for the sound that follows
+	double[] nucleusLeadProminences;		// how much each category lends itself to being followed by another sound in a cluster
+	double[] nucleusFollowProminences;		// like above,  but for the sound that follows
 	boolean[][] validTransitions;
+	double onsetClusterRatio;	// ratio of clusters of length N to those of length N-1 (N >= 2) in onsets
+	double nucleusClusterRatio;	// as above, but for nuclei
 	double clusterImpediment;	// reduces the diversity of clusters appearing w/in a language
 	
 	// Generator properties
-	static double prominenceStdev    = 0.6;
-	static double clusterLeadStdev   = 0.5;
-	static double clusterFollowStdev = 0.5;
+	static double minimumOnsetClusterRatio   = 0.04; // minimum value for onsetClusterRatio 
+	static double minimumNucleusClusterRatio = 0.04; // minimum value for nucleusClusterRatio
+	static double prominenceStdev      = 0.60;
+	static double vowelProminenceStdev = 0.60;
+	static double clusterLeadStdev     = 0.50;
+	static double clusterFollowStdev   = 0.50;
+	static double nucleusLeadStdev     = 0.50;
+	static double nucleusFollowStdev   = 0.50;
 	
 	public Phonology()
 	{
@@ -45,7 +56,7 @@ public class Phonology
 	@SuppressWarnings("unchecked")
 	public void makeBasicSyllableStructure()
 	{
-		Random rng = new Random();
+		Random rng = new Random(123);
 		
 		// Roll for onset
 		int roll = rng.nextInt(12);
@@ -60,15 +71,16 @@ public class Phonology
 		
 		maxOnsetCluster = 3;
 		
-		if (maxOnsetCluster > 0)
+		// Initialize onset array(s)
 		onsets = new ArrayList[maxOnsetCluster];
+		for (int i = 0; i < onsets.length; i++)
+			onsets[i] = new ArrayList<SyllableSegment>();
+		
+		if (maxOnsetCluster > 0)
 		{
-			for (int i = 0; i < onsets.length; i++)
-				onsets[i] = new ArrayList<SyllableSegment>();
-			
+			onsetClusterRatio = Math.max(rng.nextGaussian() * 0.1 + 0.25, minimumOnsetClusterRatio);
 			clusterImpediment = rng.nextGaussian() * 0.25 + 0.5;
 		}
-		
 		
 		// Roll for nucleus
 		roll = rng.nextInt(4);
@@ -76,6 +88,18 @@ public class Phonology
 			maxNucleusCluster = 1;
 		else
 			maxNucleusCluster = 2;
+		
+		// Initialize nucleus array(s)
+		nuclei = new ArrayList[maxNucleusCluster];
+		for (int i = 0; i < nuclei.length; i++)
+			nuclei[i] = new ArrayList<SyllableSegment>();
+		
+		if (maxNucleusCluster > 0)
+		{
+			nucleusClusterRatio = Math.max(rng.nextGaussian() * 0.05 + 0.15, minimumNucleusClusterRatio);
+		}
+		
+		
 		
 		// Roll for coda
 		roll = rng.nextInt(8);
@@ -110,24 +134,44 @@ public class Phonology
 	public void determineProminence()
 	{
 		Random rng = new Random();
-		prominences = new double[SegProp.values().length];	// likelihood to appear at start of word 
+		prominences = new double[ConsonantProperty.values().length];	// likelihood to appear at start of word
+		vowelProminences = new double[VowelProperty.values().length];
 
-		// Determine prominence value
-		for (int i = 0; i < SegProp.values().length; i++)
-			if (Math.random() < SegProp.values()[i].probability)	// properties failing this check receive 0 prominence
+		// Determine prominence values for consonant properties
+		for (int i = 0; i < ConsonantProperty.values().length; i++)
+			if (Math.random() < ConsonantProperty.values()[i].probability)	// properties failing this check receive 0 prominence
 				prominences[i] = Math.max(rng.nextGaussian() * prominenceStdev + 1, 0.001);
 		
 		if (maxOnsetCluster > 1)
 		{
-			clusterLeadProminences   = new double[SegProp.values().length];
-			clusterFollowProminences = new double[SegProp.values().length];
+			clusterLeadProminences   = new double[ConsonantProperty.values().length];
+			clusterFollowProminences = new double[ConsonantProperty.values().length];
 			
 			// Determine prominence for consonant categories as cluster leads
-			for (int i = 0; i < SegProp.values().length; i++)
+			for (int i = 0; i < ConsonantProperty.values().length; i++)
 				if (prominences[i] > 0)
 				{
 					clusterLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
 					clusterFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
+				}
+		}
+		
+		// Determine prominence values for vowel properties
+		for (int i = 0; i < VowelProperty.values().length; i++)
+			if (Math.random() < VowelProperty.values()[i].probability)	// properties failing this check receive 0 prominence
+				vowelProminences[i] = Math.max(rng.nextGaussian() * vowelProminenceStdev + 1, 0.001);
+		
+		if (maxNucleusCluster > 1)
+		{
+			nucleusLeadProminences   = new double[VowelProperty.values().length];
+			nucleusFollowProminences = new double[VowelProperty.values().length];
+			
+			// Determine prominence for consonant categories as cluster leads
+			for (int i = 0; i < VowelProperty.values().length; i++)
+				if (vowelProminences[i] > 0)
+				{
+					nucleusLeadProminences[i]   = rng.nextGaussian() * nucleusLeadStdev   + 1;
+					nucleusFollowProminences[i] = rng.nextGaussian() * nucleusFollowStdev + 1;
 				}
 		}
 	}
@@ -136,29 +180,63 @@ public class Phonology
 	public void selectSegments()
 	{
 		// Make easy reference to segment arrays
-		Consonant[] segs = Consonant.segments;
+		Consonant[] consonants = Consonant.segments;
 				
 		ArrayList<Phoneme> inv = new ArrayList<Phoneme>();
 		
 		// Populate consonant inventory
-		for (int i = 0; i < segs.length; i++)
+		for (int i = 0; i < consonants.length; i++)
 		{
 			boolean add = true;
 			
-			for (int j = 0; j < segs[i].properties.length; j++)
-				if (prominences[segs[i].properties[j].ordinal()] == 0)
+			for (int j = 0; j < consonants[i].properties.length; j++)
+				if (prominences[((ConsonantProperty) consonants[i].properties[j]).ordinal()] == 0)
 				{
 					add = false;
-					j = segs[i].properties.length;
+					j = consonants[i].properties.length;
 				}
 			
 			if (add)
 			{
-				inv.add(new Phoneme(segs[i]));
+				inv.add(new Phoneme(consonants[i]));
 			}
 		}
 		
-		this.inv = inv.toArray(new Phoneme[0]);
+		cInv = inv.toArray(new Phoneme[0]);
+		
+		// Mark categories represented by this language's inventory
+		ptCatsRepresented = new boolean[Cluster.ptCats.size()];
+		ptCatsRepresented[0] = true;
+		ptCatsRepresented[ptCatsRepresented.length - 1] = true;
+		
+		for (Phoneme p : inv)
+			ptCatsRepresented[p.segment.transitionCategory] = true;
+		
+		// Make easy reference to segment arrays
+		Vowel[] vowels = Vowel.segments;
+		inv = new ArrayList<Phoneme>();
+		
+		// Populate vowel inventory
+		for (int i = 0; i < vowels.length; i++)
+		{
+			boolean add = true;
+			
+			for (int j = 0; j < vowels[i].properties.length; j++)
+				if (vowelProminences[((VowelProperty) vowels[i].properties[j]).ordinal()] == 0)
+				{
+					add = false;
+					j = vowels[i].properties.length;
+				}
+			
+			if (add)
+			{
+				inv.add(new Phoneme(vowels[i]));
+				System.out.print(vowels[i].expression + " ");
+			}
+		}
+		
+		System.out.println();
+		vInv = inv.toArray(new Phoneme[inv.size()]);
 		
 		// Mark categories represented by this language's inventory
 		ptCatsRepresented = new boolean[Cluster.ptCats.size()];
@@ -218,15 +296,20 @@ public class Phonology
 		}
 	
 		// Determine all onsets
-		for (Phoneme p : inv)
+		for (Phoneme p : cInv)
 		{
 			ArrayList<Phoneme> onset = new ArrayList<Phoneme>();
 			onset.add(p);
 			findAllOnsets(onset);
 		}
+
+		// Shrink maxOnsetCluster to hide empty categories
+		for ( ; onsets[maxOnsetCluster - 1].size() == 0; maxOnsetCluster--);
+		
+		
 		
 		// DEBUG: Print all possible onsets
-		for (int i = 0; i < onsets.length; i++)
+		for (int i = 0; i < maxOnsetCluster; i++)
 		{
 			System.out.println("LENGTH " + (i + 1));
 			for (SyllableSegment ss : onsets[i])
@@ -235,9 +318,11 @@ public class Phonology
 		}
 				
 		System.out.printf("Impediment: %.3f\n", clusterImpediment);
+		System.out.println("maxOnsetCluster: " + maxOnsetCluster);
+
 	}
 	
-	public void findAllOnsets(ArrayList<Phoneme> onset)
+	private void findAllOnsets(ArrayList<Phoneme> onset)
 	{
 		double prominence = 1;
 		
@@ -272,46 +357,22 @@ public class Phonology
 				for (int nextSound : Cluster.ptCats.get(i))
 				{
 					// if this language has that segment, then add it to the list
-					for (int j = 0; j < inv.length; j++)
-						if (inv[j].segment.id == nextSound)
+					for (int j = 0; j < cInv.length; j++)
+						if (cInv[j].segment.id == nextSound)
 						{
 							// Copy current onset and add this phoneme to it
 							ArrayList<Phoneme> copy = new ArrayList<Phoneme>();
 							for (Phoneme p : onset)
 								copy.add(p);
-							copy.add(inv[j]);
+							copy.add(cInv[j]);
 							
 							// Recurse on the copy
 							findAllOnsets(copy);
-							j = inv.length;
+							j = cInv.length;
 						}
 				}
 			}
 
-	}
-	
-
-	public void printInventory()
-	{
-		System.out.println("CONSONANTS");
-		
-		Phoneme prev = null;
-		for (Phoneme p : inv)
-		{
-			if (prev != null && prev.segment.properties[0] != p.segment.properties[0])
-			{
-				System.out.println();
-				if (p.segment.properties[0] == SegProp.VOWEL)
-					System.out.println("VOWELS");
-				
-			}
-			
-			System.out.print(p.segment.expression + " ");
-			if (p.segment.expression.length() == 1)
-				System.out.print(" ");
-			
-			prev = p; 
-		}
 	}
 	
 	public void printInventoryWithProminence()
@@ -339,23 +400,15 @@ public class Phonology
 		
 		// Calculate combined prominence and sort each phoneme into consonant and vowel lists
 		// Also find the total prominence for each list so we can normalize the values
-		for (Phoneme p : inv)
+		for (Phoneme p : cInv)
 		{
 			// Calculating combined prominence
 			double phonemeProminence = p.initialProminence;
 			
 			Pair pair = new Pair(p, phonemeProminence);
 			
-			if (p.segment.properties[0] == SegProp.VOWEL)
-			{
-				vowels.add(pair);
-				vTotal += phonemeProminence;
-			}
-			else
-			{
-				consonants.add(pair);
-				cTotal += phonemeProminence;
-			}
+			consonants.add(pair);
+			cTotal += phonemeProminence;
 		}
 		
 		// Normalize values
@@ -419,7 +472,7 @@ public class Phonology
 	class Phoneme
 
 	{
-		Consonant segment;
+		Segment segment;
 		CountingHashtable<Phoneme, Integer> onsetTransitions;
 		CountingHashtable<Phoneme, Integer> codaTransitions;
 		
@@ -427,46 +480,55 @@ public class Phonology
 		double clusterLeadProminence;
 		double clusterFollowProminence;
 		
-		public Phoneme(Consonant segment)
+		public Phoneme(Segment segment)
 		{
-			this.segment = segment;
-			onsetTransitions = new CountingHashtable<Phoneme, Integer>();
-			codaTransitions  = new CountingHashtable<Phoneme, Integer>();
-			
-			initialProminence       = 1;
-			clusterLeadProminence   = 1;
-			clusterFollowProminence = 1;
-			
-			// initialProminence is the result of combining all the prominence values of the segment's 
-			// properties, with mean 1. The deviance of each prominence is scaled by the root of the 
-			// number of the segment's properties; this ensures that all intialProminence values are
-			// distributed, in effect, with the same standard deviation, regardless of how many
-			// values are added to make it (normally, adding random variables increases the stdev of the sum).
-			// The same is true of the cluster prominence values as well.
-			for (SegProp s : segment.properties)
+			if (segment.isConsonant())
 			{
-				double deviance = prominences[s.ordinal()] - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				initialProminence += deviance;
+				this.segment = segment;
+				onsetTransitions = new CountingHashtable<Phoneme, Integer>();
+				codaTransitions  = new CountingHashtable<Phoneme, Integer>();
 				
-				if (maxOnsetCluster > 1)
+				initialProminence       = 1;
+				clusterLeadProminence   = 1;
+				clusterFollowProminence = 1;
+				
+				// initialProminence is the result of combining all the prominence values of the segment's 
+				// properties, with mean 1. The deviance of each prominence is scaled by the root of the 
+				// number of the segment's properties; this ensures that all intialProminence values are
+				// distributed, in effect, with the same standard deviation, regardless of how many
+				// values are added to make it (normally, adding random variables increases the stdev of the sum).
+				// The same is true of the cluster prominence values as well.
+				for (ConsonantProperty s : ((Consonant) segment).properties)
 				{
-					deviance = clusterLeadProminences[s.ordinal()] - 1;
+					double deviance = prominences[s.ordinal()] - 1;
 					deviance /= Math.sqrt(segment.properties.length);
-					clusterLeadProminence += deviance;
+					initialProminence += deviance;
 					
-					deviance = clusterFollowProminences[s.ordinal()] - 1;
-					deviance /= Math.sqrt(segment.properties.length);
-					clusterFollowProminence += deviance;
+					if (maxOnsetCluster > 1)
+					{
+						deviance = clusterLeadProminences[s.ordinal()] - 1;
+						deviance /= Math.sqrt(segment.properties.length);
+						clusterLeadProminence += deviance;
+						
+						deviance = clusterFollowProminences[s.ordinal()] - 1;
+						deviance /= Math.sqrt(segment.properties.length);
+						clusterFollowProminence += deviance;
+					}
+					else
+					{
+						clusterLeadProminence = 0;
+						clusterFollowProminence = 0;
+					}
 				}
-				else
-				{
-					clusterLeadProminence = 0;
-					clusterFollowProminence = 0;
-				}
+				
+				System.out.printf("%s\t%.3f\t%.3f\t%.3f\n", segment.expression, initialProminence, clusterLeadProminence, clusterFollowProminence);
 			}
 			
-			System.out.printf("%s\t%.3f\t%.3f\t%.3f\n", segment.expression, initialProminence, clusterLeadProminence, clusterFollowProminence);
+			// Vowel case
+			else
+			{
+				this.segment = segment;
+			}
 		}
 	}
 

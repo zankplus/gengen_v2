@@ -31,9 +31,9 @@ public class GenGUI extends JFrame {
 	private JPanel contentPane;
 	Phonology phonology;
 	
-	JLabel[] propertyLabels = new JLabel[SegProp.values().length];
-	JTextField[] prominenceLabels = new JTextField[SegProp.values().length];
-	JTextField[] aggreganceLabels = new JTextField[SegProp.values().length];
+	JLabel[] propertyLabels = new JLabel[ConsonantProperty.values().length];
+	JTextField[] prominenceLabels = new JTextField[ConsonantProperty.values().length];
+	JTextField[] aggreganceLabels = new JTextField[ConsonantProperty.values().length];
 	
 	/**
 	 * Launch the application.
@@ -396,10 +396,10 @@ public class GenGUI extends JFrame {
 		propertiesBody.add(propertiesRight);
 		
 		Phonology p = phonology;
-		for (int i = 0; i < SegProp.values().length; i++)
+		for (int i = 0; i < ConsonantProperty.values().length; i++)
 		{
 			// Label name
-			propertyLabels[i] = new JLabel(SegProp.values()[i].name());
+			propertyLabels[i] = new JLabel(ConsonantProperty.values()[i].name());
 			propertyLabels[i].setFont(new Font("Tahoma", Font.BOLD, 11));
 			
 			// Prominence fields

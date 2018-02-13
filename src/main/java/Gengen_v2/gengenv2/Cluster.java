@@ -4,24 +4,36 @@ import java.util.ArrayList;
 
 public class Cluster
 {
+	// 3 = rare | 2 = common | 1 = rare | 0 = scandalous
+	
 	static int[][] transitionProbability = new int[][]
-	{	//	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16
-		{	0,	1,	1,	1,	1,	1,	1,	2,	2,	1,	0,	1,	1,	1,	3,	3},	// 1. unvoiced unaspirated stops
-		{	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	0,	1,	1,	1,	3,	3},	// 2. unvoiced aspirated stops
-		{	0,	0,	0,	1,	1,	1,	1,	1,	2,	2,	0,	1,	1,	1,	3,	3},	// 3. voiced breathless stops
-		{	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	0,	1,	1,	1,	3,	3},	// 4. voiced breathy stops
-		{	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	1,	2,	2},	// 5. affricates
-		{	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	2,	2},	// 6. glottal stop
-		{	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	1},	// 7. unvoiced nonsibilant fricatives
-		{	0,	0,	0,	0,	0,	0,	0,	0,	2,	1,	1,	2,	1,	1,	3,	3},	// 8. unvoiced sibilant fricatives
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	3,	3},	// 9. voiced nonsibilant fricatives
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	3,	3},	// 10. voiced sibilant fricatives
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	2,	3},	// 11. glottal fricative
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	2,	2},	// 12. voiced bilabial/alveolar nasals
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	2,	2},	// 13. velar nasal
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2,	2},	// 14. unvoiced nasals
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2},	// 15. liquids
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0}	// 16. glides
+	{	//	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15
+		{	0,	1,	1,	1,	1,	1,	1,	2,	2,	1,	0,	1,	1,	1,	3,	3},	// 0. unvoiced unaspirated stops
+		{	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	0,	1,	1,	1,	3,	3},	// 1. unvoiced aspirated stops
+		{	0,	0,	0,	1,	1,	1,	1,	1,	2,	2,	0,	1,	1,	1,	3,	3},	// 2. voiced breathless stops
+		{	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	0,	1,	1,	1,	3,	3},	// 3. voiced breathy stops
+		{	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	1,	2,	2},	// 4. affricates
+		{	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	2,	2},	// 5. glottal stop
+		{	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	1},	// 6. unvoiced nonsibilant fricatives
+		{	0,	0,	0,	0,	0,	0,	0,	0,	2,	1,	1,	2,	1,	1,	3,	3},	// 7. unvoiced sibilant fricatives
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	3,	3},	// 8. voiced nonsibilant fricatives
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	3,	3},	// 9. voiced sibilant fricatives
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	2,	3},	// 10. glottal fricative
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	2,	2},	// 11. voiced bilabial/alveolar nasals
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	2,	2},	// 12. velar nasal
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2,	2},	// 13. unvoiced nasals
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2},	// 14. liquids
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0}	// 15. glides
+	};
+	
+	static int[][] nucleusTransitions = new int[][]
+	{
+		//	0	1	2	3	4
+		{	0,	0,	0,	0,	0},	// 0. schwa
+		{	0,	0,	0,	0,	0},	// 1. open vowels
+		{	0,	0,	2,	3,	2},	// 2. mid vowels
+		{	0,	0,	0,	3,	2},	// 3. close vowels
+		{	0,	0,	0,	0,	2},	// 4. vowel lengthener
 	};
 	
 	static int[][] codaTransitionProbability = new int[][]
@@ -80,10 +92,11 @@ public class Cluster
 	static ArrayList<int[]> vowelCats = new ArrayList<int[]>()
 	{
 		{
-			add(new int[] {0});				// 17. open vowels
-			add(new int[] {1, 2});			// 18. mid vowels
-			add(new int[] {3, 4, 5});		// 19. close vowels
-			add(new int[] {6});		// 19. vowel length
+			add(new int[] {0});				// 0. open vowels
+			add(new int[] {1});				// 1. open vowels
+			add(new int[] {2, 3});			// 2. mid vowels
+			add(new int[] {4, 5, 6});		// 3. close vowels
+			add(new int[] {7});				// 4. vowel length
 		}
 	};
 }
