@@ -6,7 +6,7 @@ public class Cluster
 {
 	// 3 = rare | 2 = common | 1 = rare | 0 = scandalous
 	
-	static int[][] transitionProbability = new int[][]
+	static int[][] onsetTransitions = new int[][]
 	{	//	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15
 		{	0,	1,	1,	1,	1,	1,	1,	2,	2,	1,	0,	1,	1,	1,	3,	3},	// 0. unvoiced unaspirated stops
 		{	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	0,	1,	1,	1,	3,	3},	// 1. unvoiced aspirated stops
@@ -30,10 +30,10 @@ public class Cluster
 	{
 		//	0	1	2	3	4
 		{	0,	0,	0,	0,	0},	// 0. schwa
-		{	0,	0,	0,	0,	0},	// 1. open vowels
-		{	0,	0,	2,	3,	2},	// 2. mid vowels
-		{	0,	0,	0,	3,	2},	// 3. close vowels
-		{	0,	0,	0,	0,	2},	// 4. vowel lengthener
+		{	0,	0,	2,	3,	3},	// 1. open vowels
+		{	0,	0,	0,	3,	3},	// 2. mid vowels
+		{	0,	0,	0,	0,	3},	// 3. close vowels
+		{	0,	0,	0,	0,	0},	// 4. vowel lengthener
 	};
 	
 	static int[][] codaTransitionProbability = new int[][]
@@ -67,7 +67,7 @@ public class Cluster
 			{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	3}	// 26. end
 		};
 	
-	static ArrayList<int[]> ptCats = new ArrayList<int[]>()
+	static ArrayList<int[]> onsetCategories = new ArrayList<int[]>()
 	{
 		{
 			add(new int[] {0, 1, 2, 3});		// 1. unvoiced unaspirated stops
@@ -89,10 +89,10 @@ public class Cluster
 		}
 	};
 	
-	static ArrayList<int[]> vowelCats = new ArrayList<int[]>()
+	static ArrayList<int[]> nucleusCategories = new ArrayList<int[]>()
 	{
 		{
-			add(new int[] {0});				// 0. open vowels
+			add(new int[] {0});				// 0. schwa
 			add(new int[] {1});				// 1. open vowels
 			add(new int[] {2, 3});			// 2. mid vowels
 			add(new int[] {4, 5, 6});		// 3. close vowels
@@ -101,8 +101,9 @@ public class Cluster
 	};
 }
 
-enum PTCat { START,	UNVOICED_UNASPIRATED_STOP, UNVOICED_ASPIRATED_STOP, VOICED_BREATHLESS_STOP,
-	 VOICED_BREATHY_STOP, AFFRICATE, GLOTTAL_STOP, UNVOICED_NONSIBILANT_FRICATIVE,
-	 UNVOICED_SIBILANT_FRICATIVE, VOICED_NONSIBILANT_FRICATIVE, VOICED_SIBILANT_FRICATIVE,
-	 GLOTTAL_FRICATIVE, VOICED_NASAL, VELAR_NASAL, UNVOICED_NASAL, LIQUID, GLIDE, OPEN_VOWEL,
-	 MID_VOWEL, SHORT_CLOSE_VOWEL, END };
+// enum ConsonantCategory { UNVOICED_UNASPIRATED_STOP, UNVOICED_ASPIRATED_STOP, VOICED_BREATHLESS_STOP,
+//	 VOICED_BREATHY_STOP, AFFRICATE, GLOTTAL_STOP, UNVOICED_NONSIBILANT_FRICATIVE,
+//	 UNVOICED_SIBILANT_FRICATIVE, VOICED_NONSIBILANT_FRICATIVE, VOICED_SIBILANT_FRICATIVE,
+//	 GLOTTAL_FRICATIVE, VOICED_NASAL, VELAR_NASAL, UNVOICED_NASAL, LIQUID, GLIDE};
+//	 
+// enum VowelCategory { SCHWA, OPEN, MID, CLOSE, LONG};
