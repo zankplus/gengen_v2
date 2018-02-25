@@ -67,14 +67,14 @@ class Consonant extends Segment
 		
 /*24*/	new Consonant("m" , 11, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.BILABIAL}),
 /*25*/	new Consonant("n" , 11, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.ALVEOLAR}),
-/*26*/	new Consonant("ng", 12, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.VELAR,		ConsonantProperty.VELAR_NASAL}),
-/*27*/	new Consonant("mh", 13, new ConsonantProperty[] {ConsonantProperty.VOICELESS_NASAL,	ConsonantProperty.BILABIAL}),
-/*28*/	new Consonant("nh", 13, new ConsonantProperty[] {ConsonantProperty.VOICELESS_NASAL,	ConsonantProperty.ALVEOLAR}),
+/*26*/	new Consonant("ng", 11, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.VELAR,		ConsonantProperty.VELAR_NASAL}),
+/*27*/	new Consonant("mh", 12, new ConsonantProperty[] {ConsonantProperty.VOICELESS_NASAL,	ConsonantProperty.BILABIAL}),
+/*28*/	new Consonant("nh", 12, new ConsonantProperty[] {ConsonantProperty.VOICELESS_NASAL,	ConsonantProperty.ALVEOLAR}),
 
-/*29*/	new Consonant("r" , 14, new ConsonantProperty[] {ConsonantProperty.LIQUID,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.ALVEOLAR_TRILL}),
-/*30*/	new Consonant("l" , 14, new ConsonantProperty[] {ConsonantProperty.LIQUID,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LATERAL_APPROX}),
-/*31*/	new Consonant("y" , 15, new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.PALATAL_APPROX}),
-/*32*/	new Consonant("w" , 15, new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LABIOVELAR_APPROX}),
+/*29*/	new Consonant("r" , 13, new ConsonantProperty[] {ConsonantProperty.LIQUID,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.ALVEOLAR_TRILL}),
+/*30*/	new Consonant("l" , 13, new ConsonantProperty[] {ConsonantProperty.LIQUID,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LATERAL_APPROX}),
+/*31*/	new Consonant("y" , 14, new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.PALATAL_APPROX}),
+/*32*/	new Consonant("w" , 14, new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LABIOVELAR_APPROX}),
 	};
 }
 

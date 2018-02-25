@@ -416,7 +416,7 @@ public class GenGUI extends JFrame {
 			
 			
 			// Aggregance fields
-			label = Double.toString(p.clusterLeadProminences[i]);
+			label = Double.toString(p.onsetClusterLeadProminences[i]);
 			if (label.length() > 6)
 				label = label.substring(0, 6);
 			
@@ -424,7 +424,7 @@ public class GenGUI extends JFrame {
 			aggreganceLabels[i].setFont(new Font("Tahoma", Font.PLAIN, 11));
 			aggreganceLabels[i].getDocument().addDocumentListener(new TextFieldListener(aggreganceLabels, i));
 				
-			if (p.clusterLeadProminences[i] == 0)
+			if (p.onsetClusterLeadProminences[i] == 0)
 				aggreganceLabels[i].setBackground(Color.RED);
 			
 			// Add components to panel
@@ -479,7 +479,7 @@ public class GenGUI extends JFrame {
 			if (target == prominenceLabels)
 				phonology.prominences[index] = x;
 			else if (target == aggreganceLabels)
-				phonology.clusterLeadProminences[index] = x;
+				phonology.onsetClusterLeadProminences[index] = x;
 		}
 	}
 }
