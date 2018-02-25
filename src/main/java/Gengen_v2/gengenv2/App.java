@@ -10,7 +10,8 @@ public class App
     {
         Phonology p = new Phonology();
         
-//		p.printInventoryWithProminence();
+        p.printProminence();
+		p.printInventoryWithProminence();
 		
 		
 		
