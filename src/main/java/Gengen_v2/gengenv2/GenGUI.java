@@ -31,9 +31,9 @@ public class GenGUI extends JFrame {
 	private JPanel contentPane;
 	Phonology phonology;
 	
-	JLabel[] propertyLabels = new JLabel[SegProp.values().length];
-	JTextField[] prominenceLabels = new JTextField[SegProp.values().length];
-	JTextField[] aggreganceLabels = new JTextField[SegProp.values().length];
+	JLabel[] propertyLabels = new JLabel[ConsonantProperty.values().length];
+	JTextField[] prominenceLabels = new JTextField[ConsonantProperty.values().length];
+	JTextField[] aggreganceLabels = new JTextField[ConsonantProperty.values().length];
 	
 	/**
 	 * Launch the application.
@@ -396,14 +396,14 @@ public class GenGUI extends JFrame {
 		propertiesBody.add(propertiesRight);
 		
 		Phonology p = phonology;
-		for (int i = 0; i < SegProp.values().length; i++)
+		for (int i = 0; i < ConsonantProperty.values().length; i++)
 		{
 			// Label name
-			propertyLabels[i] = new JLabel(SegProp.values()[i].name());
+			propertyLabels[i] = new JLabel(ConsonantProperty.values()[i].name());
 			propertyLabels[i].setFont(new Font("Tahoma", Font.BOLD, 11));
 			
 			// Prominence fields
-			String label = Double.toString(p.prominence[i]);
+			String label = Double.toString(p.prominences[i]);
 			if (label.length() > 6)
 				label = label.substring(0, 6);
 				
@@ -411,12 +411,12 @@ public class GenGUI extends JFrame {
 			prominenceLabels[i].setFont(new Font("Tahoma", Font.PLAIN, 11));
 			prominenceLabels[i].getDocument().addDocumentListener(new TextFieldListener(prominenceLabels, i));
 			
-			if (p.prominence[i] == 0)
+			if (p.prominences[i] == 0)
 				prominenceLabels[i].setBackground(Color.RED);
 			
 			
 			// Aggregance fields
-			label = Double.toString(p.aggregance[i]);
+			label = Double.toString(p.onsetClusterLeadProminences[i]);
 			if (label.length() > 6)
 				label = label.substring(0, 6);
 			
@@ -424,7 +424,7 @@ public class GenGUI extends JFrame {
 			aggreganceLabels[i].setFont(new Font("Tahoma", Font.PLAIN, 11));
 			aggreganceLabels[i].getDocument().addDocumentListener(new TextFieldListener(aggreganceLabels, i));
 				
-			if (p.aggregance[i] == 0)
+			if (p.onsetClusterLeadProminences[i] == 0)
 				aggreganceLabels[i].setBackground(Color.RED);
 			
 			// Add components to panel
@@ -477,9 +477,9 @@ public class GenGUI extends JFrame {
 			}
 			
 			if (target == prominenceLabels)
-				phonology.prominence[index] = x;
+				phonology.prominences[index] = x;
 			else if (target == aggreganceLabels)
-				phonology.aggregance[index] = x;
+				phonology.onsetClusterLeadProminences[index] = x;
 		}
 	}
 }
