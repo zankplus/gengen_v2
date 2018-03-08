@@ -7,6 +7,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Timer;
 
 public class Phonology
 {
@@ -21,10 +22,10 @@ public class Phonology
 	Phoneme[] cInv;			// language's CONSONANT inventory
 	Phoneme[] vInv;			// language's VOWEL inventory
 	
-	ArrayList<SyllableSegment>[] onsets, nuclei, codas; 
+	ArrayList<SyllableSegment>[] onsets, nuclei, codas, interludes; 
 	
 	// Phonotactic properties
-	int maxOnsetLength, maxNucleusLength, maxCodaLength, clusterBonus;
+	int maxOnsetLength, maxNucleusLength, maxCodaLength, maxInterludeLength, clusterBonus;
 	private boolean[] consonantCategoriesRepresented;
 	private boolean[] nucleusCategoriesRepresented;
 	
@@ -34,10 +35,12 @@ public class Phonology
 	
 	double[] onsetClusterLeadProminences;		// how much each category lends itself to being followed by another sound in a cluster
 	double[] onsetClusterFollowProminences;		// like above,  but for the sound that follows
-	double[] nucleusLeadProminences;			// like the two above, but for diphthongs
-	double[] nucleusFollowProminences;
+	double[] diphthongLeadProminences;			// like the two above, but for diphthongs
+	double[] diphthongFollowProminences;
 	double[] codaClusterLeadProminences;		// and so on, for codas
 	double[] codaClusterFollowProminences;
+	double[] interludeLeadProminences;			// and so on, for interludes
+	double[] interludeFollowProminences;
 	
 	double onsetClusterRatio;	// ratio of clusters of length N to those of length N-1 (N >= 2) in onsets
 	double diphthongRatio;		// as above, but for nuclei
@@ -53,8 +56,9 @@ public class Phonology
 								// are undisturbed compared to the onset ones. at 1, they have essentially been rerolled.
 	
 	// Phonotactic inhibitors
-	double onsetNgInhibitor;	 // reduces the chance of a onset 'ng'
-	double onsetTlDlInhibitor; // reduces the chances of an onset 'tl' or 'dl'
+	double onsetNgInhibitor;			// reduces the chance of a onset 'ng'
+	double onsetTlDlInhibitor; 			// reduces the chances of an onset 'tl' or 'dl'
+	double nasalDissonanceInhibitor;	// reduces the prevalence of coda nasal-plosive clusters that disagree in articulation
 	
 	
 	// Generator properties
@@ -76,6 +80,10 @@ public class Phonology
 	static double onsetNgInhibitorStdev   = 1;
 	static double onsetTlDlInhibitorMean  = 1;
 	static double onsetTlDlInhibitorStdev = 0.5;
+	static double nasalDissonanceInhibitorMean = 2;
+	static double nasalDissonanceInhibitorStdev = 1;
+	
+	static int simpleOnsets = 0, simpleNuclei = 0, simpleCodas = 0, complexOnsets = 0, complexNuclei = 0, complexCodas = 0;
 	
 	public Phonology()
 	{
@@ -85,18 +93,20 @@ public class Phonology
 		determineProminence();
 		selectSegments();
 		makeOnsets();
-		makeNuclei();
+//		makeNuclei();
 		if (maxCodaLength > 0)
 			makeCodas();
-//		makeCodaTactics();
+		makeInterludes();
 		
-		System.out.println();
-		for (int i = 0; i < maxOnsetLength; i++ )
-			printInventory(onsets[i]);
-		for (int i = 0; i < maxCodaLength; i++ )
-			printInventory(codas[i]);
-		for (int i = 0; i < maxNucleusLength; i++ )
-			printInventory(nuclei[i]);
+//		System.out.println();
+//		for (int i = 0; i < maxOnsetLength; i++ )
+//			printInventory(onsets[i]);
+//		for (int i = 0; i < maxCodaLength; i++ )
+//			printInventory(codas[i]);
+//		for (int i = 0; i < maxNucleusLength; i++ )
+//			printInventory(nuclei[i]);
+		
+		countSyllableLengths();
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -131,8 +141,6 @@ public class Phonology
 		else
 			maxNucleusLength = 2;
 
-		maxNucleusLength = 2;
-		
 		// Initialize nucleus array(s)
 		nuclei = new ArrayList[maxNucleusLength];
 		for (int i = 0; i < nuclei.length; i++)
@@ -157,6 +165,10 @@ public class Phonology
 		
 		maxCodaLength = Math.max(maxCodaLength, 0);
 	
+		
+		// TODO: debug value
+		maxCodaLength = 2;
+		
 		// Initialize coda arrays
 		codas = new ArrayList[maxCodaLength];
 		for (int i = 0; i < codas.length; i++)
@@ -168,6 +180,15 @@ public class Phonology
 			codaClusterInhibitor = rng.nextGaussian() * 0.25 + 0.5;
 		}
 		
+		//Roll for interlude
+		if (maxCodaLength > 0)
+		{
+			maxInterludeLength = 2 + rng.nextInt(maxOnsetLength + maxCodaLength - 2);
+			interludes = new ArrayList[maxInterludeLength];
+			for (int i = 0; i < interludes.length; i++)
+				interludes[i] = new ArrayList<SyllableSegment>();
+		}
+		
 		// Cluster bonus = sum of values of cluster maxima in excess of 1
 		clusterBonus = 0;
 		if (maxOnsetLength > 1)
@@ -175,13 +196,13 @@ public class Phonology
 		if (maxCodaLength > 1)
 			clusterBonus += maxCodaLength - 1;
 		
-		for (int i = 0; i < maxOnsetLength; i++)
-			System.out.print("C");
-		for (int i = 0; i < maxNucleusLength; i++)
-			System.out.print("V");
-		for (int i = 0; i < maxCodaLength; i++)
-			System.out.print("C");
-		System.out.println();
+//		for (int i = 0; i < maxOnsetLength; i++)
+//			System.out.print("C");
+//		for (int i = 0; i < maxNucleusLength; i++)
+//			System.out.print("V");
+//		for (int i = 0; i < maxCodaLength; i++)
+//			System.out.print("C");
+//		System.out.println();
 	}
 
 	/* Determine which phonetic properties will be present in this language. Present languages receive 
@@ -199,6 +220,7 @@ public class Phonology
 		vowelProminences = new double[VowelProperty.values().length];
 		codaProminences = new double[ConsonantProperty.values().length];
 		
+		
 		// Determine prominence values for consonant properties
 		for (int i = 0; i < ConsonantProperty.values().length; i++)
 			if (rng.nextDouble() < ConsonantProperty.values()[i].probability)	// properties failing this check receive 0 prominence
@@ -211,14 +233,14 @@ public class Phonology
 		{
 			// Coda inhibitor is the square of a uniformly distributed random number between 0 and 1
 			codaDisturbance = Math.pow(rng.nextDouble(), 2);
-			System.out.println("codaDisturbance:\t" + codaDisturbance);
+//			System.out.println("codaDisturbance:\t" + codaDisturbance);
 			
 			
 			// Coda inhibitor is a gaussian random number; the mean and stdev are engine parameters.
 			codaInhibitor = rng.nextGaussian() * codaInhibitorStdev + codaInhibitorMean;
 			codaInhibitor = Math.max(0, codaInhibitor);
 			
-			System.out.println("codaInhibitor  :\t" + codaInhibitor);
+//			System.out.println("codaInhibitor  :\t" + codaInhibitor);
 			
 			for (int i = 0; i < prominences.length; i++)
 				if (prominences[i] > 0)
@@ -255,12 +277,27 @@ public class Phonology
 			codaClusterLeadProminences   = new double[ConsonantProperty.values().length];
 			codaClusterFollowProminences = new double[ConsonantProperty.values().length];
 			
-			// Determine prominence for consonant categories as cluster leads
+			// Randomly determine prominence values
 			for (int i = 0; i < ConsonantProperty.values().length; i++)
 				if (prominences[i] > 0)
 				{
 					codaClusterLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
 					codaClusterFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
+				}
+		}
+		
+		// interlude properties
+		if (maxInterludeLength > 1)
+		{
+			interludeLeadProminences =   new double[ConsonantProperty.values().length];
+			interludeFollowProminences = new double[ConsonantProperty.values().length];
+			
+			// Determine prominence for consonant categories as cluster leads
+			for (int i = 0; i < ConsonantProperty.values().length; i++)
+				if (prominences[i] > 0)
+				{
+					interludeLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
+					interludeFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
 				}
 		}
 		
@@ -271,22 +308,25 @@ public class Phonology
 		
 		if (maxNucleusLength > 1)
 		{
-			nucleusLeadProminences   = new double[VowelProperty.values().length];
-			nucleusFollowProminences = new double[VowelProperty.values().length];
+			diphthongLeadProminences   = new double[VowelProperty.values().length];
+			diphthongFollowProminences = new double[VowelProperty.values().length];
 			
 			// Determine prominence for consonant categories as cluster leads
 			for (int i = 0; i < VowelProperty.values().length; i++)
 				if (vowelProminences[i] > 0)
 				{
-					nucleusLeadProminences[i]   = rng.nextGaussian() * nucleusLeadStdev   + 1;
-					nucleusFollowProminences[i] = rng.nextGaussian() * nucleusFollowStdev + 1;
+					diphthongLeadProminences[i]   = rng.nextGaussian() * nucleusLeadStdev   + 1;
+					diphthongFollowProminences[i] = rng.nextGaussian() * nucleusFollowStdev + 1;
 				}
 		}
 		
 		// Set inhibitors
 		// initial 'ng'
-		onsetNgInhibitor   = rng.nextGaussian() *   onsetNgInhibitorStdev +   onsetNgInhibitorMean;
-		onsetTlDlInhibitor = rng.nextGaussian() * onsetTlDlInhibitorStdev + onsetTlDlInhibitorMean;
+		onsetNgInhibitor   		 = Math.max(rng.nextGaussian() *   onsetNgInhibitorStdev +   onsetNgInhibitorMean, 0);
+		onsetTlDlInhibitor 		 = Math.max(rng.nextGaussian() * onsetTlDlInhibitorStdev + onsetTlDlInhibitorMean, 0);
+		nasalDissonanceInhibitor = Math.max(rng.nextGaussian() * nasalDissonanceInhibitorStdev + nasalDissonanceInhibitorMean, 0);
+		
+		System.out.println(nasalDissonanceInhibitor);
 	}
 	
 	// select which segments will be present in the language
@@ -318,7 +358,7 @@ public class Phonology
 		cInv = inv.toArray(new Phoneme[0]);
 		
 		// Mark categories represented by this language's inventory
-		consonantCategoriesRepresented = new boolean[Cluster.onsetCategories.size()];
+		consonantCategoriesRepresented = new boolean[Cluster.consonantCategories.size()];
 		consonantCategoriesRepresented[0] = true;
 		consonantCategoriesRepresented[consonantCategoriesRepresented.length - 1] = true;
 		
@@ -347,11 +387,11 @@ public class Phonology
 			}
 		}
 		
-		System.out.println();
+//		System.out.println();
 		vInv = inv.toArray(new Phoneme[inv.size()]);
 		
 		// Mark categories represented by this language's inventory
-		nucleusCategoriesRepresented = new boolean[Cluster.nucleusCategories.size()];
+		nucleusCategoriesRepresented = new boolean[Cluster.vowelCategories.size()];
 		nucleusCategoriesRepresented[0] = true;
 		nucleusCategoriesRepresented[nucleusCategoriesRepresented.length - 1] = true;
 		
@@ -411,125 +451,229 @@ public class Phonology
 		for ( ; onsets[maxOnsetLength - 1].size() == 0; maxOnsetLength--);
 		
 		// DEBUG: Print all possible onsets
-		for (int i = 0; i < maxOnsetLength; i++)
-		{
-			System.out.println("LENGTH " + (i + 1));
-			for (SyllableSegment ss : onsets[i])
-				System.out.printf("%s\t%.3f\n", ss, ss.prominence);
-			System.out.println();
-		}
-				
-		System.out.printf("Impediment: %.3f\n", onsetClusterInhibitor);
-		System.out.println("maxOnsetCluster: " + maxOnsetLength);
+//		for (int i = 0; i < maxOnsetLength; i++)
+//		{
+//			System.out.println("LENGTH " + (i + 1));
+//			for (SyllableSegment ss : onsets[i])
+//				System.out.printf("%s\t%.3f\n", ss, ss.prominence);
+//			System.out.println();
+//		}
+//				
+//		System.out.printf("Impediment: %.3f\n", onsetClusterInhibitor);
+//		System.out.println("maxOnsetCluster: " + maxOnsetLength);
 
 	}
 	
 	// Create the lists of all nuclei
-		public void makeNuclei()
-		{
-			// 1. Determine VALIDITY of transitions between different phonetic categories
-			int[][] transProb = Cluster.nucleusTransitions;
-			validNucleusTransitions = new boolean[transProb.length][transProb[0].length];
-			
-			// For more details on the math here, see makeOnsets()
-			double[] leadProbability = new double[transProb.length], followProbability = new double[transProb[0].length];
-			for (int i = 0; i < leadProbability.length; i++)
-				leadProbability[i] = rng.nextDouble();
-			for (int i = 0; i < followProbability.length; i++)
-				followProbability[i] = rng.nextDouble();
-			
-			for (int i = 0; i < transProb.length; i++)
-			{
-				if (nucleusCategoriesRepresented[i])
-					for (int j = 0; j < transProb[0].length; j++)
-						if (nucleusCategoriesRepresented[j] && transProb[i][j] > 0)
-						{
-							// Chance of representation ~= f(.7 x 15^(commonness - 3))
-							// 3 -> .808, 2 -> .109, 1 -> .011
-							double p = 0.4 * Math.pow(15, transProb[i][j] - 3);
-							
-							// Cluster bonus applies only to interconsonant transitions.
-							// Mainly, this prevents consonant clusters from forming in
-							// language whose prescribed structures do not allow them.
-	//						if (j > 0 && j < 17 && i != 0)
-	//							p *= clusterBonus;
-							
-							// No transition has more than a 90% chance of inclusion
-							p = Math.min(p, 0.9);
-							
-							if (leadProbability[i] * followProbability[j] < p)
-								validNucleusTransitions[i][j] = true; 
-						}
-			}
+	public void makeNuclei()
+	{
+		// 1. Determine VALIDITY of transitions between different phonetic categories
+		int[][] transProb = Cluster.nucleusTransitions;
+		validNucleusTransitions = new boolean[transProb.length][transProb[0].length];
 		
-			// Determine all nuclei
-			findAllNuclei();
-	
-			// Shrink maxNucleusCluster to hide empty categories
-			for ( ; nuclei[maxNucleusLength - 1].size() == 0; maxNucleusLength--);
-			
-			// DEBUG: Print all possible nuclei
-			for (int i = 0; i < maxNucleusLength; i++)
-			{
-				System.out.println("LENGTH " + (i + 1));
-				for (SyllableSegment ss : nuclei[i])
-					System.out.printf("%s\t%.3f\n", ss, ss.prominence);
-				System.out.println();
-			}
+		// For more details on the math here, see makeOnsets()
+		double[] leadProbability = new double[transProb.length], followProbability = new double[transProb[0].length];
+		for (int i = 0; i < leadProbability.length; i++)
+			leadProbability[i] = rng.nextDouble();
+		for (int i = 0; i < followProbability.length; i++)
+			followProbability[i] = rng.nextDouble();
+		
+		for (int i = 0; i < transProb.length; i++)
+		{
+			if (nucleusCategoriesRepresented[i])
+				for (int j = 0; j < transProb[0].length; j++)
+					if (nucleusCategoriesRepresented[j] && transProb[i][j] > 0)
+					{
+						// Chance of representation ~= f(.7 x 15^(commonness - 3))
+						// 3 -> .808, 2 -> .109, 1 -> .011
+						double p = 0.4 * Math.pow(15, transProb[i][j] - 3);
+						
+						// Cluster bonus applies only to interconsonant transitions.
+						// Mainly, this prevents consonant clusters from forming in
+						// language whose prescribed structures do not allow them.
+//						if (j > 0 && j < 17 && i != 0)
+//							p *= clusterBonus;
+						
+						// No transition has more than a 90% chance of inclusion
+						p = Math.min(p, 0.9);
+						
+						if (leadProbability[i] * followProbability[j] < p)
+							validNucleusTransitions[i][j] = true; 
+					}
 		}
+	
+		// Determine all nuclei
+		findAllNuclei();
+
+		// Shrink maxNucleusCluster to hide empty categories
+		for ( ; nuclei[maxNucleusLength - 1].size() == 0; maxNucleusLength--);
+		
+		// DEBUG: Print all possible nuclei
+//			for (int i = 0; i < maxNucleusLength; i++)
+//			{
+//				System.out.println("LENGTH " + (i + 1));
+//				for (SyllableSegment ss : nuclei[i])
+//					System.out.printf("%s\t%.3f\n", ss, ss.prominence);
+//				System.out.println();
+//			}
+	}
 
 	// Create the lists of all codas
-			public void makeCodas()
-			{
-				// 1. Determine VALIDITY of transitions between different phonetic categories
-				int[][] transProb = Cluster.codaTransitions;
-				validCodaTransitions = new boolean[transProb.length][transProb[0].length];
-				
-				// For notes on the math here, consult the corresponding method for syllable onsets
-				double[] leadProbability = new double[transProb.length], followProbability = new double[transProb[0].length];
-				for (int i = 0; i < leadProbability.length; i++)
-					leadProbability[i] = rng.nextDouble();
-				for (int i = 0; i < followProbability.length; i++)
-					followProbability[i] = rng.nextDouble();
-				
-				for (int i = 0; i < transProb.length; i++)
-				{
-					if (consonantCategoriesRepresented[i])
-						for (int j = 0; j < transProb[0].length; j++)
-							if (consonantCategoriesRepresented[j] && transProb[i][j] > 0)
-							{
-								// Chance of representation ~= f(.7 x 15^(commonness - 3))
-								// 3 -> .808, 2 -> .109, 1 -> .011
-								double p = 0.4 * Math.pow(15, transProb[i][j] - 3);
-								
-								// No transition has more than a 90% chance of inclusion
-								p = Math.min(p, 0.9);
-								
-								if (leadProbability[i] * followProbability[j] < p)
-									validCodaTransitions[i][j] = true; 
-							}
-				}
-			
-				// Determine all codas
-				findAllCodas();
+	public void makeCodas()
+	{
+		// 1. Determine VALIDITY of transitions between different phonetic categories
+		int[][] transProb = Cluster.codaTransitions;
+		validCodaTransitions = new boolean[transProb.length][transProb[0].length];
 		
-				// Shrink maxOnsetCluster to hide empty categories
-				for ( ; codas[maxCodaLength - 1].size() == 0; maxCodaLength--);
-				
-				// DEBUG: Print all possible onsets
-				for (int i = 0; i < maxCodaLength; i++)
-				{
-					System.out.println("LENGTH " + (i + 1));
-					for (SyllableSegment ss : codas[i])
-						System.out.printf("%s\t%.3f\n", ss, ss.prominence);
-					System.out.println();
-				}
+		// For notes on the math here, consult the corresponding method for syllable onsets
+		double[] leadProbability = new double[transProb.length], followProbability = new double[transProb[0].length];
+		for (int i = 0; i < leadProbability.length; i++)
+			leadProbability[i] = rng.nextDouble();
+		for (int i = 0; i < followProbability.length; i++)
+			followProbability[i] = rng.nextDouble();
+		
+		for (int i = 0; i < transProb.length; i++)
+		{
+			if (consonantCategoriesRepresented[i])
+				for (int j = 0; j < transProb[0].length; j++)
+					if (consonantCategoriesRepresented[j] && transProb[i][j] > 0)
+					{
+						// Chance of representation ~= f(.7 x 15^(commonness - 3))
+						// 3 -> .808, 2 -> .109, 1 -> .011
+						double p = 0.4 * Math.pow(15, transProb[i][j] - 3);
 						
-		//		System.out.printf("Impediment: %.3f\n", clusterImpediment);
-				System.out.println("maxCodaLength: " + maxCodaLength);
-		
-			}
+						// No transition has more than a 90% chance of inclusion
+						p = Math.min(p, 0.9);
+						
+						if (leadProbability[i] * followProbability[j] < p)
+							validCodaTransitions[i][j] = true; 
+					}
+		}
+	
+		// Determine all codas
+		findAllCodas();
 
+		// Shrink maxOnsetCluster to hide empty categories
+//		for ( ; codas[maxCodaLength - 1].size() == 0; maxCodaLength--);
+//		
+//		// DEBUG: Print all possible onsets
+//		for (int i = 0; i < maxCodaLength; i++)
+//		{
+//			System.out.println("LENGTH " + (i + 1));
+//			for (SyllableSegment ss : codas[i])
+//				System.out.printf("%s\t%.3f\n", ss, ss.prominence);
+//			System.out.println();
+//		}
+//				
+////		System.out.printf("Impediment: %.3f\n", clusterImpediment);
+//		System.out.println("maxCodaLength: " + maxCodaLength);
+
+	}
+	
+	// Create the lists of all interludes
+	public void makeInterludes()
+	{
+		for (int i = 0 ; i < codas.length; i++)
+		{
+			for (SyllableSegment coda : codas[i])
+			{
+				Phoneme p1 = coda.content[coda.content.length - 1];
+				for (int j = 0 ; j < onsets.length; j++)
+				{
+//					if (i + j + 2 <= maxInterludeLength)
+					for (SyllableSegment onset : onsets[j])
+					{
+						Phoneme p2 = onset.content[onset.content.length - 1];
+						
+						if (p1 != p2)
+						{
+							// Prominence for an interlude should be equal to 1 plus the sum of variances of:
+							// 1. the prominence of the coda
+							// 2. the interludeLeadProminence of the coda's last segment
+							// 3. the interludeFollowProminence of the onset's first segment
+							// 4. the prominence of the onset
+							
+							double prominence = coda.prominence + onset.prominence;
+							prominence += p1.interludeLeadProminence;
+							prominence += p2.interludeFollowProminence;
+							prominence -= 3;
+							
+							// Penalize nasal dissonance
+							if (isDissonantNasalCluster(p1, p2))
+							{
+								prominence -= nasalDissonanceInhibitor;
+							}
+							
+							if (prominence > 0)
+							{
+								Phoneme[] content = new Phoneme[coda.content.length + onset.content.length];
+								for (int m = 0; m < coda.content.length; m++)
+									content[m] = coda.content[m];
+								for (int m = 0; m < onset.content.length; m++)
+									content[m + coda.content.length] = onset.content[m];
+								
+								SyllableSegment interlude = new SyllableSegment(SegmentType.INTERLUDE, content, prominence);
+								interludes[i + j].add(interlude);
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		
+//		for ( ; interludes[maxInterludeLength - 1].size() == 0; maxInterludeLength--) System.out.println(maxInterludeLength);
+		
+		// DEBUG: Print all possible interludes
+		for (int i = 0; i < maxInterludeLength; i++)
+		{
+			System.out.println("LENGTH " + (i + 2));
+			for (SyllableSegment ss : interludes[i])
+				System.out.printf("%s\t%.3f\n", ss, ss.prominence);
+			System.out.println();
+		}
+
+	}
+	
+	public void countSyllableLengths()
+	{
+//		int terminalSimpleNuclei, terminalSimpleCodas, terminalComplexNuclei, terminalComplexCodas;
+		
+		// Count all simple and complex onsets, nuclei, and codas with positive prominence
+		for (int i = 0; i < onsets.length; i++)
+			for (SyllableSegment ss : onsets[i])
+				if (ss.prominence > 0)
+					if (i == 0)
+						simpleOnsets++;
+					else
+						complexOnsets++;
+		
+		for (int i = 0; i < nuclei.length; i++)
+			for (SyllableSegment ss : nuclei[i])
+				if (ss.prominence > 0)
+					if (i == 0)
+						simpleNuclei++;
+					else
+						complexNuclei++;
+		
+		for (int i = 0; i < codas.length; i++)
+			for (SyllableSegment ss : codas[i])
+				if (ss.prominence > 0)
+					if (i == 0)
+						simpleCodas++;
+					else
+						complexCodas++;
+		
+//		System.out.printf("Onsets:\t%d (%d simple, %d complex)\n", (simpleOnsets + complexOnsets), simpleOnsets, complexOnsets);
+//		System.out.printf("Nuclei:\t%d (%d simple, %d complex)\n", (simpleNuclei + complexNuclei), simpleNuclei, complexNuclei);
+//		System.out.printf("Codas:\t%d (%d simple, %d complex)\n", (simpleCodas + complexCodas), simpleCodas, complexCodas);
+	}
+	
+	public ArrayList<SyllableSegment>[] disturbOnsets (double mean, double stdev)
+	{
+		return null;
+	}
+	
 	private void findAllOnsets()
 	{
 		for (Phoneme p : cInv)
@@ -582,7 +726,7 @@ public class Phonology
 			if (validOnsetTransitions[ptCat][i])
 			{
 				// consider every member segment
-				for (int nextSound : Cluster.onsetCategories.get(i))
+				for (int nextSound : Cluster.consonantCategories.get(i))
 				{
 					// if this language has that segment, then add it to the list
 					for (int j = 0; j < cInv.length; j++)
@@ -644,7 +788,7 @@ public class Phonology
 			if (validNucleusTransitions[ptCat][i])
 			{
 				// consider every member segment
-				for (int nextSound : Cluster.nucleusCategories.get(i))
+				for (int nextSound : Cluster.vowelCategories.get(i))
 				{
 					// if this language has that segment, then add it to the list
 					for (int j = 0; j < vInv.length; j++)
@@ -677,6 +821,10 @@ public class Phonology
 	// start: the phonotactic category to start combing from
 	private void findAllCodas(ArrayList<Phoneme> coda, int start)
 	{
+		// do not allow codas beginning with a glide
+		if (coda.get(0).segment.properties[0].equals(ConsonantProperty.GLIDE))
+			return;
+		
 		double prominence = coda.get(0).codaInitialProminence;
 		
 		if (coda.size() > 1)
@@ -685,9 +833,16 @@ public class Phonology
 				// this combined prominence value doesn't need its component deviations to be scaled;
 				// it's fine (probably!) if more complex clusters have larger variances
 				prominence += coda.get(i).codaClusterLeadProminence + coda.get(i+1).codaClusterFollowProminence - 2 - codaClusterInhibitor;
+				
+				/* penalize for unassimilated nasal-plosive clusters
+				 */
+				if (isDissonantNasalCluster(coda.get(i), coda.get(i+1)))
+				{
+					prominence -= nasalDissonanceInhibitor;
+				}
 			}
 		
-		// Add the current onset to the onset inventory
+		// Add the current coda to the coda inventory
 		SyllableSegment seg = new SyllableSegment(SegmentType.CODA, coda.toArray(new Phoneme[coda.size()]), prominence);
 		codas[coda.size() - 1].add(seg);
 		
@@ -709,7 +864,7 @@ public class Phonology
 			if (validCodaTransitions[ptCat][i])
 			{
 				// consider every member segment
-				for (int nextSound : Cluster.onsetCategories.get(i))
+				for (int nextSound : Cluster.consonantCategories.get(i))
 				{
 					// if this language has that segment, then add it to the list
 					for (int j = 0; j < cInv.length; j++)
@@ -726,6 +881,20 @@ public class Phonology
 							findAllCodas(copy, start);
 							j = cInv.length;					
 		}	}	}	}	}
+	}
+	
+	private void findAllInterludes()
+	{
+		for (Phoneme p : cInv)
+		{
+			
+		}
+	}
+	
+	// start: the phonotactic category to start combing from
+	private void findAllInterludes(ArrayList<Phoneme> coda, int start)
+	{
+		
 	}
 
 	public void printInventory(ArrayList<SyllableSegment> baseList)
@@ -764,7 +933,43 @@ public class Phonology
 		System.out.println();
 	}
 	
+	static public void gatherStats(int total)
+	{
+		long startTime = System.nanoTime();
+		
+		for (int i = 0; i < total; i++)
+			new Phonology();
+		
+		long endTime = System.nanoTime();
+		double time = (endTime - startTime) / (total * 1000000);
+		
+		System.out.println("AVERAGE\tSIMPLE\tCOMPLEX");
+		System.out.println("ONSETS\t" + (simpleOnsets / total) + "\t" + (complexOnsets / total));
+		System.out.println("NUCLEI\t" + (simpleNuclei / total) + "\t" + (complexNuclei / total));
+		System.out.println("CODAS \t" + (simpleCodas  / total) + "\t" + (complexCodas  / total));
+		
+		System.out.println("Average time per language: " + time + "ms");
+	}
 	
+	/* Returns true if a nasal cluster has unharmonious voicing, i.e.,
+	 * 1.  the first segment is a NASAL, and either
+	 * 2a. the second segment is a plosive and its place of articulation differs from the first, OR
+	 * 2b. the second segment is postalveolar and the first is not nasal
+	 * */
+	public boolean isDissonantNasalCluster(Phoneme p1, Phoneme p2)
+	{
+		if (p1.segment.properties[0] == ConsonantProperty.NASAL &&
+				(	(p2.segment.properties[0] == ConsonantProperty.PLOSIVE &&
+					 p1.segment.properties[1] != p2.segment.properties[1]) || 
+					(p2.segment.properties[1] == ConsonantProperty.POSTALVEOLAR &&
+					 p1.segment.properties[1] != ConsonantProperty.ALVEOLAR)
+				)
+			   )
+			{
+				return true;
+			}
+		return false;
+	}
 	
 	public String toString(ArrayList<Phoneme> phrase)
 	{
@@ -787,13 +992,13 @@ public class Phonology
 		double onsetInitialProminence;
 		double onsetClusterLeadProminence;
 		double onsetClusterFollowProminence;
-		
 		double codaInitialProminence;
 		double codaClusterLeadProminence;
 		double codaClusterFollowProminence;
-		
 		double nucleusLeadProminence;
 		double nucleusFollowProminence;
+		double interludeLeadProminence;
+		double interludeFollowProminence;
 		
 		public Phoneme(Segment segment)
 		{
@@ -810,6 +1015,8 @@ public class Phonology
 				onsetClusterFollowProminence = 1;
 				codaClusterLeadProminence    = 1;
 				codaClusterFollowProminence  = 1;
+				interludeLeadProminence  	 = 1;
+				interludeFollowProminence 	 = 1;
 				
 				// Add inhibitors
 				if (segment.expression.equals("ng"))
@@ -872,11 +1079,24 @@ public class Phonology
 						codaClusterLeadProminence = 0;
 						codaClusterFollowProminence = 0;
 					}
+					
+					// interlude properties
+					if (maxInterludeLength >= 2)
+					{
+						deviance = interludeLeadProminences[s.ordinal()] - 1;
+						deviance /= Math.sqrt(segment.properties.length);
+						interludeLeadProminence += deviance;
+						
+						deviance = interludeFollowProminences[s.ordinal()] - 1;
+						deviance /= Math.sqrt(segment.properties.length);
+						interludeFollowProminence += deviance;
+					}
 				}
 				
-				System.out.printf("%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n", segment.expression,
-									onsetInitialProminence, onsetClusterLeadProminence, onsetClusterFollowProminence,
-									codaInitialProminence,  codaClusterLeadProminence,  codaClusterFollowProminence);
+				System.out.printf("%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n", segment.expression,
+									onsetInitialProminence,  onsetClusterLeadProminence, onsetClusterFollowProminence,
+									codaInitialProminence,   codaClusterLeadProminence,  codaClusterFollowProminence,
+									interludeLeadProminence, interludeFollowProminence);
 			}
 			
 			
@@ -897,11 +1117,11 @@ public class Phonology
 					
 					if (maxNucleusLength > 1)
 					{
-						deviance = nucleusLeadProminences[s.ordinal()] - 1;
+						deviance = diphthongLeadProminences[s.ordinal()] - 1;
 						deviance /= Math.sqrt(segment.properties.length);
 						nucleusLeadProminence += deviance;
 						
-						deviance = nucleusFollowProminences[s.ordinal()] - 1;
+						deviance = diphthongFollowProminences[s.ordinal()] - 1;
 						deviance /= Math.sqrt(segment.properties.length);
 						nucleusFollowProminence += deviance;
 					}
@@ -912,7 +1132,7 @@ public class Phonology
 					}
 				}
 				
-				System.out.printf("%s\t%.3f\t%.3f\t%.3f\n", segment.expression, onsetInitialProminence, nucleusLeadProminence, nucleusFollowProminence);
+//				System.out.printf("%s\t%.3f\t%.3f\t%.3f\n", segment.expression, onsetInitialProminence, nucleusLeadProminence, nucleusFollowProminence);
 			}
 			
 			
@@ -970,4 +1190,4 @@ class CountingHashtable<K, V> extends Hashtable<K, V>
 	}
 }
 
-enum SegmentType { ONSET, NUCLEUS, CODA; }
+enum SegmentType { ONSET, NUCLEUS, CODA, INTERLUDE; }

@@ -8,17 +8,17 @@ public class Cluster
 	
 	static int[][] onsetTransitions = new int[][]
 	{	//	0	1	2	3	4	5	6	7	8	9	10	11	13	14	15
-		{	0,	1,	1,	1,	1,	1,	1,	2,	2,	1,	0,	1,	1,	3,	3},	// 0. unvoiced unaspirated stops
+		{	0,	1,	1,	1,	1,	1,	1,	2,	1,	1,	0,	1,	1,	3,	3},	// 0. unvoiced unaspirated stops
 		{	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	0,	1,	1,	3,	3},	// 1. unvoiced aspirated stops
 		{	0,	0,	0,	1,	1,	1,	1,	1,	2,	2,	0,	1,	1,	3,	3},	// 2. voiced breathless stops
 		{	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	0,	1,	1,	3,	3},	// 3. voiced breathy stops
 		{	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	2,	2},	// 4. affricates
 		{	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	2,	2},	// 5. glottal stop
-		{	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	1,	1},	// 6. unvoiced nonsibilant fricatives
-		{	0,	0,	0,	0,	0,	0,	0,	0,	2,	1,	1,	2,	1,	3,	3},	// 7. unvoiced sibilant fricatives
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	3,	3},	// 8. voiced nonsibilant fricatives
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	3,	3},	// 9. voiced sibilant fricatives
-		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	2,	3},	// 10. glottal fricative
+		{	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	3,	3},	// 6. unvoiced nonsibilant fricatives
+		{	3,	2,	0,	0,	0,	0,	2,	0,	2,	1,	1,	2,	1,	3,	3},	// 7. unvoiced sibilant fricatives
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	2,	2},	// 8. voiced nonsibilant fricatives
+		{	0,	0,	2,	1,	0,	0,	0,	0,	1,	0,	1,	1,	1,	3,	3},	// 9. voiced sibilant fricatives
+		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	2,	2},	// 10. glottal fricative
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	2,	2},	// 11. voiced nasals
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2,	2},	// 12. unvoiced nasals
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2},	// 13. liquids
@@ -54,7 +54,7 @@ public class Cluster
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0}	// 14. glides
 	};
 	
-	static ArrayList<int[]> onsetCategories = new ArrayList<int[]>()
+	static ArrayList<int[]> consonantCategories = new ArrayList<int[]>()
 	{
 		{
 			add(new int[] {0, 1, 2, 3});		// 1. unvoiced unaspirated stops
@@ -75,7 +75,7 @@ public class Cluster
 		}
 	};
 	
-	static ArrayList<int[]> nucleusCategories = new ArrayList<int[]>()
+	static ArrayList<int[]> vowelCategories = new ArrayList<int[]>()
 	{
 		{
 			add(new int[] {0});				// 0. schwa
