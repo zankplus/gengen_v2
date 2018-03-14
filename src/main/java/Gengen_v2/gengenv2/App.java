@@ -8,7 +8,13 @@ public class App
 {
     public static void main( String[] args )
     {
-    	new Phonology();
+//    	new Phonology();
+    	StressSystem ss = new StressSystem();
+    	System.out.println(ss);
+//    	for (int i = 0; i < 50; i++)
+//			ss.makePattern();
+    	
+    	
 //    	Phonology.gatherStats(10000);
     	
 //    	for (int i = 0; i < Cluster.consonantCategories.size(); i++)

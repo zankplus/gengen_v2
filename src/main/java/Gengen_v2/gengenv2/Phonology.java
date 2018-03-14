@@ -25,6 +25,9 @@ public class Phonology
 	ArrayList<SyllableSegment>[] onsets, nuclei, codas;		// inventories of different syllable segment types
 	ArrayList<SyllableSegment>[][] interludes;
 	
+	double[] onsetClusterLengthProbabilities;
+	double[] codaClusterLengthProbabilities;
+	
 	// Phonotactic properties
 	int maxOnsetLength, maxNucleusLength, maxCodaLength, maxInterludeLength, clusterBonus;
 	private boolean[] consonantCategoriesRepresented;
@@ -94,6 +97,7 @@ public class Phonology
 	
 	// statistics data
 	int[] data;
+
 	static final int SIMPLE_ONSETS	= 0;
 	static final int COMPLEX_ONSETS	= 1;
 	static final int SIMPLE_NUCLEI	= 2;
@@ -133,12 +137,13 @@ public class Phonology
 //		for (int i = 0; i < maxNucleusLength; i++ )
 //			printInventory(nuclei[i]);
 		
-//		data = countSyllableLengths();
-//		removeUnusedSyllableSegments();
-//		normalizeProminenceValues();
-//		Flowchart f = new Flowchart(this);
-		
+		data = countSyllableLengths();
+		removeUnusedSyllableSegments();
+		normalizeProminenceValues();
 		setClusterChances();
+		
+//		for (int i = 0; i < 100; i++)
+//			new Flowchart(this);
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -806,11 +811,11 @@ public class Phonology
 	// x is scaled by the log of the number of items in it and then its proportion of the total is deducted
 	public void setClusterChances()
 	{
-		double[] odds = new double[maxOnsetLength - 1];
+		onsetClusterLengthProbabilities = new double[maxOnsetLength - 1];
 		double[] baseOdds = new double[maxOnsetLength - 1];
 		
 		if (maxOnsetLength == 2)
-			odds[0] = 1;
+			onsetClusterLengthProbabilities[0] = 1;
 		else
 		{
 			for (int i = 0; i < maxOnsetLength - 2; i++)
@@ -827,25 +832,25 @@ public class Phonology
 				// Proportion of all complex onsets of this length or longer
 				double remainingProportion = 1;
 				for (int j = 0; j < i; j++)
-					remainingProportion -= odds[j];
+					remainingProportion -= onsetClusterLengthProbabilities[j];
 				
-				odds[i] = base * remainingProportion;
+				onsetClusterLengthProbabilities[i] = base * remainingProportion;
 			}
 			
 			double remainingProportion = 1;
-			for (int j = 0; j < odds.length - 1; j++)
-				remainingProportion -= odds[j];
+			for (int j = 0; j < onsetClusterLengthProbabilities.length - 1; j++)
+				remainingProportion -= onsetClusterLengthProbabilities[j];
 			
 			// Basically the complement to all previous odds
-			odds[odds.length - 1] = (1 - baseOdds[odds.length - 2]) * remainingProportion;
+			onsetClusterLengthProbabilities[onsetClusterLengthProbabilities.length - 1] = (1 - baseOdds[onsetClusterLengthProbabilities.length - 2]) * remainingProportion;
 		}
 		
 		
-		for(int i = 0; i < odds.length; i ++)
-			System.out.println(odds[i]);
+		for(int i = 0; i < onsetClusterLengthProbabilities.length; i ++)
+			System.out.println(onsetClusterLengthProbabilities[i]);
 		
 		double total = 0;
-		for (double o : odds)
+		for (double o : onsetClusterLengthProbabilities)
 			total += o;
 		System.out.println("total\t" + total);
 	}
@@ -853,38 +858,39 @@ public class Phonology
 	// The math here is simple. Having normalized them already, the prominence values of every inventory list sum to 1.
 	// We generate a random number between 1 and 0 and subtract prominence values in order (the  lists are sorted largest
 	// to smallest) until we reach a number lower than 0. The syllable segment whose prominence value took us over the edge
-	// is returned. The same logic applies to all these 'get' methods.
-	public SyllableSegment getSimpleOnset()
+	// is returned.
+	public SyllableSegment pickSyllableSegment(ArrayList<SyllableSegment> inventory)
 	{
 		double rand = rng.nextDouble();
-		for (int i = 0; rand > 0; i++)
+		for (SyllableSegment ss : inventory)
 		{
-			if (rand < onsets[0].get(i).prominence)
-				return onsets[0].get(i);
+			if (rand < ss.prominence)
+				return ss;
 			else
-				rand -= onsets[0].get(i).prominence;
+				rand -= ss.prominence;
 		}
+		
+		System.err.println("Failed to select syllable segment; were the inventory's prominence values not normalized?");
+		System.exit(0);
 		
 		return null;
 	}
 	
-	//TODO
-	public SyllableSegment getComplexOnset()
+	// Note that this function doesn't return an actual length value but the index (>= 1) of the onsets[] or codas[] array
+	// corresponding to the appropriate index of the onsetProbabilities[] array 
+	public int pickClusterLength(double[] clusterLengthProbabilities)
 	{
-		int length = 2;
-		
-		boolean loop = true;
-		while (loop)
+		// Select length of onset
+		double rand = rng.nextDouble();
+		for (int i = 0 ; i < clusterLengthProbabilities.length; i++)
 		{
-			if (length == maxOnsetLength)
-				loop = false;
+			if (rand < clusterLengthProbabilities[i])
+				return i + 1;
 			else
-			{
-//				currentLengthProminence = Math.log(onsets[length - 1].size() = 
-			}
+				rand -= clusterLengthProbabilities[i];
 		}
 		
-		return null;
+		return -1;
 	}
 	
 	private void findAllOnsets()
