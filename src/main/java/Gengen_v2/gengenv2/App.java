@@ -8,11 +8,9 @@ public class App
 {
     public static void main( String[] args )
     {
-//    	new Phonology();
-    	StressSystem ss = new StressSystem();
-    	System.out.println(ss);
-//    	for (int i = 0; i < 50; i++)
-//			ss.makePattern();
+    	new Phonology();
+//    	StressSystem ss = new StressSystem();
+//    	System.out.println(ss);
     	
     	
 //    	Phonology.gatherStats(10000);

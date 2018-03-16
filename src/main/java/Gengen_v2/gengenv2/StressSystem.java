@@ -12,6 +12,7 @@ public class StressSystem
 	FootDirection footDirection;
 	PrimaryStress primaryStress;
 	QuantitySensitivity quantitySensitivity;
+	boolean allowAdjacentStresses;
 	double[] metricalSyllableChances;
 	double[] extrametricalSyllableChances;
 	
@@ -35,7 +36,7 @@ public class StressSystem
 	
 	public StressSystem()
 	{
-		rng = new Random(23423);
+		rng = new Random();
 		
 		// Set foot dominance
 		rhythm = Rhythm.values()[rng.nextInt(Rhythm.values().length)];
@@ -49,6 +50,11 @@ public class StressSystem
 		// Set quantity senstivity
 		quantitySensitivity = QuantitySensitivity.values()[rng.nextInt(QuantitySensitivity.values().length)];
 		
+		// Set stress adjacency
+		if (rng.nextDouble() < 0.25)
+			allowAdjacentStresses = false;
+		allowAdjacentStresses = true;
+		
 		// Set metrical syllable chances
 		// These 5 values correspond to the chances of a word having 1-5 metrical syllables.
 		// Odd values (even indices) represent 0, 1 or 2 full feet plus one degenerate feet.
@@ -58,10 +64,11 @@ public class StressSystem
 		// Note that mathematically, degenerateFootChance isn't actually the TRUE chance of a degenerate foot
 		// appearing in a syllable; they are in reality relatively overrepresented, because 0 full + 0 degenerate
 		// foot words are excluded from appearing. TODO: You might fix this.
-		double degenerateFootChance	= rng.nextGaussian() * degenerateFootChanceStdev + degenerateFootChanceMean;
-		double zeroFootProminence	= rng.nextGaussian() * zeroFootProminenceStdev + zeroFootProminenceMean;
+		double degenerateFootChance	= Math.max(rng.nextGaussian() * degenerateFootChanceStdev + degenerateFootChanceMean, 0);
+		degenerateFootChance = Math.min(degenerateFootChance, 1);
+		double zeroFootProminence	= Math.max(rng.nextGaussian() * zeroFootProminenceStdev + zeroFootProminenceMean, 0);
 		// Note also that the "one foot prominence" value is implicitly 1.
-		double twoFootProminence	= rng.nextGaussian() * twoFootProminenceStdev + twoFootProminenceMean;
+		double twoFootProminence	= Math.max(rng.nextGaussian() * twoFootProminenceStdev + twoFootProminenceMean, 0);
 		
 		// 1: 0 full + 1 degenerate
 		metricalSyllableChances[0] = zeroFootProminence * degenerateFootChance;
@@ -85,6 +92,7 @@ public class StressSystem
 				total += metricalSyllableChances[i];
 		for (int i = 0; i < metricalSyllableChances.length; i++)
 			metricalSyllableChances[i] = metricalSyllableChances[i] / total;
+		
 		
 		// Set extrametrical syllable chances
 		extrametricalSyllableChances = new double[6];
@@ -125,7 +133,7 @@ public class StressSystem
 			}
 	}
 	
-	public void makePattern()
+	public String makePattern()
 	{
 		// Determine metrical syllables
 		double rand = rng.nextDouble();
@@ -140,7 +148,7 @@ public class StressSystem
 		int degenerateFeet = syllables % 2;
 		int fullFeet = (syllables - degenerateFeet) / 2;
 		
-		char[] fullFoot, degenerateFoot;
+		char[] fullFoot;
 		
 		if (rhythm == Rhythm.TROCHAIC)
 			fullFoot = new char[] {'S', 'w'};
@@ -164,17 +172,15 @@ public class StressSystem
 			extra[0] = (rng.nextDouble() < extrametricalSyllableChances[0]);
 		}
 		
-		
-		
 		String result = "";
 		
 		// Deal with full feet
 		for (int i = 0; i < fullFeet; i++)
 		{
 			String nextFoot;
-			nextFoot = "(" + fullFoot[0] + " " + fullFoot[1] + ") ";
+			nextFoot = fullFoot[0] + "" + fullFoot[1];
 			if (extra[i])
-				nextFoot += "w ";
+				nextFoot += "x";
 			if (footDirection == FootDirection.LEFT_TO_RIGHT)
 				result = result + nextFoot;
 			else
@@ -186,20 +192,20 @@ public class StressSystem
 		{
 			String nextFoot = "";
 			if (extra[fullFeet])
-				nextFoot += "w ";
+				nextFoot += "x";
 			if (footDirection == FootDirection.LEFT_TO_RIGHT)
 			{
-				nextFoot = "(" + fullFoot[0] + ") " + nextFoot;
+				nextFoot = fullFoot[0] + "" + nextFoot;
 				result = result + nextFoot;
 			}
 			else
 			{
-				nextFoot = "(" + fullFoot[1] + ") " + nextFoot;
+				nextFoot = fullFoot[1] + "" + nextFoot;
 				result = nextFoot + result;
 			}
 		}
 		
-		System.out.println(result);
+		return result;
 	}
 	
 	public String toString()

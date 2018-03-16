@@ -72,6 +72,9 @@ public class Phonology
 	static double initialOnsetClusterProminenceMean	 = 0.2;
 	static double initialOnsetClusterProminenceStdev = 0.1;
 	
+	static double emptyTerminalCodaProminenceMean = 0.5;
+	static double emptyTerminalCodaProminenceStdev = 0.5;
+	
 	static double minimumOnsetClusterProminence   = 0.04; // minimum value for onsetClusterProminence 
 	static double minimumNucleusClusterProminence = 0.04; // " " " diphthongProminence
 	static double minimumCodaClusterProminence 	 = 0.04; // " " " codaClusterProminence
@@ -125,9 +128,9 @@ public class Phonology
 		if (maxCodaLength > 0)
 		{
 			makeCodas();
-			makeInterludes();
 		}
 		
+		setWeightPreferences();
 		
 //		System.out.println();
 //		for (int i = 0; i < maxOnsetLength; i++ )
@@ -138,8 +141,6 @@ public class Phonology
 //			printInventory(nuclei[i]);
 		
 		data = countSyllableLengths();
-		removeUnusedSyllableSegments();
-		normalizeProminenceValues();
 		setClusterChances();
 		
 //		for (int i = 0; i < 100; i++)
@@ -494,9 +495,33 @@ public class Phonology
 		// Determine all onsets
 		findAllOnsets();
 
+		// Remove any unused onsets
+		for (ArrayList<SyllableSegment> list : onsets)
+			for (int i = 0; i < list.size(); i++)
+				if (list.get(i).prominence < 0)
+				{
+					list.remove(i);
+					i--;
+				}
+		
 		// Shrink maxOnsetCluster to hide empty categories
 		for ( ; onsets[maxOnsetLength - 1].size() == 0; maxOnsetLength--);
 		
+		// Normalize onset values
+		for (int i = 0; i < maxOnsetLength; i++)
+		{
+			double total = 0;
+			for (SyllableSegment onset : onsets[i])
+				if (onset.prominence > 0)
+					total += onset.prominence;
+			
+			for (SyllableSegment onset : onsets[i])
+				onset.prominence = onset.prominence / total;
+			
+			Collections.sort(onsets[i]);
+			Collections.reverse(onsets[i]);
+		}
+
 		// DEBUG: Print all possible onsets
 //		for (int i = 0; i < maxOnsetLength; i++)
 //		{
@@ -552,8 +577,32 @@ public class Phonology
 		// Determine all nuclei
 		findAllNuclei();
 
+		// Removed any unused nuclei
+		for (ArrayList<SyllableSegment> list : nuclei)
+			for (int i = 0; i < list.size(); i++)
+				if (list.get(i).prominence < 0)
+				{
+					list.remove(i);
+					i--;
+				}
+		
 		// Shrink maxNucleusCluster to hide empty categories
 		for ( ; nuclei[maxNucleusLength - 1].size() == 0; maxNucleusLength--);
+		
+		// Normalize nucleus values
+		for (int i = 0; i < maxNucleusLength; i++)
+		{
+			double total = 0;
+			for (SyllableSegment nucleus : nuclei[i])
+				if (nucleus.prominence > 0)
+					total += nucleus.prominence;
+			
+			for (SyllableSegment nucleus : nuclei[i])
+				nucleus.prominence = nucleus.prominence / total;
+			
+			Collections.sort(nuclei[i]);
+			Collections.reverse(nuclei[i]);
+		}
 		
 		// DEBUG: Print all possible nuclei
 //			for (int i = 0; i < maxNucleusLength; i++)
@@ -600,118 +649,6 @@ public class Phonology
 		// Determine all codas
 		findAllCodas();
 
-		// Shrink maxOnsetCluster to hide empty categories
-//		for ( ; codas[maxCodaLength - 1].size() == 0; maxCodaLength--);
-//		
-//		// DEBUG: Print all possible onsets
-//		for (int i = 0; i < maxCodaLength; i++)
-//		{
-//			System.out.println("LENGTH " + (i + 1));
-//			for (SyllableSegment ss : codas[i])
-//				System.out.printf("%s\t%.3f\n", ss, ss.prominence);
-//			System.out.println();
-//		}
-//				
-////		System.out.printf("Impediment: %.3f\n", clusterImpediment);
-//		System.out.println("maxCodaLength: " + maxCodaLength);
-
-	}
-	
-	// Create the lists of all interludes
-	public void makeInterludes()
-	{
-		for (int i = 0 ; i < codas.length; i++)
-		{
-			for (SyllableSegment coda : codas[i])
-			{
-				Phoneme p1 = coda.content[coda.content.length - 1];
-				for (int j = 0 ; j < onsets.length; j++)
-				{
-					if (i + j + 2 <= maxInterludeLength)
-					for (SyllableSegment onset : onsets[j])
-					{
-						Phoneme p2 = onset.content[0];
-						
-						if (p1 != p2)
-						{
-							// Base prrominence for an interlude should be equal to 1 plus the sum of variances of:
-							// 1. the prominence of the coda
-							// 2. the interludeLeadProminence of the coda's last segment
-							// 3. the interludeFollowProminence of the onset's first segment
-							// 4. the prominence of the onset
-							// Some inhibitors apply.
-							
-							double prominence = coda.prominence + onset.prominence;
-							prominence += p1.interludeLeadProminence;
-							prominence += p2.interludeFollowProminence;
-							prominence -= 3;
-							
-							// Penalize unequal voicing
-							if (isUnequalVoicing(p1, p2))
-								prominence -= unequalVoicingInhibitor;
-							
-							// Penalize nasal dissonance
-							if (isDissonantNasalCluster(p1, p2))
-							{
-								prominence -= nasalDissonanceInhibitor;
-							}
-							
-							if (prominence > 0)
-							{
-								// Combine content of both phonemes into a single one
-								Phoneme[] content = new Phoneme[coda.content.length + onset.content.length];
-								for (int m = 0; m < coda.content.length; m++)
-									content[m] = coda.content[m];
-								for (int m = 0; m < onset.content.length; m++)
-									content[m + coda.content.length] = onset.content[m];
-								
-								// Add
-								SyllableSegment interlude = new SyllableSegment(SegmentType.INTERLUDE, content, prominence);
-								interludes[i][j].add(interlude);								
-							}
-						}
-					}
-				}
-			}
-		}
-		
-		
-//		for ( ; interludes[maxInterludeLength - 1].size() == 0; maxInterludeLength--) ;
-//		
-//		// DEBUG: Print all possible interludes
-//		for (int i = 0; i < maxInterludeLength; i++)
-//		{
-//			System.out.println("LENGTH " + (i + 2));
-//			for (SyllableSegment ss : interludes[i])
-//				System.out.printf("%s\t%.3f\n", ss, ss.prominence);
-//			System.out.println();
-//		}
-
-	}
-	
-	// Removes any syllable segment from any inventory with less than 0 prominence.
-	// This can only happen after makeInterludes() has run, as interludes might, on occasion,
-	// include onsets or codas unused in their native inventories.
-	public void removeUnusedSyllableSegments()
-	{
-		// Remove unused onsets
-		for (ArrayList<SyllableSegment> list : onsets)
-			for (int i = 0; i < list.size(); i++)
-				if (list.get(i).prominence < 0)
-				{
-					list.remove(i);
-					i--;
-				}
-		
-		// Removed unused nuclei
-		for (ArrayList<SyllableSegment> list : nuclei)
-			for (int i = 0; i < list.size(); i++)
-				if (list.get(i).prominence < 0)
-				{
-					list.remove(i);
-					i--;
-				}
-		
 		// Remove unused codas
 		for (ArrayList<SyllableSegment> list : codas)
 			for (int i = 0; i < list.size(); i++)
@@ -720,41 +657,9 @@ public class Phonology
 					list.remove(i);
 					i--;
 				}
-	}
-	
-	// Like the above method, this can only be run after interlude creation has finished, as the interlude creation
-	// process consults the unnormalized onset and coda prominence values
-	public void normalizeProminenceValues()
-	{
-		// Normalize onset values
-		for (int i = 0; i < maxOnsetLength; i++)
-		{
-			double total = 0;
-			for (SyllableSegment onset : onsets[i])
-				if (onset.prominence > 0)
-					total += onset.prominence;
-			
-			for (SyllableSegment onset : onsets[i])
-				onset.prominence = onset.prominence / total;
-			
-			Collections.sort(onsets[i]);
-			Collections.reverse(onsets[i]);
-		}
 		
-		// Normalize nucleus values
-		for (int i = 0; i < maxNucleusLength; i++)
-		{
-			double total = 0;
-			for (SyllableSegment nucleus : nuclei[i])
-				if (nucleus.prominence > 0)
-					total += nucleus.prominence;
-			
-			for (SyllableSegment nucleus : nuclei[i])
-				nucleus.prominence = nucleus.prominence / total;
-			
-			Collections.sort(nuclei[i]);
-			Collections.reverse(nuclei[i]);
-		}
+		// Shrink maxOnsetCluster to hide empty categories
+		for ( ; codas[maxCodaLength - 1].size() == 0; maxCodaLength--);
 		
 		// Normalize coda values
 		for (int i = 0; i < maxCodaLength; i++)
@@ -770,7 +675,22 @@ public class Phonology
 			Collections.sort(codas[i]);
 			Collections.reverse(codas[i]);
 		}
+		
+//		
+//		// DEBUG: Print all possible onsets
+//		for (int i = 0; i < maxCodaLength; i++)
+//		{
+//			System.out.println("LENGTH " + (i + 1));
+//			for (SyllableSegment ss : codas[i])
+//				System.out.printf("%s\t%.3f\n", ss, ss.prominence);
+//			System.out.println();
+//		}
+//				
+////		System.out.printf("Impediment: %.3f\n", clusterImpediment);
+//		System.out.println("maxCodaLength: " + maxCodaLength);
+
 	}
+	
 	public int[] countSyllableLengths()
 	{
 		int[] results = new int[6];
@@ -853,6 +773,72 @@ public class Phonology
 		for (double o : onsetClusterLengthProbabilities)
 			total += o;
 		System.out.println("total\t" + total);
+		
+		
+		// Repeat the process for codas
+		codaClusterLengthProbabilities = new double[maxCodaLength - 1];
+		baseOdds = new double[maxCodaLength - 1];
+		
+		if (maxCodaLength == 2)
+			codaClusterLengthProbabilities[0] = 1;
+		else
+		{
+			for (int i = 0; i < maxCodaLength - 2; i++)
+			{
+				// Number of codas of greater length than this one
+				int remainingTotal = 0;
+				for (int j = i + 2; j < maxCodaLength; j++)
+					remainingTotal += codas[j].size();
+				
+				// Proportion of codas of this length relative to those of greater (out of 1)
+				double base = Math.log(codas[i+1].size() + 1) /
+							  Math.log((codas[i+1].size() + 1) * (Math.pow(remainingTotal + 1, codaClusterProminence)));
+				
+				// Proportion of all complex onsets of this length or longer
+				double remainingProportion = 1;
+				for (int j = 0; j < i; j++)
+					remainingProportion -= codaClusterLengthProbabilities[j];
+				
+				codaClusterLengthProbabilities[i] = base * remainingProportion;
+			}
+			
+			double remainingProportion = 1;
+			for (int j = 0; j < codaClusterLengthProbabilities.length - 1; j++)
+				remainingProportion -= codaClusterLengthProbabilities[j];
+			
+			// Basically the complement to all previous odds
+			codaClusterLengthProbabilities[codaClusterLengthProbabilities.length - 1] = (1 - baseOdds[codaClusterLengthProbabilities.length - 2]) * remainingProportion;
+		}
+		
+		
+		for(int i = 0; i < codaClusterLengthProbabilities.length; i ++)
+			System.out.println(codaClusterLengthProbabilities[i]);
+		
+		total = 0;
+		for (double o : codaClusterLengthProbabilities)
+			total += o;
+		System.out.println("total\t" + total);
+	}
+	
+	public void setWeightPreferences()
+	{
+		double heavyStrongSyllableChance;
+		double heavyWeakSyllableChance;
+		double heavyExtrametricalSyllableChance;
+		
+		double finalHeavyStrongSyllableChance;
+		double finalHeavyWeakSyllableChance;
+		double finalHeavyExtrametricalSyllableChance;
+		
+		double heavyStrongSyllableProminenceMean = 2.0/3;
+		double heavyStrongsyllableProminenceStdev = 1.0/3;
+		double lightStrongSyllableProminenceMean = 1.0/3;
+		double lightStrongSyllableProminenceStdev = 1.0/6;
+		
+		// scale prominence by log of the number of possible long syllables
+		double heavyStrongSyllableProminence = (SIMPLE_NUCLEI + COMPLEX_ONSETS);
+		
+		
 	}
 	
 	// The math here is simple. Having normalized them already, the prominence values of every inventory list sum to 1.
@@ -1100,20 +1086,6 @@ public class Phonology
 							findAllCodas(copy, start);
 							j = cInv.length;					
 		}	}	}	}	}
-	}
-	
-	private void findAllInterludes()
-	{
-		for (Phoneme p : cInv)
-		{
-			
-		}
-	}
-	
-	// start: the phonotactic category to start combing from
-	private void findAllInterludes(ArrayList<Phoneme> coda, int start)
-	{
-		
 	}
 
 	public void printInventory(ArrayList<SyllableSegment> baseList)
