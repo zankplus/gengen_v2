@@ -98,6 +98,8 @@ public class Phonology
 	static double unequalVoicingInhibitorMean = 1.25;
 	static double unequalVoicingInhibitorStdev = 0.5;
 	
+	static double hiatusBonusStdev = 0.2;
+	
 	// statistics data
 	int[] data;
 
@@ -115,7 +117,7 @@ public class Phonology
 		long seed = rng.nextLong();
 		
 		// TODO: debug value for 4-length onset clusters
-		seed = 3460348928036823746L;
+//		seed = 3460348928036823746L;
 		
 		System.out.println("Seed: " + seed);
 		rng.setSeed(seed);
@@ -123,15 +125,23 @@ public class Phonology
 		makeBasicSyllableStructure();
 		determineProminence();
 		selectSegments();
-		makeOnsets();
+//		makeOnsets();
+		
 		makeNuclei();
-		if (maxCodaLength > 0)
-		{
-			makeCodas();
-		}
+		makeHiatus();
 		
-		setWeightPreferences();
 		
+//		if (maxCodaLength > 0)
+//		{
+//			makeCodas();
+//			makeInterludes();
+//		}
+		
+		
+		
+//		setWeightPreferences();
+		
+//		Print inventories
 //		System.out.println();
 //		for (int i = 0; i < maxOnsetLength; i++ )
 //			printInventory(onsets[i]);
@@ -140,8 +150,8 @@ public class Phonology
 //		for (int i = 0; i < maxNucleusLength; i++ )
 //			printInventory(nuclei[i]);
 		
-		data = countSyllableLengths();
-		setClusterChances();
+//		data = countSyllableLengths();
+//		setClusterChances();
 		
 //		for (int i = 0; i < 100; i++)
 //			new Flowchart(this);
@@ -213,7 +223,7 @@ public class Phonology
 	
 		
 		// TODO: debug value
-		maxCodaLength = 2;
+		maxCodaLength = 3;
 		
 		// Initialize coda arrays
 		codas = new ArrayList[maxCodaLength];
@@ -474,8 +484,8 @@ public class Phonology
 				for (int j = 0; j < transProb[0].length; j++)
 					if (consonantCategoriesRepresented[j] && transProb[i][j] > 0)
 					{
-						// Chance of representation ~= f(.7 x 15^(commonness - 3))
-						// 3 -> .808, 2 -> .109, 1 -> .011
+						// Chance of representation ~= f(.4 x 15^(commonness - 3))
+						// 3 -> .559, 2 -> .069, 1 -> .007
 						double p = 0.4 * Math.pow(15, transProb[i][j] - 3);
 						
 						// Cluster bonus applies only to interconsonant transitions.
@@ -567,16 +577,24 @@ public class Phonology
 //							p *= clusterBonus;
 						
 						// No transition has more than a 90% chance of inclusion
-						p = Math.min(p, 0.9);
+//						p = Math.min(p, 0.9);
 						
 						if (leadProbability[i] * followProbability[j] < p)
 							validNucleusTransitions[i][j] = true; 
 					}
 		}
-	
+		
 		// Determine all nuclei
 		findAllNuclei();
 
+		// Remove vowel lengthener from simple nuclei
+		for (int i = 0; i < nuclei[0].size(); i++)
+			if (nuclei[0].get(i).content[0].segment.expression.equals(":"))	
+			{
+				nuclei[0].remove(i);
+				System.out.println("Removed lengthener from simple nuclei");
+			}
+		
 		// Removed any unused nuclei
 		for (ArrayList<SyllableSegment> list : nuclei)
 			for (int i = 0; i < list.size(); i++)
@@ -689,6 +707,50 @@ public class Phonology
 ////		System.out.printf("Impediment: %.3f\n", clusterImpediment);
 //		System.out.println("maxCodaLength: " + maxCodaLength);
 
+	}
+	
+	public void makeInterludes()
+	{
+		
+	}
+	
+	// Decides what nucleus-nucleus transitions are allowed in the case of an empty interlude
+	public void makeHiatus()
+	{
+		double hiatusBonus = rng.nextGaussian() * hiatusBonusStdev;
+		
+		int[][] transProb = Cluster.hiatusTransitions;
+
+		// Same principle as in makeOnsets(), etc.
+		// -1 to count ignores the 'lengthener' segment
+		double[] leadProbability = new double[Vowel.count - 1], followProbability = new double[Vowel.count - 1];
+		for (int i = 0; i < leadProbability.length; i++)
+			leadProbability[i] = rng.nextDouble();
+		for (int i = 0; i < followProbability.length; i++)
+			followProbability[i] = rng.nextDouble();
+		
+		for (int i = 0; i < nuclei[0].size(); i++)
+		{
+			Phoneme p1 = nuclei[0].get(i).content[0];
+			for (int j = 0; j < nuclei[0].size(); j++)
+			{
+				Phoneme p2 = nuclei[0].get(j).content[0];
+				
+				// Chance of representation ~= f(.3 x 4^(commonness - 3))
+				// 3 -> .446, 2 -> .155, 1 -> .050
+				double probability = 0.3 * Math.pow(4, transProb[p1.segment.id][p2.segment.id] - 3) + hiatusBonus;
+				
+				System.out.printf("%s%s %.3f vs. %.3f [%.3f * %.3f]\t", p1.segment.expression, p2.segment.expression,
+						probability, (leadProbability[p1.segment.id] * followProbability[p2.segment.id]),
+						leadProbability[p1.segment.id], followProbability[p2.segment.id]);
+				
+				if (leadProbability[p1.segment.id] * followProbability[p2.segment.id] < probability)
+					p1.addInterlude(p2);
+				
+				System.out.println();
+			}
+		}
+		System.out.println("Hiatus bonus: " +  hiatusBonus);
 	}
 	
 	public int[] countSyllableLengths()
@@ -1199,9 +1261,11 @@ public class Phonology
 	}
 
 	class Phoneme
-
 	{
 		Segment segment;
+		
+		ArrayList<Follower> interludes;	// for vowels, the interlude field serve to describe hiatus
+		double interludeTotal;
 		
 		double onsetInitialProminence;
 		double onsetClusterLeadProminence;
@@ -1211,16 +1275,18 @@ public class Phonology
 		double codaClusterFollowProminence;
 		double nucleusLeadProminence;
 		double nucleusFollowProminence;
-		double interludeLeadProminence;
+		double interludeLeadProminence;		
 		double interludeFollowProminence;
 		
 		public Phoneme(Segment segment)
 		{
+			this.segment = segment;
+			interludes = new ArrayList<Follower>();
+			interludeTotal = 0;
+			
 			// Consonant case
 			if (segment.isConsonant())
-			{
-				this.segment = segment;
-				
+			{				
 				onsetInitialProminence       = 1;
 				codaInitialProminence		 = 1;
 				onsetClusterLeadProminence   = 1;
@@ -1272,11 +1338,6 @@ public class Phonology
 						deviance /= Math.sqrt(segment.properties.length);
 						onsetClusterFollowProminence += deviance;
 					}
-					else
-					{
-						onsetClusterLeadProminence = 0;
-						onsetClusterFollowProminence = 0;
-					}
 					
 					// coda cluster properties
 					if (maxCodaLength > 1)
@@ -1288,16 +1349,7 @@ public class Phonology
 						deviance = codaClusterFollowProminences[s.ordinal()] - 1;
 						deviance /= Math.sqrt(segment.properties.length);
 						codaClusterFollowProminence += deviance;
-					}
-					else
-					{
-						codaClusterLeadProminence = 0;
-						codaClusterFollowProminence = 0;
-					}
-					
-					// interlude properties
-					if (maxInterludeLength >= 2)
-					{
+						
 						deviance = interludeLeadProminences[s.ordinal()] - 1;
 						deviance /= Math.sqrt(segment.properties.length);
 						interludeLeadProminence += deviance;
@@ -1318,17 +1370,26 @@ public class Phonology
 			// Vowel case
 			else
 			{
-				this.segment = segment;
 				
-				onsetInitialProminence = 1;
-				nucleusLeadProminence = 1;
-				nucleusFollowProminence = 1;
+				onsetInitialProminence		= 1;	// this functions as the nucleus initial prominence here
+				nucleusLeadProminence 		= 1;
+				nucleusFollowProminence 	= 1;
+				interludeLeadProminence  	= 1;
+				interludeFollowProminence 	= 1;
 				
 				for (VowelProperty s : ((Vowel) segment).properties)
 				{
 					double deviance = vowelProminences[s.ordinal()] - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					onsetInitialProminence += deviance;
+
+					deviance = interludeLeadProminences[s.ordinal()] - 1;
+					deviance /= Math.sqrt(segment.properties.length);
+					interludeLeadProminence += deviance;
+					
+					deviance = interludeFollowProminences[s.ordinal()] - 1;
+					deviance /= Math.sqrt(segment.properties.length);
+					interludeFollowProminence += deviance;
 					
 					if (maxNucleusLength > 1)
 					{
@@ -1338,7 +1399,7 @@ public class Phonology
 						
 						deviance = diphthongFollowProminences[s.ordinal()] - 1;
 						deviance /= Math.sqrt(segment.properties.length);
-						nucleusFollowProminence += deviance;
+						nucleusFollowProminence += deviance;	
 					}
 					else
 					{
@@ -1349,8 +1410,32 @@ public class Phonology
 				
 //				System.out.printf("%s\t%.3f\t%.3f\t%.3f\n", segment.expression, onsetInitialProminence, nucleusLeadProminence, nucleusFollowProminence);
 			}
+		}
+		
+		// Interlude is only added if it has a nonzero chance of appearing
+		public void addInterlude(Phoneme p)
+		{
+			double probability = p.interludeFollowProminence + p.onsetInitialProminence - 1;
+			System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
+			if (probability > 0 && interludeLeadProminence > 0)
+			{
+				interludes.add(new Follower(p, probability));
+				interludeTotal += probability;
+			}
+//				System.out.print("yes");
+//				System.out.print("no " + probability);
+		}
+		
+		class Follower
+		{
+			Phoneme p;
+			double probability;
 			
-			
+			public Follower(Phoneme p, double probability)
+			{
+				this.p = p;
+				this.probability = probability;
+			}
 		}
 	}
 

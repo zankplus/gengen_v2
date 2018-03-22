@@ -106,8 +106,8 @@ class Vowel extends Segment
 		/*2*/	new Vowel("e" , 2, new VowelProperty[] {VowelProperty.MID,	VowelProperty.FRONT}),
 		/*3*/	new Vowel("o" , 2, new VowelProperty[] {VowelProperty.MID,	VowelProperty.BACK}),
 		/*4*/	new Vowel("i" , 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.FRONT}),
-		/*5*/	new Vowel("y" , 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.CENTER}),
-		/*6*/	new Vowel("u" , 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.BACK}),
+		/*5*/	new Vowel("u" , 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.BACK}),
+		/*6*/	new Vowel("y" , 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.CENTER}),
 		/*7*/	new Vowel(":" , 4, new VowelProperty[] {VowelProperty.LONG}),
 	};
 }
