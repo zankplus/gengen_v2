@@ -60,6 +60,9 @@ public class Phonology
 	double codaDisturbance;		// stdev for disturbance of codas, AS A PERCENTAGE of the prominenceStdev. at 0, the coda values
 								// are undisturbed compared to the onset ones. at 1, they have essentially been rerolled.
 	
+	double hiatusBonus;		// increases (or decreases) the probability of hiatus occurring between 2 nuclei
+	double interludeBonus;	// increases (or decreases) the porbability of interludes forming between a coda and an onset
+	
 	// Phonotactic inhibitors
 	double onsetNgInhibitor;			// reduces the chance of a onset 'ng'
 	double onsetTlDlInhibitor; 			// reduces the chances of an onset 'tl' or 'dl'
@@ -98,7 +101,8 @@ public class Phonology
 	static double unequalVoicingInhibitorMean = 1.25;
 	static double unequalVoicingInhibitorStdev = 0.5;
 	
-	static double hiatusBonusStdev = 0.2;
+	static double hiatusBonusStdev = 0.15;
+	static double interludeBonusStdev = 0.15;
 	
 	// statistics data
 	int[] data;
@@ -111,6 +115,8 @@ public class Phonology
 	static final int COMPLEX_CODAS	= 5;
 	static final int INTERLUDES		= 6;
 	
+	
+	// Constructor
 	public Phonology()
 	{
 		rng = new Random();
@@ -125,17 +131,19 @@ public class Phonology
 		makeBasicSyllableStructure();
 		determineProminence();
 		selectSegments();
-//		makeOnsets();
+		makeOnsets();
+		if (maxCodaLength > 0)
+		{
+			makeCodas();
+			makeInterludes();
+		}
 		
 		makeNuclei();
 		makeHiatus();
 		
-		
-//		if (maxCodaLength > 0)
-//		{
-//			makeCodas();
-//			makeInterludes();
-//		}
+		printInterludes(nuclei[0]);
+		printInterludes(codas[0]);
+
 		
 		
 		
@@ -566,8 +574,8 @@ public class Phonology
 				for (int j = 0; j < transProb[0].length; j++)
 					if (nucleusCategoriesRepresented[j] && transProb[i][j] > 0)
 					{
-						// Chance of representation ~= f(.7 x 15^(commonness - 3))
-						// 3 -> .808, 2 -> .109, 1 -> .011
+						// Chance of representation ~= f(.4 x 15^(commonness - 3))
+						// 3 -> .559, 2 -> .069, 1 -> .007
 						double p = 0.4 * Math.pow(15, transProb[i][j] - 3);
 						
 						// Cluster bonus applies only to interconsonant transitions.
@@ -652,8 +660,8 @@ public class Phonology
 				for (int j = 0; j < transProb[0].length; j++)
 					if (consonantCategoriesRepresented[j] && transProb[i][j] > 0)
 					{
-						// Chance of representation ~= f(.7 x 15^(commonness - 3))
-						// 3 -> .808, 2 -> .109, 1 -> .011
+						// Chance of representation ~= f(.4 x 15^(commonness - 3))
+						// 3 -> .559, 2 -> .069, 1 -> .007
 						double p = 0.4 * Math.pow(15, transProb[i][j] - 3);
 						
 						// No transition has more than a 90% chance of inclusion
@@ -709,15 +717,10 @@ public class Phonology
 
 	}
 	
-	public void makeInterludes()
-	{
-		
-	}
-	
 	// Decides what nucleus-nucleus transitions are allowed in the case of an empty interlude
 	public void makeHiatus()
 	{
-		double hiatusBonus = rng.nextGaussian() * hiatusBonusStdev;
+		hiatusBonus = rng.nextGaussian() * hiatusBonusStdev;
 		
 		int[][] transProb = Cluster.hiatusTransitions;
 
@@ -749,9 +752,62 @@ public class Phonology
 				
 				System.out.println();
 			}
+			
+			// Normalize and sort values
+			p1.normalizeAndSortInterludes();
 		}
 		System.out.println("Hiatus bonus: " +  hiatusBonus);
+		
+
 	}
+	
+	// Decides what coda-onset transitions are allowed in the case of a complex interlude
+	public void makeInterludes()
+	{
+		interludeBonus = rng.nextGaussian() * interludeBonusStdev;
+		
+		int[][] transProb = Cluster.interludeTransitions;
+		
+		double[] leadProbability   = new double[transProb.length],
+				 followProbability = new double[transProb[0].length];
+		
+		for (int i = 0; i < leadProbability.length; i++)
+			leadProbability[i] = rng.nextDouble();
+		for (int i = 0; i < followProbability.length; i++)
+			followProbability[i] = rng.nextDouble();
+		
+		// Generate lists of interlude transitions for phonemes
+		for (int i = 0; i < codas[0].size(); i++)
+		{
+			Phoneme p1 = codas[0].get(i).content[0];
+			for (int j = 0; j < onsets[0].size(); j++)
+			{
+				Phoneme p2 = onsets[0].get(j).content[0];
+				
+				if (p1 != p2)	// don't match up 
+				{
+					// Chance of representation ~= f(.4 x 15^(commonness - 3))
+					// 3 -> .559, 2 -> .069, 1 -> .007
+					double probability = 0.4 * Math.pow(15, transProb[p1.segment.transitionCategory][p2.segment.transitionCategory] - 3)
+											+ interludeBonus;
+					
+//					System.out.printf("a%s%sa\t%.3f vs. %.3f [%.3f * %.3f]\t", p1.segment.expression, p2.segment.expression,
+//							probability, (leadProbability[p1.segment.transitionCategory] * followProbability[p2.segment.transitionCategory]),
+//							leadProbability[p1.segment.transitionCategory], followProbability[p2.segment.transitionCategory]);
+					
+					if (leadProbability[p1.segment.transitionCategory] * followProbability[p2.segment.transitionCategory] < probability)
+						p1.addInterlude(p2);
+					
+//					System.out.println();
+				}
+			}
+			
+			// Normalize and sort values
+			p1.normalizeAndSortInterludes();
+		}
+		System.out.println("Interlude bonus: " +  interludeBonus);
+	}
+		
 	
 	public int[] countSyllableLengths()
 	{
@@ -1150,40 +1206,25 @@ public class Phonology
 		}	}	}	}	}
 	}
 
-	public void printInventory(ArrayList<SyllableSegment> baseList)
+	public void printInventory(ArrayList<SyllableSegment> list)
 	{
-		double total = 0;	// total prominence
-		
-		ArrayList<SyllableSegment> list = new ArrayList<SyllableSegment>();
-		
-		// Calculate combined prominence while making a copy of the list
-		for (SyllableSegment ss : baseList)
-		{
-			// Calculating combined prominence
-			if (ss.prominence > 0)
-			{
-				total += ss.prominence;
-				list.add(new SyllableSegment(ss));
-			}
-		}
-		
 		if (list.size() == 0)
 			return;
-		
-		// Normalize values
-		for (SyllableSegment ss : list)
-			ss.prominence /= total;
-		
-		// Sort lists
-		Collections.sort(list);
-		Collections.reverse(list);
-		
-		// Print sorted lists
+	
 		System.out.println(list.get(0).type + " " + list.get(0).content.length);
 		for (SyllableSegment ss : list)
 			System.out.printf("%s\t%.3f\n", ss, (ss.prominence / 1));
 		
 		System.out.println();
+	}
+	
+	public void printInterludes(ArrayList<SyllableSegment> list)
+	{
+		if (list.size() == 0)
+			return;
+		
+		for (SyllableSegment coda : list)
+			coda.content[coda.content.length - 1].printInterludes();
 	}
 	
 /*	static public void gatherStats(int total)
@@ -1265,7 +1306,6 @@ public class Phonology
 		Segment segment;
 		
 		ArrayList<Follower> interludes;	// for vowels, the interlude field serve to describe hiatus
-		double interludeTotal;
 		
 		double onsetInitialProminence;
 		double onsetClusterLeadProminence;
@@ -1282,7 +1322,6 @@ public class Phonology
 		{
 			this.segment = segment;
 			interludes = new ArrayList<Follower>();
-			interludeTotal = 0;
 			
 			// Consonant case
 			if (segment.isConsonant())
@@ -1416,17 +1455,46 @@ public class Phonology
 		public void addInterlude(Phoneme p)
 		{
 			double probability = p.interludeFollowProminence + p.onsetInitialProminence - 1;
-			System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
+			
+			if (segment.isConsonant() && isDissonantNasalCluster(this, p))
+				probability -= nasalDissonanceInhibitor;
+			
 			if (probability > 0 && interludeLeadProminence > 0)
-			{
 				interludes.add(new Follower(p, probability));
-				interludeTotal += probability;
-			}
-//				System.out.print("yes");
-//				System.out.print("no " + probability);
+			
+//			Print interlude statistics
+//			System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
 		}
 		
-		class Follower
+		public void normalizeAndSortInterludes()
+		{
+			double total = 0;
+			
+			for (Follower f : interludes)
+				total += f.probability;
+			
+			for (Follower f : interludes)
+				f.probability = f.probability /= total;
+			
+			Collections.sort(interludes);
+			Collections.reverse(interludes);
+		}
+		
+		public void printInterludes()
+		{
+			System.out.print(segment.expression + ":\t");
+			
+			if (interludes.size() == 0)
+				System.out.println("none");
+			else
+			{
+				for (Follower first : interludes)
+					System.out.printf("%s%s (%.3f)\t", segment.expression, first.p.segment.expression, first.probability);
+				System.out.println();
+			}
+		}
+		
+		class Follower implements Comparable<Follower>
 		{
 			Phoneme p;
 			double probability;
@@ -1435,6 +1503,15 @@ public class Phonology
 			{
 				this.p = p;
 				this.probability = probability;
+			}
+			
+			public int compareTo(Follower f)
+			{
+				if (probability > f.probability)
+					return 1;
+				else if (probability < f.probability)
+					return -1;
+				return 0;
 			}
 		}
 	}
