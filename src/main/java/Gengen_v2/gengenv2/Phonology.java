@@ -107,14 +107,17 @@ public class Phonology
 	// statistics data
 	int[] data;
 
-	static final int SIMPLE_ONSETS	= 0;
-	static final int COMPLEX_ONSETS	= 1;
-	static final int SIMPLE_NUCLEI	= 2;
-	static final int COMPLEX_NUCLEI	= 3;
-	static final int SIMPLE_CODAS	= 4;
-	static final int COMPLEX_CODAS	= 5;
-	static final int INTERLUDES		= 6;
-	
+	static final int SIMPLE_ONSETS				=  0;
+	static final int COMPLEX_ONSETS				=  1;
+	static final int SIMPLE_NUCLEI				=  2;
+	static final int COMPLEX_NUCLEI				=  3;
+	static final int SIMPLE_CODAS				=  4;
+	static final int COMPLEX_CODAS				=  5;
+	static final int SIMPLE_NUCLEI_WITH_HIATUS	=  6;
+	static final int COMPLEX_NUCLEI_WITH_HIATUS	=  7;
+	static final int COMPOUND_INTERLUDES		=  8;
+	static final int LIGHT_RIMES				=  9;
+	static final int HEAVY_RIMES				= 10;
 	
 	// Constructor
 	public Phonology()
@@ -124,6 +127,7 @@ public class Phonology
 		
 		// TODO: debug value for 4-length onset clusters
 //		seed = 3460348928036823746L;
+	
 		
 		System.out.println("Seed: " + seed);
 		rng.setSeed(seed);
@@ -158,7 +162,7 @@ public class Phonology
 //		for (int i = 0; i < maxNucleusLength; i++ )
 //			printInventory(nuclei[i]);
 		
-//		data = countSyllableLengths();
+		data = gatherStatistics();
 //		setClusterChances();
 		
 //		for (int i = 0; i < 100; i++)
@@ -685,7 +689,8 @@ public class Phonology
 				}
 		
 		// Shrink maxOnsetCluster to hide empty categories
-		for ( ; codas[maxCodaLength - 1].size() == 0; maxCodaLength--);
+		if (maxCodaLength > 0)
+			for ( ; maxCodaLength > 0 && codas[maxCodaLength - 1].size() == 0; maxCodaLength--);
 		
 		// Normalize coda values
 		for (int i = 0; i < maxCodaLength; i++)
@@ -748,7 +753,7 @@ public class Phonology
 						leadProbability[p1.segment.id], followProbability[p2.segment.id]);
 				
 				if (leadProbability[p1.segment.id] * followProbability[p2.segment.id] < probability)
-					p1.addInterlude(p2);
+					p1.addInterlude(nuclei[0].get(j));
 				
 				System.out.println();
 			}
@@ -796,7 +801,7 @@ public class Phonology
 //							leadProbability[p1.segment.transitionCategory], followProbability[p2.segment.transitionCategory]);
 					
 					if (leadProbability[p1.segment.transitionCategory] * followProbability[p2.segment.transitionCategory] < probability)
-						p1.addInterlude(p2);
+						p1.addInterlude(onsets[0].get(j));
 					
 //					System.out.println();
 				}
@@ -805,42 +810,88 @@ public class Phonology
 			// Normalize and sort values
 			p1.normalizeAndSortInterludes();
 		}
+		
+		// TODO: Temporary feature: remove codas with no interludes.
+		// In the future, we may want to include these phonemes in the terminal coda, but those will be
+		// handled by a separate inventory.
+		for (int i = 0; i < codas[0].size(); i++)
+			if (codas[0].get(i).content[0].interludes[0].isEmpty())
+			{
+				codas[0].remove(i);
+				i--;
+			}
+				
+		
 		System.out.println("Interlude bonus: " +  interludeBonus);
 	}
 		
 	
-	public int[] countSyllableLengths()
+	public int[] gatherStatistics()
 	{
-		int[] results = new int[6];
+		int[] results = new int[12];
 		
-		// Count all simple and complex onsets, nuclei, and codas with positive prominence
+		// Count all simple and complex onsets, nuclei, and codas
+		// While counting codas, also count complex interludes
 		for (int i = 0; i < onsets.length; i++)
 			for (SyllableSegment ss : onsets[i])
-				if (ss.prominence > 0)
-					if (i == 0)
-						results[SIMPLE_ONSETS]++;
-					else
-						results[COMPLEX_ONSETS]++;
+				if (i == 0)
+					results[SIMPLE_ONSETS]++;
+				else
+					results[COMPLEX_ONSETS]++;
 		
 		for (int i = 0; i < nuclei.length; i++)
 			for (SyllableSegment ss : nuclei[i])
-				if (ss.prominence > 0)
-					if (i == 0)
-						results[SIMPLE_NUCLEI]++;
-					else
-						results[COMPLEX_NUCLEI]++;
+				if (i == 0)
+					results[SIMPLE_NUCLEI]++;
+				else
+					results[COMPLEX_NUCLEI]++;
 		
 		for (int i = 0; i < codas.length; i++)
 			for (SyllableSegment ss : codas[i])
-				if (ss.prominence > 0)
-					if (i == 0)
-						results[SIMPLE_CODAS]++;
-					else
-						results[COMPLEX_CODAS]++;
+			{
+				if (i == 0)
+					results[SIMPLE_CODAS]++;
+				else
+					results[COMPLEX_CODAS]++;
+				
+				Phoneme last = ss.content[ss.content.length - 1];
+				
+				for (ArrayList interludeList : last.interludes)
+					results[COMPOUND_INTERLUDES] += interludeList.size();
+			}
 		
-//		System.out.printf("Onsets:\t%d (%d simple, %d complex)\n", (simpleOnsets + complexOnsets), simpleOnsets, complexOnsets);
-//		System.out.printf("Nuclei:\t%d (%d simple, %d complex)\n", (simpleNuclei + complexNuclei), simpleNuclei, complexNuclei);
-//		System.out.printf("Codas:\t%d (%d simple, %d complex)\n", (simpleCodas + complexCodas), simpleCodas, complexCodas);
+		// Count simple and complex nuclei suitable for hiatus
+		for (int i = 0; i < nuclei.length; i++)
+			for (SyllableSegment ss : nuclei[i])
+				if (!ss.content[ss.content.length - 1].interludes[0].isEmpty())
+					if (i == 0)
+						results[SIMPLE_NUCLEI_WITH_HIATUS]++;
+					else
+						results[COMPLEX_NUCLEI_WITH_HIATUS]++;
+		
+		System.out.printf("Onsets:\t%d (%d simple, %d complex)\n", (results[SIMPLE_ONSETS] + results[COMPLEX_ONSETS]), 
+																	results[SIMPLE_ONSETS] , results[COMPLEX_ONSETS]);
+		System.out.printf("Nuclei:\t%d (%d simple, %d complex)\n", (results[SIMPLE_NUCLEI] + results[COMPLEX_NUCLEI]),
+																	results[SIMPLE_NUCLEI] , results[COMPLEX_NUCLEI]);
+		System.out.printf("Codas:\t%d (%d simple, %d complex)\n",  (results[SIMPLE_CODAS ] + results[COMPLEX_CODAS ]),
+																	results[SIMPLE_CODAS ] , results[COMPLEX_CODAS ]);
+		System.out.printf(" Simple nuclei with hiatus:\t%d\n", results[ SIMPLE_NUCLEI_WITH_HIATUS]);
+		System.out.printf("Complex nuclei with hiatus:\t%d\n", results[COMPLEX_NUCLEI_WITH_HIATUS]);
+		System.out.printf("Complex interludes:\t%d\n", results[COMPOUND_INTERLUDES]);
+		
+		// Add up light and heavy rimes
+		results[LIGHT_RIMES]  = results[SIMPLE_NUCLEI] * results[SIMPLE_ONSETS]
+							  +	results[SIMPLE_NUCLEI_WITH_HIATUS];
+		
+		results[HEAVY_RIMES]  = results[SIMPLE_NUCLEI] * results[COMPLEX_ONSETS]
+							  + results[SIMPLE_NUCLEI] * results[COMPOUND_INTERLUDES] 
+							  + results[COMPLEX_NUCLEI_WITH_HIATUS]
+							  + results[COMPLEX_NUCLEI] * results[SIMPLE_ONSETS]
+							  + results[COMPLEX_NUCLEI] * results[COMPLEX_ONSETS]
+						      + results[COMPLEX_NUCLEI] * results[COMPOUND_INTERLUDES];
+
+		System.out.printf("Light rimes:\t%d\n", results[LIGHT_RIMES]);
+		System.out.printf("Heavy rimes:\t%d\n", results[HEAVY_RIMES]);
 		
 		return results;
 	}
@@ -1305,7 +1356,7 @@ public class Phonology
 	{
 		Segment segment;
 		
-		ArrayList<Follower> interludes;	// for vowels, the interlude field serve to describe hiatus
+		ArrayList<Follower>[] interludes;	// for vowels, the interlude field serve to describe hiatus
 		
 		double onsetInitialProminence;
 		double onsetClusterLeadProminence;
@@ -1321,11 +1372,14 @@ public class Phonology
 		public Phoneme(Segment segment)
 		{
 			this.segment = segment;
-			interludes = new ArrayList<Follower>();
 			
 			// Consonant case
 			if (segment.isConsonant())
-			{				
+			{
+				interludes = new ArrayList[maxOnsetLength];
+				for (int i = 0; i < maxOnsetLength; i++)
+					interludes[i] = new ArrayList<Follower>();
+				
 				onsetInitialProminence       = 1;
 				codaInitialProminence		 = 1;
 				onsetClusterLeadProminence   = 1;
@@ -1409,7 +1463,9 @@ public class Phonology
 			// Vowel case
 			else
 			{
-				
+				interludes = new ArrayList[1];
+				interludes[0] = new ArrayList<Follower>();
+
 				onsetInitialProminence		= 1;	// this functions as the nucleus initial prominence here
 				nucleusLeadProminence 		= 1;
 				nucleusFollowProminence 	= 1;
@@ -1452,15 +1508,41 @@ public class Phonology
 		}
 		
 		// Interlude is only added if it has a nonzero chance of appearing
-		public void addInterlude(Phoneme p)
+		public void addInterlude(SyllableSegment ss)
 		{
-			double probability = p.interludeFollowProminence + p.onsetInitialProminence - 1;
+			// if interludeLeadProminence <= 0, do nothing
+			if (interludeLeadProminence <= 0)
+				return;
 			
-			if (segment.isConsonant() && isDissonantNasalCluster(this, p))
+			// Calculate base probability from following segment's interludeFollow and onsetInitial prominences
+			double probability = ss.content[0].interludeFollowProminence + ss.content[0].onsetInitialProminence - 1;
+			
+			// Apply nasal dissonance inhibitor, if relevant
+			if (segment.isConsonant() && isDissonantNasalCluster(this, ss.content[0]))
 				probability -= nasalDissonanceInhibitor;
 			
-			if (probability > 0 && interludeLeadProminence > 0)
-				interludes.add(new Follower(p, probability));
+			// If probability is positive, add this interlude
+			if (probability > 0)
+				interludes[0].add(new Follower(ss, probability));
+			
+			// If this is a consonant, add any possible clusters, too
+			for (int i = 1; i < maxOnsetLength; i++)
+			{
+				for (SyllableSegment onset : onsets[i])
+					if (onset.content[0] == ss.content[0])
+					{
+						// Set base probability equal to the next segment's prominence
+						probability = onset.prominence;
+						
+						// Apply nasal dissonance inhibitor, if relevant
+						if (segment.isConsonant() && isDissonantNasalCluster(this, onset.content[0]))
+							probability -= nasalDissonanceInhibitor;
+						
+						// If probability is positive, add this interlude
+						if (probability > 0)
+							interludes[i].add(new Follower(onset, probability));
+					}
+			}
 			
 //			Print interlude statistics
 //			System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
@@ -1468,40 +1550,49 @@ public class Phonology
 		
 		public void normalizeAndSortInterludes()
 		{
-			double total = 0;
-			
-			for (Follower f : interludes)
-				total += f.probability;
-			
-			for (Follower f : interludes)
-				f.probability = f.probability /= total;
-			
-			Collections.sort(interludes);
-			Collections.reverse(interludes);
+			for (ArrayList<Follower> interludeSet : interludes)
+			{
+				double total = 0;
+				
+				for (Follower f : interludeSet)
+					total += f.probability;
+				
+				for (Follower f : interludeSet)
+					f.probability = f.probability /= total;
+				
+				Collections.sort(interludeSet);
+				Collections.reverse(interludeSet);
+			}
 		}
 		
 		public void printInterludes()
 		{
-			System.out.print(segment.expression + ":\t");
+			System.out.println("~~~" + segment.expression + "~~~");
 			
-			if (interludes.size() == 0)
+			if (interludes[0].size() == 0)
 				System.out.println("none");
 			else
 			{
-				for (Follower first : interludes)
-					System.out.printf("%s%s (%.3f)\t", segment.expression, first.p.segment.expression, first.probability);
-				System.out.println();
+				for (ArrayList<Follower> interludeSet : interludes)
+				{
+					if (!interludeSet.isEmpty())
+					{
+						for (Follower first : interludeSet)
+							System.out.printf("%s%s (%.3f)\t", segment.expression, first.ss, first.probability);
+						System.out.println();						
+					}
+				}
 			}
 		}
 		
 		class Follower implements Comparable<Follower>
 		{
-			Phoneme p;
+			SyllableSegment ss;
 			double probability;
 			
-			public Follower(Phoneme p, double probability)
+			public Follower(SyllableSegment ss, double probability)
 			{
-				this.p = p;
+				this.ss = ss;
 				this.probability = probability;
 			}
 			
