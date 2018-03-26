@@ -12,8 +12,7 @@ public class App
 //    	StressSystem ss = new StressSystem();
 //    	System.out.println(ss);
     	
-    	
-//    	Phonology.gatherStats(10000);
+//    	Phonology.massGatherStats(10000);
     	
 //    	for (int i = 0; i < Cluster.consonantCategories.size(); i++)
 //    		for (int j = 0; j < Cluster.consonantCategories.size(); j++)
