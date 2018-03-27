@@ -157,47 +157,59 @@ public class Phonology
 		rng = new Random();
 		long seed = rng.nextLong();
 		
-		// TODO: debug value for 4-length onset clusters
-//		seed = 3460348928036823746L;
-	
-		
-		System.out.println("Seed: " + seed);
-		rng.setSeed(seed);
-		
-		makeBasicSyllableStructure();
-		determineProminence();
-		selectSegments();
-		makeOnsets();
-		if (maxCodaLength > 0)
+//		seed = 4968672162774089494L;
+				
+		try
 		{
-			makeCodas();
-			makeInterludes();
+			// TODO: debug value for 4-length onset clusters
+//			seed = 3460348928036823746L;
+			seed = -2303344961621443947L;
+			System.out.println("Seed: " + seed);
+			rng.setSeed(seed);
+			
+			makeBasicSyllableStructure();
+			determineProminence();
+			selectSegments();
+			makeOnsets();
+			if (maxCodaLength > 0)
+			{
+				makeCodas();
+				makeInterludes();
+			}
+			
+			
+			makeNuclei();
+			makeHiatus();
+			
+//			Print inventories
+//			System.out.println();
+//			for (int i = 0; i < maxOnsetLength; i++ )
+//				printInventory(onsets[i]);
+			for (int i = 0; i < maxCodaLength; i++ )
+				printInventory(codas[i]);
+//			for (int i = 0; i < maxNucleusLength; i++ )
+//				printInventory(nuclei[i]);
+			
+			data = gatherStatistics();
+			
+			setClusterChances();
+			
+			setFlowControlVariables();		
+			
+			
+//			printInterludes(nuclei[0]);
+//			if (codas.length > 0)
+//				printInterludes(codas[0]);
+			
+			Flowchart f = new Flowchart(this);
+			f.makeWords(50);
 		}
-		
-		makeNuclei();
-		makeHiatus();
-
-//		Print inventories
-//		System.out.println();
-//		for (int i = 0; i < maxOnsetLength; i++ )
-//			printInventory(onsets[i]);
-//		for (int i = 0; i < maxCodaLength; i++ )
-//			printInventory(codas[i]);
-//		for (int i = 0; i < maxNucleusLength; i++ )
-//			printInventory(nuclei[i]);
-		
-		data = gatherStatistics();
-		setClusterChances();
-		setFlowControlVariables();		
-		
-		
-//		printInterludes(nuclei[0]);
-//		if (codas.length > 0)
-//			printInterludes(codas[0]);
-		
-		Flowchart f = new Flowchart(this);
-		for (int i = 0; i < 50; i++)
-			f.makeWord();
+		catch (Exception e)
+		{
+			e.printStackTrace();
+			System.out.println("Seed: " + seed);
+			System.exit(0);
+		}
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -219,7 +231,6 @@ public class Phonology
 			maxOnsetLength = 4;	// 1/12
 		
 		// TODO: debug value
-//		maxOnsetLength = 4;
 		
 		// Initialize onset array(s)
 		onsets = new ArrayList[maxOnsetLength];
@@ -266,7 +277,6 @@ public class Phonology
 	
 		
 		// TODO: debug value
-//		maxCodaLength = 3;
 		
 		// Initialize coda arrays
 		codas = new ArrayList[maxCodaLength];
@@ -712,20 +722,8 @@ public class Phonology
 		if (maxCodaLength > 0)
 			for ( ; maxCodaLength > 0 && codas[maxCodaLength - 1].size() == 0; maxCodaLength--);
 		
-		// Normalize coda values
-		for (int i = 0; i < maxCodaLength; i++)
-		{
-			double total = 0;
-			for (SyllableSegment coda : codas[i])
-				if (coda.prominence > 0)
-					total += coda.prominence;
-			
-			for (SyllableSegment coda : codas[i])
-				coda.prominence = coda.prominence / total;
-			
-			Collections.sort(codas[i]);
-			Collections.reverse(codas[i]);
-		}
+		// We delay the normalization of coda values until after makeInterludes as some entries may be removed
+		// at that point
 		
 //		
 //		// DEBUG: Print all possible onsets
@@ -834,13 +832,29 @@ public class Phonology
 		// TODO: Temporary feature: remove codas with no interludes.
 		// In the future, we may want to include these phonemes in the terminal coda, but those will be
 		// handled by a separate inventory.
-		for (int i = 0; i < codas[0].size(); i++)
-			if (codas[0].get(i).content[0].interludes[0].isEmpty())
-			{
-				codas[0].remove(i);
-				i--;
-			}
+		for (ArrayList<SyllableSegment> codaList : codas)
+			for (int i = 0; i < codaList.size(); i++)
+				if (codaList.get(i).lastPhoneme().interludes[0].isEmpty())
+				{
+					codaList.remove(i);
+					i--;
+				}
 				
+		
+		// Normalize coda values
+		for (int i = 0; i < maxCodaLength; i++)
+		{
+			double total = 0;
+			for (SyllableSegment coda : codas[i])
+				if (coda.prominence > 0)
+					total += coda.prominence;
+			
+			for (SyllableSegment coda : codas[i])
+				coda.prominence = coda.prominence / total;
+			
+			Collections.sort(codas[i]);
+			Collections.reverse(codas[i]);
+		}
 		
 		System.out.println("Interlude bonus: " +  interludeBonus);
 	}
@@ -1038,9 +1052,7 @@ public class Phonology
 		// strong 
 		strongHeavyRimeChance = rng.nextGaussian() * strongHeavyRimeChanceStdev + strongHeavyRimeChanceMean;
 		strongHeavyRimeChance = Math.max(Math.min(strongHeavyRimeChance, 1), 0);
-		
 		strongLightRimeChance = (1 - strongHeavyRimeChance);
-		
 		
 		double total = strongHeavyRimeChance + strongLightRimeChance;
 		strongHeavyRimeChance /= total;
@@ -1049,7 +1061,6 @@ public class Phonology
 		// weak
 		weakHeavyRimeChance = rng.nextGaussian() * weakHeavyRimeChanceStdev + weakHeavyRimeChanceMean;
 		weakHeavyRimeChance = Math.max(Math.min(weakHeavyRimeChance, 1), 0);
-		
 		weakLightRimeChance = (1 - weakHeavyRimeChance);
 		
 		total = weakHeavyRimeChance + weakLightRimeChance;
@@ -1062,11 +1073,11 @@ public class Phonology
 		System.out.printf("weak:\tHeavy %.3f\n", weakHeavyRimeChance);
 		System.out.printf("\t\tLight %.3f\n",  weakLightRimeChance);
 		
-		
-		
+		LogNormalDistribution logNormal = new LogNormalDistribution(codaChanceMean, codaChanceStdev);
+		logNormal.reseedRandomGenerator(rng.nextLong());
 		
 		if (maxCodaLength > 0)
-			codaChance = new LogNormalDistribution(codaChanceMean, codaChanceStdev).sample();
+			codaChance = logNormal.sample();
 		else
 			codaChance = 0;
 		codaLocationBalance = rng.nextGaussian() * codaLocationBalanceStdev + codaLocationBalanceMean;
@@ -1081,8 +1092,12 @@ public class Phonology
 		System.out.printf("Medial coda chance\t%.3f\n", medialCodaChance);
 		System.out.printf("Terminal coda chance\t%.3f\n", terminalCodaChance);
 		
+		
+		logNormal = new LogNormalDistribution(onsetChanceMean, onsetChanceStdev);
+		logNormal.reseedRandomGenerator(rng.nextLong());
+		
 		if (data[SIMPLE_NUCLEI_WITH_HIATUS] > 0)
-			baseOnsetChance = 1 - (new LogNormalDistribution(onsetChanceMean, onsetChanceStdev).sample() - onsetChanceOffset);
+			baseOnsetChance = 1 - (logNormal.sample() - onsetChanceOffset);
 		else
 			baseOnsetChance = 1;
 		
@@ -1108,10 +1123,10 @@ public class Phonology
 	// Returns an onset of length 2 or more
 	public SyllableSegment pickComplexOnset()
 	{
-		pickSyllableSegment(onsets[1 + pickClusterLength(onsetClusterLengthProbabilities)]);
-		System.err.println("Failed to select onset cluster!");
-		System.exit(0);
-		return null;
+		return pickSyllableSegment(onsets[1 + pickClusterLength(onsetClusterLengthProbabilities)]);
+//		System.err.println("Failed to select onset cluster!");
+//		System.exit(0);
+//		return null;
 	}
 	
 	// Returns a nucleus of length 1
@@ -1144,10 +1159,11 @@ public class Phonology
 	// Returns a coda of length 2 or more
 	public SyllableSegment pickComplexCoda()
 	{
-		pickSyllableSegment(codas[1 + pickClusterLength(codaClusterLengthProbabilities)]);
-		System.err.println("Failed to select coda cluster!");
-		System.exit(0);
-		return null;
+		
+		return pickSyllableSegment(codas[1 + pickClusterLength(codaClusterLengthProbabilities)]);
+//		System.err.println("Failed to select coda cluster!");
+//		System.exit(0);
+//		return null;
 	}
 	
 	// Returns a random follower from a given consonant Phoneme's interlude list
@@ -1156,7 +1172,9 @@ public class Phonology
 		if (maxOnsetLength == 1)
 			return p.pickInterlude(0);
 		else
+		{
 			return p.pickInterlude(pickClusterLength(p.interludeLengthProbabilities));
+		}
 	}
 	
 	// The math here is simple. Having normalized them already, the prominence values of every inventory list sum to 1.
@@ -1165,17 +1183,27 @@ public class Phonology
 	// is returned.
 	private SyllableSegment pickSyllableSegment(ArrayList<SyllableSegment> inventory)
 	{
-		double rand = rng.nextDouble();
-		for (SyllableSegment ss : inventory)
+		try
 		{
-			if (rand < ss.prominence)
-				return ss;
-			else
-				rand -= ss.prominence;
+			double rand = rng.nextDouble();
+			for (SyllableSegment ss : inventory)
+			{
+				if (rand < ss.prominence)
+					return ss;
+				else
+					rand -= ss.prominence;
+			}
+			throw new Exception();
+		} catch (Exception e) {
+			System.err.println("Failed to select syllable segment; were the inventory's prominence values not normalized?");
+			
+			for (SyllableSegment ss : inventory)
+				System.out.println(ss + " " + ss.prominence);
+			
+			e.printStackTrace();
+			System.exit(0);
 		}
 		
-		System.err.println("Failed to select syllable segment; were the inventory's prominence values not normalized?");
-		System.exit(0);
 		
 		return null;
 	}
@@ -1190,7 +1218,7 @@ public class Phonology
 		for (int i = 0 ; i < probabilities.length; i++)
 		{
 			if (rand < probabilities[i])
-				return i + 1;
+				return i;
 			else
 				rand -= probabilities[i];
 		}
@@ -1794,6 +1822,7 @@ public class Phonology
 			
 			return null;
 		}
+		
 		
 		public void normalizeAndSortInterludes()
 		{

@@ -34,9 +34,9 @@ public class StressSystem
 		/*6*/	{	false,	false,	false,	true,	false,	false }
 		};
 	
-	public StressSystem()
+	public StressSystem(long seed)
 	{
-		rng = new Random();
+		rng = new Random(seed);
 		
 		// Set foot dominance
 		rhythm = Rhythm.values()[rng.nextInt(Rhythm.values().length)];
