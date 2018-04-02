@@ -119,14 +119,15 @@ class Flowchart
 				node = node.nextNode();
 			}
 		
-			StringBuilder nameBuilder;
-			
-			nameBuilder = new StringBuilder();
+			StringBuilder nameBuilder = new StringBuilder();
+//			nameBuilder.append("[" + pattern.length + "] ");
+
 			for (SyllableSegment ss : name)
 			{
 				nameBuilder.append(ss);
 			}
 			list.add(nameBuilder.toString());
+			
 		}
 		
 		Collections.sort(list);
@@ -178,7 +179,7 @@ class Flowchart
 		public Node nextNode()
 		{
 			double rand = p.rng.nextDouble();
-			curr = -1;
+			curr = 0;
 			
 			// Option 1: Empty onset
 			if (rand < emptyOnsetChance)
@@ -239,7 +240,7 @@ class Flowchart
 			complexNucleusSimpleInterlude *= (1 - p.baseOnsetClusterChance); // multiply by P(!onset cluster | onset)
 			complexNucleusSimpleInterlude *= (1 - p.medialCodaChance); // multiply by P(!coda | onset)
 			
-			complexNucleusComplexInterlude = complexInterlude *= p.baseOnsetChance;
+			complexNucleusComplexInterlude = complexInterlude * p.baseOnsetChance;
 		}
 		
 		public Node nextNode()
@@ -301,12 +302,12 @@ class Flowchart
 				lightRimeProminence = Math.log(simpleNucleusSimpleInterlude + simpleNucleusEmptyInterlude + 1);
 				heavyRimeProminence = Math.log(heavySimple + heavyComplex + 1);
 			}
-			
-			
+						
 			double rand = rng.nextDouble();
 			if (pattern[curr] == 'S')
 			{
 				rand *= (lightRimeProminence * p.strongLightRimeChance) + (heavyRimeProminence * p.strongHeavyRimeChance);
+				
 				if (rand < lightRimeProminence * p.strongLightRimeChance)
 					return medialLightRimeNode;
 				else
@@ -315,6 +316,7 @@ class Flowchart
 			else
 			{
 				rand *= (lightRimeProminence * p.weakLightRimeChance) + (heavyRimeProminence * p.weakHeavyRimeChance);
+
 				if (rand < lightRimeProminence * p.weakLightRimeChance)
 					return medialLightRimeNode;
 				else
@@ -414,7 +416,6 @@ class Flowchart
 					next = prev.lastPhoneme().pickInterlude(0);
 				else
 				{
-					prev.lastPhoneme().printInterludes();
 					next = prev.lastPhoneme().pickInterlude(1);
 				}
 				
@@ -512,7 +513,7 @@ class Flowchart
 			complexOnsetProminence *= (1 - p.medialCodaChance); // multiply by P(!coda | onset)
 			
 			compoundInterludeProminence = Math.log(p.data[Phonology.COMPOUND_INTERLUDES] + 1);
-			complexOnsetProminence *= p.medialCodaChance;	// multiply by P(coda | onset)
+			compoundInterludeProminence *= p.medialCodaChance;	// multiply by P(coda | onset)
 		}
 		
 		public Node nextNode()
@@ -597,9 +598,9 @@ class Flowchart
 			{
 				// non-hiatus case
 				double simpleNucleusSimpleCoda = p.data[Phonology.SIMPLE_NUCLEI] * p.data[Phonology.SIMPLE_CODAS];
-				simpleNucleusSimpleCoda *= p.baseOnsetChance;
+				simpleNucleusSimpleCoda *= p.terminalCodaChance;
 				double simpleNucleusEmptyCoda = p.data[Phonology.SIMPLE_NUCLEI];
-				simpleNucleusEmptyCoda *= (1 - p.baseOnsetChance);
+				simpleNucleusEmptyCoda *= (1 - p.terminalCodaChance);
 				
 				double heavySimple = p.data[Phonology.SIMPLE_NUCLEI] *
 						(p.data[Phonology.SIMPLE_CODAS] * (1 - p.baseCodaClusterChance) +
@@ -622,7 +623,11 @@ class Flowchart
 			
 			
 			double rand = rng.nextDouble();
-			if (pattern[curr] == 'S')
+			if (pattern.length == 1 && name.size() == 0 && heavyRimeProminence > 0)
+			{
+				return terminalHeavyRimeNode;
+			}
+			else if (pattern[curr] == 'S')
 			{
 				rand *= (lightRimeProminence * p.strongLightRimeChance) + (heavyRimeProminence * p.strongHeavyRimeChance);
 				if (rand < lightRimeProminence * p.strongLightRimeChance)
@@ -655,10 +660,12 @@ class Flowchart
 		public Node nextNode()
 		{
 			// If this is hiatus, add an nucleus from the previous vowel's interlude list
-			SyllableSegment prev = name.get(name.size() - 1);
+			SyllableSegment prev = null;
+			if (name.size() > 0)
+				prev = name.get(name.size() - 1);
 			SyllableSegment next;
 			
-			if (prev.type == SegmentType.NUCLEUS)
+			if (prev != null && prev.type == SegmentType.NUCLEUS)
 			{
 				next = prev.lastPhoneme().pickInterlude(0);
 			}
@@ -671,7 +678,6 @@ class Flowchart
 			name.add(next);
 						
 			// Decide whether to add next a simple coda or none at all.
-			System.out.println(simpleCodaProminence + " " + emptyCodaProminence);
 			if (rng.nextDouble() * (simpleCodaProminence + emptyCodaProminence) < simpleCodaProminence)
 				name.add(p.pickSimpleCoda());
 			
@@ -741,9 +747,9 @@ class Flowchart
 			
 			// Add next syllable segment to name
 			name.add(next);
-						
+
 			// Select next node
-			if (name.size() == 0)
+			if (next.content.length == 1)
 				return terminalHeavyRimeSimpleNucleusNode;
 			else
 				return terminalHeavyRimeComplexNucleusNode;
@@ -758,7 +764,7 @@ class Flowchart
 		public TerminalHeavyRimeSimpleNucleusNode()
 		{
 			simpleCodaProminence = Math.log(p.data[Phonology.SIMPLE_CODAS] + 1) * (1 - p.baseCodaClusterChance);
-			simpleCodaProminence *= Math.log(p.data[Phonology.COMPLEX_CODAS] + 1) * p.baseCodaClusterChance;
+			complexCodaProminence = Math.log(p.data[Phonology.COMPLEX_CODAS] + 1) * p.baseCodaClusterChance;
 		}
 		
 		public Node nextNode()
@@ -791,7 +797,7 @@ class Flowchart
 			
 			if (rand < simpleCodaProminence)
 				name.add(p.pickSimpleCoda());
-			else if (rand < complexCodaProminence)
+			else if (rand < simpleCodaProminence + complexCodaProminence)
 				name.add(p.pickComplexCoda());
 			
 			return null;

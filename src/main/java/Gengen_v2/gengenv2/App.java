@@ -8,7 +8,8 @@ public class App
 {
     public static void main( String[] args )
     {
-    	new Phonology();
+//    	for (int i = 0; i < 500; i++)
+    		new Phonology();
 //    	StressSystem ss = new StressSystem();
 //    	System.out.println(ss);
     	

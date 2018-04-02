@@ -21,8 +21,8 @@ public class StressSystem
 	static double degenerateFootChanceStdev			= 0.25;
 	static double zeroFootProminenceMean			= 0.50;
 	static double zeroFootProminenceStdev			= 0.25;
-	static double twoFootProminenceMean				= 1.0 / 6;
-	static double twoFootProminenceStdev			= 1.0 / 12;
+	static double twoFootProminenceMean				= 1.0 / 20;
+	static double twoFootProminenceStdev			= 1.0 / 20;
 	static double extrametricalSyllableChanceStdev	= 0.80;
 	
 	static boolean[][] extrametricalPlacementRules = new boolean[][] {
@@ -74,16 +74,16 @@ public class StressSystem
 		metricalSyllableChances[0] = zeroFootProminence * degenerateFootChance;
 		
 		// 2: 1 full + 0 degenerate
-		metricalSyllableChances[1] = 1 * (1 - degenerateFootChance);
+		metricalSyllableChances[1] = 1 * (1 - Math.pow(degenerateFootChance, 2));
 		
 		// 3: 1 full + 1 degenerate
-		metricalSyllableChances[2] = 1 * degenerateFootChance;
+		metricalSyllableChances[2] = 1 * Math.pow(degenerateFootChance, 2);
 		
 		// 4: 2 full + 0 degenerate
-		metricalSyllableChances[3] = twoFootProminence * (1 - degenerateFootChance);
+		metricalSyllableChances[3] = twoFootProminence * (1 - Math.pow(degenerateFootChance, 3));
 		
 		// 5: 2 full + 1 degenerate
-		metricalSyllableChances[4] = twoFootProminence * degenerateFootChance;
+		metricalSyllableChances[4] = twoFootProminence * Math.pow(degenerateFootChance, 3);
 		
 		// Normalize metrical chances, so that they actually represent probabilities instead of prominences
 		double total = 0;

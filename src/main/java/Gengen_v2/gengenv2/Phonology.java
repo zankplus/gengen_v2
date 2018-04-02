@@ -126,8 +126,8 @@ public class Phonology
 	static double strongHeavyRimeChanceStdev = 0.2;
 	static double weakHeavyRimeChanceMean = 0.3;
 	static double weakHeavyRimeChanceStdev = 0.15;
-	static double codaChanceMean  = 0.15;
-	static double codaChanceStdev = 0.25;
+	static double codaChanceMean  = -0.5;
+	static double codaChanceStdev = 0.5;
 	static double codaLocationBalanceMean = 0.4;
 	static double codaLocationBalanceStdev = 0.33;
 	static double onsetChanceMean = 0;
@@ -157,13 +157,16 @@ public class Phonology
 		rng = new Random();
 		long seed = rng.nextLong();
 		
-//		seed = 4968672162774089494L;
-				
+//		seed = 4968672162774089494L;	// qwethimphon
+
+		// Seeds to revisit
+		// seed = 1056235076985434733L;	// needs longer names to compensate for deficient phonemic inventory
+		
 		try
 		{
-			// TODO: debug value for 4-length onset clusters
-//			seed = 3460348928036823746L;
-			seed = -2303344961621443947L;
+			// Test seed
+//			seed = 6355772208445391440L;
+			
 			System.out.println("Seed: " + seed);
 			rng.setSeed(seed);
 			
@@ -183,12 +186,12 @@ public class Phonology
 			
 //			Print inventories
 //			System.out.println();
-//			for (int i = 0; i < maxOnsetLength; i++ )
-//				printInventory(onsets[i]);
+			for (int i = 0; i < maxOnsetLength; i++ )
+				printInventory(onsets[i]);
 			for (int i = 0; i < maxCodaLength; i++ )
 				printInventory(codas[i]);
-//			for (int i = 0; i < maxNucleusLength; i++ )
-//				printInventory(nuclei[i]);
+			for (int i = 0; i < maxNucleusLength; i++ )
+				printInventory(nuclei[i]);
 			
 			data = gatherStatistics();
 			
@@ -197,12 +200,13 @@ public class Phonology
 			setFlowControlVariables();		
 			
 			
-//			printInterludes(nuclei[0]);
-//			if (codas.length > 0)
-//				printInterludes(codas[0]);
+			printInterludes(nuclei[0]);
+			if (codas.length > 0)
+				printInterludes(codas[0]);
 			
 			Flowchart f = new Flowchart(this);
-			f.makeWords(50);
+			System.out.println(f.stressSystem);
+			f.makeWords(100);
 		}
 		catch (Exception e)
 		{
@@ -839,7 +843,11 @@ public class Phonology
 					codaList.remove(i);
 					i--;
 				}
-				
+		
+		// Scale codas by the log of the number of their interludes
+		for (ArrayList<SyllableSegment> codaList : codas)
+			for (int i = 0; i < codaList.size(); i++)
+				codaList.get(i).prominence *= Math.log(codaList.get(i).lastPhoneme().interludes[0].size() + 1);
 		
 		// Normalize coda values
 		for (int i = 0; i < maxCodaLength; i++)
@@ -1049,23 +1057,33 @@ public class Phonology
 	
 	public void setFlowControlVariables()
 	{
-		// strong 
-		strongHeavyRimeChance = rng.nextGaussian() * strongHeavyRimeChanceStdev + strongHeavyRimeChanceMean;
-		strongHeavyRimeChance = Math.max(Math.min(strongHeavyRimeChance, 1), 0);
-		strongLightRimeChance = (1 - strongHeavyRimeChance);
-		
-		double total = strongHeavyRimeChance + strongLightRimeChance;
-		strongHeavyRimeChance /= total;
-		strongLightRimeChance /= total;
-		
-		// weak
-		weakHeavyRimeChance = rng.nextGaussian() * weakHeavyRimeChanceStdev + weakHeavyRimeChanceMean;
-		weakHeavyRimeChance = Math.max(Math.min(weakHeavyRimeChance, 1), 0);
-		weakLightRimeChance = (1 - weakHeavyRimeChance);
-		
-		total = weakHeavyRimeChance + weakLightRimeChance;
-		weakHeavyRimeChance /= total;
-		weakLightRimeChance /= total;
+		if (data[HEAVY_RIMES] == 0)
+		{
+			weakLightRimeChance = 1;
+			strongLightRimeChance = 1;
+			weakHeavyRimeChance = 0;
+			strongHeavyRimeChance = 0;
+		}
+		else
+		{
+			// strong 
+			strongHeavyRimeChance = rng.nextGaussian() * strongHeavyRimeChanceStdev + strongHeavyRimeChanceMean;
+			strongHeavyRimeChance = Math.max(Math.min(strongHeavyRimeChance, 1), 0);
+			strongLightRimeChance = (1 - strongHeavyRimeChance);
+			
+			double total = strongHeavyRimeChance + strongLightRimeChance;
+			strongHeavyRimeChance /= total;
+			strongLightRimeChance /= total;
+			
+			// weak
+			weakHeavyRimeChance = rng.nextGaussian() * weakHeavyRimeChanceStdev + weakHeavyRimeChanceMean;
+			weakHeavyRimeChance = Math.max(Math.min(weakHeavyRimeChance, 1), 0);
+			weakLightRimeChance = (1 - weakHeavyRimeChance);
+			
+			total = weakHeavyRimeChance + weakLightRimeChance;
+			weakHeavyRimeChance /= total;
+			weakLightRimeChance /= total;
+		}
 		
 		// Print
 		System.out.printf("strong:\tHeavy %.3f\n", strongHeavyRimeChance);
@@ -1196,10 +1214,8 @@ public class Phonology
 			throw new Exception();
 		} catch (Exception e) {
 			System.err.println("Failed to select syllable segment; were the inventory's prominence values not normalized?");
-			
 			for (SyllableSegment ss : inventory)
 				System.out.println(ss + " " + ss.prominence);
-			
 			e.printStackTrace();
 			System.exit(0);
 		}
@@ -1817,7 +1833,18 @@ public class Phonology
 					rand -= f.probability;
 			}
 			
-			System.err.println("Failed to select follower!");
+			System.err.println("Failed to select follower of length " + (length + 1) + " for phoneme " + this.segment.expression + "!");
+			for (int i = 0; i < interludes[length].size(); i++)
+				System.out.println(interludes[length].get(i));
+			
+			try
+			{
+				throw new Exception();
+			} catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+			
 			System.exit(0);
 			
 			return null;

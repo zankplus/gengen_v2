@@ -66,7 +66,7 @@ class Consonant extends Segment
 /*20*/	new Consonant("v" ,  8, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.LABIODENTAL,	ConsonantProperty.VOICED}),
 /*21*/	new Consonant("z" ,  9, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.ALVEOLAR,		ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT,	ConsonantProperty.VOICED_SIBILANT_FRICATIVE}),
 /*22*/	new Consonant("zh",  9, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT,	ConsonantProperty.VOICED_SIBILANT_FRICATIVE}),
-/*23*/	new Consonant("h" , 10, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.GLOTTAL}),
+/*23*/	new Consonant("h" , 10, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.GLOTTAL_FRICATIVE}),
 		
 /*24*/	new Consonant("m" , 11, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.BILABIAL}),
 /*25*/	new Consonant("n" , 11, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.ALVEOLAR}),
@@ -120,10 +120,11 @@ interface SegmentProperty
 enum ConsonantProperty implements SegmentProperty
 {
 	PLOSIVE(1), AFFRICATE(.624), FRICATIVE(.922), NASAL(.962), VOICELESS_NASAL(.038), APPROXIMANT(.969),
-	GLOTTAL(.721), UVULAR(.140), VELAR(.953), POSTALVEOLAR(.590), ALVEOLAR(.965), LABIODENTAL(.510), BILABIAL(.942),
+	GLOTTAL(.166), UVULAR(.140), VELAR(.953), POSTALVEOLAR(.590), ALVEOLAR(.965), LABIODENTAL(.510), BILABIAL(.942),
 	VOICELESS(.989), VOICED(.767),
 	UNASPIRATED(.949), ASPIRATED(.253),
 	BREATHLESS(.789), BREATHY(.027),
+	GLOTTAL_FRICATIVE(.647),
 	SIBILANT(.914),
 	LIQUID(.924),	// liquid | approximant
 	GLIDE(.912),	// glide | approximant
