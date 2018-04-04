@@ -1,15 +1,29 @@
-package Gengen_v2.gengenv2;
+/** Copyright 2018 Clayton Cooper
+ *	
+ *	This file is part of gengen2.
+ *
+ *	gengen2 is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	gengen2 is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with gengen2.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
 
+package Gengen_v2.gengenv2;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.Map.Entry;
 import java.util.Random;
-import java.util.Timer;
 
 import org.apache.commons.math3.distribution.LogNormalDistribution;
 
@@ -17,128 +31,226 @@ public class Phonology
 {
 	Random rng;
 	
-	// General properties
-	double[] prominences;		// prominence of each consonantal phonetic property in the language
-	double[] vowelProminences;	// prominence of each vocalic phonetic property
-	double[] codaProminences;	// prominence of each consonantal property as applied to codas
+	/** Prominence values
+	 * 
+	 *  Through repeated use in variable names, "prominence" has become, for me, something of a technical term, denoting
+	 *  a raw measure of how common a phonological unit (a phoneme, a phonetic property, a syllable segment) is.
+	 *  The value of a prominence variable doesn't have any meaning on its own, but often the prominences of every
+	 *  member in a class of segments are summed to determine the probability of that segment appearing.
+	 *  
+	 *  The first three arrays of prominences below are a little different: they are never used directly, but are rather 
+	 *  combined to determine prominence values for segments. They represent the prevalence of different properties in 
+	 *  the phonology's phonemic inventory.
+	 *  
+	 *  The "lead" and "follow" prominences represent a phoneme's tendency to precede or follow other sounds within
+	 *  a consonant cluster, diphthong, or interlude, and are used to determine how commonplace each such cluster is.
+	 */
+	double[] baseProminences;	// Prominence of each consonantal phonetic property in the phonology, as applied to 
+								// syllable onsets. This is the the basic value from which other consonantal prominences
+								// are derived by disturbance.
+	double[] codaProminences;	// Prominence of each consonantal property, as applied to syllable codas
+	double[] vowelProminences;	// Prominence of each vocalic phonetic property
 	
-	// Phonetic properties
-	Phoneme[] cInv;			// language's CONSONANT inventory
-	Phoneme[] vInv;			// language's VOWEL inventory
-	
-	ArrayList<SyllableSegment>[] onsets, nuclei, codas;		// inventories of different syllable segment types
-	
-	double[] onsetClusterLengthProbabilities;
-	double[] codaClusterLengthProbabilities;
-	
-	// Phonotactic properties
-	int maxOnsetLength, maxNucleusLength, maxCodaLength, clusterBonus;
-	private boolean[] consonantCategoriesRepresented;
-	private boolean[] nucleusCategoriesRepresented;
-	
-	boolean[][] validOnsetTransitions;			// tables of valid transitions btwn different categories
-	boolean[][] validNucleusTransitions;
-	boolean[][] validCodaTransitions;
-	
-	double[] onsetClusterLeadProminences;		// how much each category lends itself to being followed by another sound in a cluster
-	double[] onsetClusterFollowProminences;		// like above,  but for the sound that follows
-	double[] diphthongLeadProminences;			// like the two above, but for diphthongs
+	double[] onsetClusterLeadProminences;
+	double[] onsetClusterFollowProminences;
+	double[] diphthongLeadProminences;
 	double[] diphthongFollowProminences;
-	double[] codaClusterLeadProminences;		// and so on, for codas
+	double[] codaClusterLeadProminences;
 	double[] codaClusterFollowProminences;
-	double[] interludeLeadProminences;			// and so on, for interludes
+	double[] interludeLeadProminences;
 	double[] interludeFollowProminences;
 	
-	double emptyInitialOnsetProminence;
-	double baseOnsetClusterChance;	// ratio of clusters of length N to those of length N-1 (N >= 2) in onsets, before scaling
-	double baseDiphthongChance;		// as above, but for nuclei
-	double baseCodaClusterChance;	// for codas
-	double simpleOnsetProbability;	// overall probability of having an onset cluster vs. a simple onset
-	double simpleCodaProbability;	// overall probability of having a coda cluster vs. a simple coda
+	/**
+	 * Phoneme inventories
+	 * 	
+	 * Arrays containing of all the phonemes (potentially) in the phonology. These are sorted into consonant and
+	 * vowel inventories. Note that a phoneme appearing in one of these inventories may still be absent from the
+	 * language in practice if its prominence is 0 in every context.
+	 */
+	Phoneme[] cInv;			// List of CONSONANTS represented in phonology
+	Phoneme[] vInv;			// List of VOWELS represented in phonology
 	
-	double onsetClusterInhibitor;	// reduces the diversity of clusters appearing w/in a language
-	double diphthongInhibitor;		// as above, but for diphthongs
-	double codaClusterInhibitor;	// for codas
+	/**
+	 * Syllable segment inventories
+	 * 
+	 * Lists of arrays enumerating every onset, nucleus, and coda available in the language. Each array contains
+	 * all possible syllable segments of a certain length according to the array's index: the 0th array contains
+	 * single phonemes ('simple' segments), the 1th array contains complex segments formed of 2 phonemes, the
+	 * 2nd of 3, and so forth. Syllable segments with non-positive prominence are pruned can never appear and so
+	 * are pruned from these lists.
+	 */
+	protected ArrayList<SyllableSegment>[] onsets;
+	protected ArrayList<SyllableSegment>[] nuclei;
+	protected ArrayList<SyllableSegment>[] codas;	
 	
-	double codaInhibitor;		// flat value subtracted from every coda prominence value to reflect (usually) decreased richness
-								// in coda inventory
-	double codaDisturbance;		// stdev for disturbance of codas, AS A PERCENTAGE of the prominenceStdev. at 0, the coda values
-								// are undisturbed compared to the onset ones. at 1, they have essentially been rerolled.
+	/**
+	 * Syllable segment length limits
+	 * 
+	 *  Determine the maximum length a consonant cluster or diphthong may take. These values are generated in
+	 *  makeBasicSyllableStructure() but may be reduced during generation if no clusters of sufficient length
+	 *  are present in that language. This keeps methods from trying to pick a syllable segment from an empty
+	 *  list if, say, a phonology technically allows onset clusters of length 3 but doesn't actually have any. 
+	 */
+	protected int maxOnsetLength;
+	protected int maxNucleusLength;
+	protected int maxCodaLength;
 	
-	double hiatusBonus;		// increases (or decreases) the probability of hiatus occurring between 2 nuclei
-	double interludeBonus;	// increases (or decreases) the porbability of interludes forming between a coda and an onset
+	/**
+	 * Coda prominence variables
+	 * 
+	 * codaProminenceOffset is a flat value subtracted from every coda prominence value to manage the richness
+	 * of the coda inventory. codaDisturbance governs how greatly the base prominences are disturbed to produce
+	 * the coda prominence values, AS A PERCENTAGE of the prominenceStdev. At 0, coda values are undisturbed 
+	 * compared to the base values; at 1, they have essentially been rerolled from scratch.
+	 */
+	private double codaProminenceOffset;
+	private double codaDisturbance;
+	
+	/**
+	 * General cluster offsets
+	 * 
+	 * Inhibitor values are added to or subtracted from the prominence of consonant clusters or diphthongs to
+	 * manage the diversity of such features in a phonology. 
+	 */
+	private double onsetClusterOffset;
+	private double diphthongOffset;
+	private double codaClusterOffset;
+	private double hiatusOffset;
+	private double interludeOffset;
 
-	
-	// Flowchart control variables
-	protected double strongHeavyRimeChance;
-	protected double strongLightRimeChance;
-	protected double weakHeavyRimeChance;
-	protected double weakLightRimeChance;
-	protected double baseOnsetChance;
-	protected double codaChance;
-	protected double codaLocationBalance;
-	protected double medialCodaChance;
-	protected double terminalCodaChance;
-	
-	
-	// Phonotactic inhibitors
+	/**
+	 * Specific cluster offsets
+	 * 
+	 * These values are added to or subtracted from particular cluster prominences in specific circumstances to
+	 * help restrict their prominence to (the author's personal sense of) a more natural pattern.
+	 */
 	double onsetNgInhibitor;			// reduces the chance of a onset 'ng'
 	double onsetTlDlInhibitor; 			// reduces the chances of an onset 'tl' or 'dl'
 	double nasalDissonanceInhibitor;	// reduces the prevalence of coda nasal-plosive clusters that disagree in articulation
 	double unequalVoicingInhibitor;		// reduces the prevalence of interludes that disagree in voicing
 	
-	// Generator properties
-	static double emptyInitialOnsetProminenceMean    = 0.3;
-	static double emptyInitialOnsetProminenceStdev   = 0.15;
-	static double onsetClusterProminenceMean	 	 = 0.1;
-	static double onsetClusterProminenceStdev 		 = 0.05;
+	/**	
+	 * Cluster length probabilities
+	 * 
+	 * If it has been determined that a consonant cluster should appear, these probability tables are consulted
+	 * to determine its length. The ith entry indicates the odds that a cluster of length i+2 (min. 2) should be
+	 * used. The probabilities depend on the length of the cluster (longer clusters are exponentially rarer) and
+	 * on the number of available syllable segments of that length.
+	 * 
+	 * The simple___Probability variables function analogously, representing the chance of no cluster appearing
+	 * in a position where either may be possible.
+	 */
+	protected double[] onsetClusterLengthProbabilities;
+	protected double[] codaClusterLengthProbabilities;
+	protected double simpleOnsetProbability;		// overall probability of having an onset cluster vs. a simple onset
+	protected double simpleCodaProbability;		// overall probability of having a coda cluster vs. a simple coda
 	
-	static double emptyTerminalCodaProminenceMean = 0.5;
-	static double emptyTerminalCodaProminenceStdev = 0.5;
+	/**
+	 * Phonotactic properties
+	 * 
+	 * These values are used in the determining where in a syllable certain sounds may appear, which is the task
+	 * of the various make____() methods. the ___CategoriesRepresented arrays track which phonetic categories
+	 * are present in a language (this can't be done just by consulting their prominences as categories with 
+	 * negative prominence may still be present), while the valid___Transitions arrays dictate the phonotactic
+	 * categories of which different phonemes might follow each other within clusters.
+	 */
+	private boolean[] consonantCategoriesRepresented;
+	private boolean[] nucleusCategoriesRepresented;
 	
-	static double minimumOnsetClusterProminence   = 0.01; // minimum value for onsetClusterProminence 
-	static double minimumNucleusClusterProminence = 0.04; // " " " diphthongProminence
-	static double minimumCodaClusterProminence 	 = 0.04; // " " " codaClusterProminence
-	
-	static double prominenceStdev      = 0.60;
-	static double vowelProminenceStdev = 0.50;
-	static double codaInhibitorMean	   = 0.4;
-	static double codaInhibitorStdev   = 0.4;
-	
-	static double clusterLeadStdev     = 0.50;
-	static double clusterFollowStdev   = 0.50;
-	static double nucleusLeadStdev     = 0.50;
-	static double nucleusFollowStdev   = 0.50;
-	
-	static double onsetNgInhibitorMean    = 2;
-	static double onsetNgInhibitorStdev   = 1;
-	static double onsetTlDlInhibitorMean  = 1;
-	static double onsetTlDlInhibitorStdev = 0.5;
-	static double nasalDissonanceInhibitorMean = 2;
-	static double nasalDissonanceInhibitorStdev = 1;
-	static double unequalVoicingInhibitorMean = 1.25;
-	static double unequalVoicingInhibitorStdev = 0.5;
-	
-	static double hiatusBonusStdev = 0.15;
-	static double interludeBonusStdev = 0.15;
-	
-	static double strongHeavyRimeChanceMean = 0.8;
-	static double strongHeavyRimeChanceStdev = 0.2;
-	static double weakHeavyRimeChanceMean = 0.3;
-	static double weakHeavyRimeChanceStdev = 0.15;
-	static double codaChanceMean  = -0.5;
-	static double codaChanceStdev = 0.5;
-	static double codaLocationBalanceMean = 0.4;
-	static double codaLocationBalanceStdev = 0.33;
-	static double onsetChanceMean = 0;
-	static double onsetChanceStdev = 0.1;
-	static double onsetChanceOffset = 0.8;
-	
-	// statistics data
-	int[] data = new int[11];
-	
-	static int[] persistentData = new int[11];
+	private boolean[][] validOnsetTransitions;
+	private boolean[][] validNucleusTransitions;
+	private boolean[][] validCodaTransitions;
 
+	/**
+	 * Base occurrence chances
+	 * 
+	 * These represent the base chances of various features of syllables occurring, before scaling by the number
+	 * of entries available to that class of features. These are used in the Flowchart class to determine the
+	 * probability of transitioning between nodes. 
+	 * 
+	 * Cluster chances represent the chance of a marginally more complex syllable segment occurring. In places
+	 * where either a simple or complex segment may occur, these represent the chance of a cluster appearing at
+	 * all (as usual, before scaling). Within onset/coda clusters, these affect the chance of a more complex
+	 * cluster appearing, and so are factored into the calculation of the ___ClusterLengthProbabilities and 
+	 * simple___Probability variables in the setClusterChances() method.
+	 */
+	protected double baseOnsetClusterChance;
+	protected double baseCodaClusterChance;
+	protected double baseDiphthongChance;
+	
+	protected double strongHeavyRimeChance;
+	protected double strongLightRimeChance;
+	protected double weakHeavyRimeChance;
+	protected double weakLightRimeChance;
+	protected double emptyInitialOnsetProminence;
+	protected double baseOnsetChance;
+	protected double baseMedialCodaChance;
+	protected double baseTerminalCodaChance;
+	
+
+	/**
+	 * Generator properties
+	 * 
+	 * These static variables are properties of the generate itself and are used to determine the values of
+	 * different features within a language that have a random component to them. Most of them represent the
+	 * mean and standard deviation values for Gaussian random numbers.
+	 */
+	
+	// Prominence means/stdevs
+	static double prominenceStdev					= 0.60;
+	static double vowelProminenceStdev 				= 0.50;
+	static double emptyInitialOnsetProminenceMean   = 0.3;
+	static double emptyInitialOnsetProminenceStdev  = 0.15;
+	static double onsetClusterProminenceMean	 	= 0.1;
+	static double onsetClusterProminenceStdev 		= 0.05;
+	static double clusterLeadStdev    				= 0.50;
+	static double clusterFollowStdev  				= 0.50;
+	static double nucleusLeadStdev  				= 0.50;
+	static double nucleusFollowStdev 				= 0.50;
+
+	// Bounding values
+	static double minimumOnsetClusterProminence		= 0.01; 
+	static double minimumNucleusClusterProminence	= 0.01;
+	static double minimumCodaClusterProminence		= 0.01;
+	
+	// Offset means/stdevs
+	static double codaOffsetMean					= 0.4;
+	static double codaOffsetStdev					= 0.4;
+	static double onsetNgOffsetMean					= 2;
+	static double onsetNgOffsetStdev				= 1;
+	static double onsetTlDlOffsetMean				= 1;
+	static double onsetTlDlOffsetStdev				= 0.5;
+	static double nasalDissonanceOffsetMean			= 2;
+	static double nasalDissonanceOffsetStdev		= 1;
+	static double unequalVoicingOffsetMean			= 1.25;
+	static double unequalVoicingOffsetStdev			= 0.5;
+	static double hiatusOffsetStdev					= 0.15;
+	static double interludeOffsetStdev				= 0.15;
+	
+	// Base occurence chance means/stdevs 
+	static double strongHeavyRimeChanceMean			= 0.8;
+	static double strongHeavyRimeChanceStdev		= 0.2;
+	static double weakHeavyRimeChanceMean			= 0.3;
+	static double weakHeavyRimeChanceStdev			= 0.15;
+	static double baseCodaChanceMean				= -0.5;
+	static double baseCodaChanceStdev				= 0.5;
+	static double codaLocationBalanceMean			= 0.4;
+	static double codaLocationBalanceStdev			= 0.33;
+	static double baseOnsetChanceMean				= 0;
+	static double baseOnsetChanceStdev				= 0.1;
+	static double baseOnsetChanceOffset				= 0.8;
+	
+	/**
+	 * Statistical data
+	 * 
+	 * Assorted information about the prevalence of different syllabic features in the current phonology.
+	 * The items named in the final ints are stored in the respective indices in counts[].
+	 * persistentCounts[] is used to store the sum of the data in counts across multiple phonologies.
+	 */
+	public int[] counts = new int[11];
+	static int[] persistentCounts = new int[11];
+
+	// Indices of counts 
 	static final int SIMPLE_ONSETS				=  0;
 	static final int COMPLEX_ONSETS				=  1;
 	static final int SIMPLE_NUCLEI				=  2;
@@ -159,9 +271,6 @@ public class Phonology
 		
 //		seed = 4968672162774089494L;	// qwethimphon
 
-		// Seeds to revisit
-		// seed = 1056235076985434733L;	// needs longer names to compensate for deficient phonemic inventory
-		
 		try
 		{
 			// Test seed
@@ -193,7 +302,7 @@ public class Phonology
 			for (int i = 0; i < maxNucleusLength; i++ )
 				printInventory(nuclei[i]);
 			
-			data = gatherStatistics();
+			counts = gatherStatistics();
 			
 			setClusterChances();
 			
@@ -245,7 +354,7 @@ public class Phonology
 		{
 			baseOnsetClusterChance = Math.max(rng.nextGaussian() * onsetClusterProminenceStdev + onsetClusterProminenceMean,
 											  minimumOnsetClusterProminence);
-			onsetClusterInhibitor = rng.nextGaussian() * 0.25 + 0.5;
+			onsetClusterOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
 		
 		// Roll for nucleus
@@ -263,7 +372,7 @@ public class Phonology
 		if (maxNucleusLength > 1)
 		{
 			baseDiphthongChance = Math.max(rng.nextGaussian() * 0.05 + 0.15, minimumNucleusClusterProminence);
-			diphthongInhibitor = rng.nextGaussian() * 0.25 + 0.5;
+			diphthongOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
 		
 		// Roll for coda
@@ -290,15 +399,8 @@ public class Phonology
 		if (maxCodaLength > 0)
 		{
 			baseCodaClusterChance = Math.max(rng.nextGaussian() * 0.1 + 0.25, minimumCodaClusterProminence);
-			codaClusterInhibitor = rng.nextGaussian() * 0.25 + 0.5;
+			codaClusterOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
-		
-		// Cluster bonus = sum of values of cluster maxima in excess of 1
-		clusterBonus = 0;
-		if (maxOnsetLength > 1)
-			clusterBonus += maxOnsetLength - 1;
-		if (maxCodaLength > 1)
-			clusterBonus += maxCodaLength - 1;
 		
 //		for (int i = 0; i < maxOnsetLength; i++)
 //			System.out.print("C");
@@ -320,7 +422,7 @@ public class Phonology
 	 */ 
 	public void determineProminence()
 	{
-		prominences = new double[ConsonantProperty.values().length];	// likelihood to appear at start of word
+		baseProminences = new double[ConsonantProperty.values().length];	// likelihood to appear at start of word
 		vowelProminences = new double[VowelProperty.values().length];
 		codaProminences = new double[ConsonantProperty.values().length];
 		
@@ -328,7 +430,7 @@ public class Phonology
 		// Determine prominence values for consonant properties
 		for (int i = 0; i < ConsonantProperty.values().length; i++)
 			if (rng.nextDouble() < ConsonantProperty.values()[i].probability)	// properties failing this check receive 0 prominence
-				prominences[i] = Math.max(rng.nextGaussian() * prominenceStdev + 1, 0.001);
+				baseProminences[i] = Math.max(rng.nextGaussian() * prominenceStdev + 1, 0.001);
 		
 		// Coda prominence values are generated by disturbing onset prominence values, that is, by adding a gaussian
 		// term with mean 0 and randomly parametrized stdev, so they are influenced by onset values but not beholden
@@ -341,22 +443,22 @@ public class Phonology
 			
 			
 			// Coda inhibitor is a gaussian random number; the mean and stdev are engine parameters.
-			codaInhibitor = rng.nextGaussian() * codaInhibitorStdev + codaInhibitorMean;
-			codaInhibitor = Math.max(0, codaInhibitor);
+			codaProminenceOffset = rng.nextGaussian() * codaOffsetStdev + codaOffsetMean;
+			codaProminenceOffset = Math.max(0, codaProminenceOffset);
 			
 //			System.out.println("codaInhibitor  :\t" + codaInhibitor);
 			
-			for (int i = 0; i < prominences.length; i++)
-				if (prominences[i] > 0)
+			for (int i = 0; i < baseProminences.length; i++)
+				if (baseProminences[i] > 0)
 				{
 					// Take the onset (general) prominence value as a base
-					codaProminences[i] = prominences[i];
+					codaProminences[i] = baseProminences[i];
 					
 					// Disturb prominence
 					codaProminences[i] += rng.nextGaussian() * prominenceStdev * codaDisturbance;
 					
 					// Inhibit prominence
-					codaProminences[i] -= codaInhibitor;
+					codaProminences[i] -= codaProminenceOffset;
 				}
 		}
 		
@@ -368,7 +470,7 @@ public class Phonology
 			
 			// Determine prominence for consonant categories as cluster leads
 			for (int i = 0; i < ConsonantProperty.values().length; i++)
-				if (prominences[i] > 0)
+				if (baseProminences[i] > 0)
 				{
 					onsetClusterLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
 					onsetClusterFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
@@ -383,7 +485,7 @@ public class Phonology
 			
 			// Randomly determine prominence values
 			for (int i = 0; i < ConsonantProperty.values().length; i++)
-				if (prominences[i] > 0)
+				if (baseProminences[i] > 0)
 				{
 					codaClusterLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
 					codaClusterFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
@@ -396,7 +498,7 @@ public class Phonology
 		
 		// Determine prominence for consonant categories as cluster leads
 		for (int i = 0; i < ConsonantProperty.values().length; i++)
-			if (prominences[i] > 0)
+			if (baseProminences[i] > 0)
 			{
 				interludeLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
 				interludeFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
@@ -423,10 +525,10 @@ public class Phonology
 		
 		// Set inhibitors
 		// initial 'ng'
-		onsetNgInhibitor   		 = Math.max(rng.nextGaussian() *   onsetNgInhibitorStdev +   onsetNgInhibitorMean, 0);
-		onsetTlDlInhibitor 		 = Math.max(rng.nextGaussian() * onsetTlDlInhibitorStdev + onsetTlDlInhibitorMean, 0);
-		nasalDissonanceInhibitor = Math.max(rng.nextGaussian() * nasalDissonanceInhibitorStdev + nasalDissonanceInhibitorMean, 0);
-		unequalVoicingInhibitor  = Math.max(rng.nextGaussian() * unequalVoicingInhibitorStdev  + unequalVoicingInhibitorMean,  0);
+		onsetNgInhibitor   		 = Math.max(rng.nextGaussian() *   onsetNgOffsetStdev +   onsetNgOffsetMean, 0);
+		onsetTlDlInhibitor 		 = Math.max(rng.nextGaussian() * onsetTlDlOffsetStdev + onsetTlDlOffsetMean, 0);
+		nasalDissonanceInhibitor = Math.max(rng.nextGaussian() * nasalDissonanceOffsetStdev + nasalDissonanceOffsetMean, 0);
+		unequalVoicingInhibitor  = Math.max(rng.nextGaussian() * unequalVoicingOffsetStdev  + unequalVoicingOffsetMean,  0);
 		
 		System.out.println(nasalDissonanceInhibitor);
 	}
@@ -445,7 +547,7 @@ public class Phonology
 			boolean add = true;
 			
 			for (int j = 0; j < consonants[i].properties.length; j++)
-				if (prominences[((ConsonantProperty) consonants[i].properties[j]).ordinal()] == 0)
+				if (baseProminences[((ConsonantProperty) consonants[i].properties[j]).ordinal()] == 0)
 				{
 					add = false;
 					j = consonants[i].properties.length;
@@ -747,7 +849,7 @@ public class Phonology
 	// Decides what nucleus-nucleus transitions are allowed in the case of an empty interlude
 	public void makeHiatus()
 	{
-		hiatusBonus = rng.nextGaussian() * hiatusBonusStdev;
+		hiatusOffset = rng.nextGaussian() * hiatusOffsetStdev;
 		
 		int[][] transProb = Cluster.hiatusTransitions;
 
@@ -768,7 +870,7 @@ public class Phonology
 				
 				// Chance of representation ~= f(.3 x 4^(commonness - 3))
 				// 3 -> .446, 2 -> .155, 1 -> .050
-				double probability = 0.3 * Math.pow(4, transProb[p1.segment.id][p2.segment.id] - 3) + hiatusBonus;
+				double probability = 0.3 * Math.pow(4, transProb[p1.segment.id][p2.segment.id] - 3) + hiatusOffset;
 				
 				System.out.printf("%s%s %.3f vs. %.3f [%.3f * %.3f]\t", p1.segment.expression, p2.segment.expression,
 						probability, (leadProbability[p1.segment.id] * followProbability[p2.segment.id]),
@@ -783,7 +885,7 @@ public class Phonology
 			// Normalize and sort values
 			p1.normalizeAndSortInterludes();
 		}
-		System.out.println("Hiatus bonus: " +  hiatusBonus);
+		System.out.println("Hiatus bonus: " +  hiatusOffset);
 		
 
 	}
@@ -791,7 +893,7 @@ public class Phonology
 	// Decides what coda-onset transitions are allowed in the case of a complex interlude
 	public void makeInterludes()
 	{
-		interludeBonus = rng.nextGaussian() * interludeBonusStdev;
+		interludeOffset = rng.nextGaussian() * interludeOffsetStdev;
 		
 		int[][] transProb = Cluster.interludeTransitions;
 		
@@ -816,7 +918,7 @@ public class Phonology
 					// Chance of representation ~= f(.4 x 15^(commonness - 3))
 					// 3 -> .559, 2 -> .069, 1 -> .007
 					double probability = 0.4 * Math.pow(15, transProb[p1.segment.transitionCategory][p2.segment.transitionCategory] - 3)
-											+ interludeBonus;
+											+ interludeOffset;
 					
 //					System.out.printf("a%s%sa\t%.3f vs. %.3f [%.3f * %.3f]\t", p1.segment.expression, p2.segment.expression,
 //							probability, (leadProbability[p1.segment.transitionCategory] * followProbability[p2.segment.transitionCategory]),
@@ -864,7 +966,7 @@ public class Phonology
 			Collections.reverse(codas[i]);
 		}
 		
-		System.out.println("Interlude bonus: " +  interludeBonus);
+		System.out.println("Interlude bonus: " +  interludeOffset);
 	}
 		
 	
@@ -937,7 +1039,7 @@ public class Phonology
 		
 		// Copy results to tally
 		for (int i = 0; i < results.length; i++)
-			persistentData[i] += results[i];
+			persistentCounts[i] += results[i];
 		
 		return results;
 	}
@@ -984,8 +1086,8 @@ public class Phonology
 			}
 			
 			// Set overall probability of having a cluster vs a simple onset
-			simpleOnsetProbability = Math.log(data[SIMPLE_ONSETS] + 1) /
-						  		     Math.log((data[SIMPLE_ONSETS] + 1) * (Math.pow(data[COMPLEX_ONSETS] + 1, baseOnsetClusterChance)));
+			simpleOnsetProbability = Math.log(counts[SIMPLE_ONSETS] + 1) /
+						  		     Math.log((counts[SIMPLE_ONSETS] + 1) * (Math.pow(counts[COMPLEX_ONSETS] + 1, baseOnsetClusterChance)));
 			
 			for(int i = 0; i < onsetClusterLengthProbabilities.length; i ++)
 				System.out.println(onsetClusterLengthProbabilities[i]);
@@ -1043,8 +1145,8 @@ public class Phonology
 			System.out.println("total\t" + total);
 			
 			// Set overall probability of having a coda cluster vs. a simple coda 
-			simpleCodaProbability = Math.log(data[SIMPLE_CODAS] + 1) /
-									Math.log((data[SIMPLE_CODAS] + 1) * (Math.pow(data[COMPLEX_CODAS] + 1, baseCodaClusterChance)));
+			simpleCodaProbability = Math.log(counts[SIMPLE_CODAS] + 1) /
+									Math.log((counts[SIMPLE_CODAS] + 1) * (Math.pow(counts[COMPLEX_CODAS] + 1, baseCodaClusterChance)));
 		}
 		
 		// Repeat the process for each nucleus and coda
@@ -1057,7 +1159,7 @@ public class Phonology
 	
 	public void setFlowControlVariables()
 	{
-		if (data[HEAVY_RIMES] == 0)
+		if (counts[HEAVY_RIMES] == 0)
 		{
 			weakLightRimeChance = 1;
 			strongLightRimeChance = 1;
@@ -1091,31 +1193,33 @@ public class Phonology
 		System.out.printf("weak:\tHeavy %.3f\n", weakHeavyRimeChance);
 		System.out.printf("\t\tLight %.3f\n",  weakLightRimeChance);
 		
-		LogNormalDistribution logNormal = new LogNormalDistribution(codaChanceMean, codaChanceStdev);
+		LogNormalDistribution logNormal = new LogNormalDistribution(baseCodaChanceMean, baseCodaChanceStdev);
 		logNormal.reseedRandomGenerator(rng.nextLong());
 		
+		double baseCodaChance, codaLocationBalance;
+		
 		if (maxCodaLength > 0)
-			codaChance = logNormal.sample();
+			baseCodaChance = logNormal.sample();
 		else
-			codaChance = 0;
+			baseCodaChance = 0;
 		codaLocationBalance = rng.nextGaussian() * codaLocationBalanceStdev + codaLocationBalanceMean;
 		
 		codaLocationBalance = Math.max(Math.min(codaLocationBalance, 1), 0);
 		
-		medialCodaChance =   Math.max(Math.min(codaChance * codaLocationBalance, 1), 0);
-		terminalCodaChance = Math.max(Math.min(codaChance * (1 - codaLocationBalance), 1), 0);
+		baseMedialCodaChance =   Math.max(Math.min(baseCodaChance * codaLocationBalance, 1), 0);
+		baseTerminalCodaChance = Math.max(Math.min(baseCodaChance * (1 - codaLocationBalance), 1), 0);
 		
-		System.out.printf("Base coda chance\t%.3f\n", codaChance / 2);
+		System.out.printf("Base coda chance\t%.3f\n", baseCodaChance / 2);
 		System.out.printf("Coda location balance\t%.3f\n", codaLocationBalance);
-		System.out.printf("Medial coda chance\t%.3f\n", medialCodaChance);
-		System.out.printf("Terminal coda chance\t%.3f\n", terminalCodaChance);
+		System.out.printf("Medial coda chance\t%.3f\n", baseMedialCodaChance);
+		System.out.printf("Terminal coda chance\t%.3f\n", baseTerminalCodaChance);
 		
 		
-		logNormal = new LogNormalDistribution(onsetChanceMean, onsetChanceStdev);
+		logNormal = new LogNormalDistribution(baseOnsetChanceMean, baseOnsetChanceStdev);
 		logNormal.reseedRandomGenerator(rng.nextLong());
 		
-		if (data[SIMPLE_NUCLEI_WITH_HIATUS] > 0)
-			baseOnsetChance = 1 - (logNormal.sample() - onsetChanceOffset);
+		if (counts[SIMPLE_NUCLEI_WITH_HIATUS] > 0)
+			baseOnsetChance = 1 - (logNormal.sample() - baseOnsetChanceOffset);
 		else
 			baseOnsetChance = 1;
 		
@@ -1262,7 +1366,7 @@ public class Phonology
 			{
 				// this combined prominence value doesn't need its component deviations to be scaled;
 				// it's fine (probably!) if more complex clusters have larger variances
-				prominence += onset.get(i).onsetClusterLeadProminence + onset.get(i+1).onsetClusterFollowProminence - 2  - onsetClusterInhibitor;
+				prominence += onset.get(i).onsetClusterLeadProminence + onset.get(i+1).onsetClusterFollowProminence - 2  - onsetClusterOffset;
 				
 				// inhibitor for tl/dl
 				if (onset.get(i).segment.properties[0] == ConsonantProperty.PLOSIVE &&
@@ -1337,7 +1441,7 @@ public class Phonology
 			{
 				// this combined prominence value doesn't need its component deviations to be scaled;
 				// it's fine (probably!) if more complex clusters have larger variances
-				prominence += nucleus.get(i).nucleusLeadProminence + nucleus.get(i+1).nucleusFollowProminence - 2 - diphthongInhibitor;
+				prominence += nucleus.get(i).nucleusLeadProminence + nucleus.get(i+1).nucleusFollowProminence - 2 - diphthongOffset;
 			}
 		
 		// Add this nucleus to the nucleus inventory
@@ -1401,7 +1505,7 @@ public class Phonology
 			{
 				// this combined prominence value doesn't need its component deviations to be scaled;
 				// it's fine (probably!) if more complex clusters have larger variances
-				prominence += coda.get(i).codaClusterLeadProminence + coda.get(i+1).codaClusterFollowProminence - 2 - codaClusterInhibitor;
+				prominence += coda.get(i).codaClusterLeadProminence + coda.get(i+1).codaClusterFollowProminence - 2 - codaClusterOffset;
 				
 				/* penalize for unassimilated nasal-plosive clusters
 				 */
@@ -1490,14 +1594,14 @@ public class Phonology
 		double time = (endTime - startTime) / (total * 1000000);
 		
 		System.out.println("AVERAGE\tSIMPLE\tCOMPLEX");
-		System.out.println("ONSETS\t" + (persistentData[SIMPLE_ONSETS] / total) + "\t" + (persistentData[COMPLEX_ONSETS] / total));
-		System.out.println("NUCLEI\t" + (persistentData[SIMPLE_NUCLEI] / total) + "\t" + (persistentData[COMPLEX_NUCLEI] / total));
-		System.out.println("CODAS \t" + (persistentData[SIMPLE_CODAS]  / total) + "\t" + (persistentData[COMPLEX_CODAS]  / total));
-		System.out.println("HIATUS\t" + (persistentData[SIMPLE_NUCLEI_WITH_HIATUS]  / total) + "\t" 
-									  + (persistentData[COMPLEX_NUCLEI_WITH_HIATUS]  / total));
-		System.out.println("COMPOUND INTERLUDES\t" + persistentData[COMPOUND_INTERLUDES] / total);
-		System.out.println("LIGHT RIMES\t" + persistentData[LIGHT_RIMES] / total);
-		System.out.println("HEAVY RIMES\t" + persistentData[HEAVY_RIMES] / total);
+		System.out.println("ONSETS\t" + (persistentCounts[SIMPLE_ONSETS] / total) + "\t" + (persistentCounts[COMPLEX_ONSETS] / total));
+		System.out.println("NUCLEI\t" + (persistentCounts[SIMPLE_NUCLEI] / total) + "\t" + (persistentCounts[COMPLEX_NUCLEI] / total));
+		System.out.println("CODAS \t" + (persistentCounts[SIMPLE_CODAS]  / total) + "\t" + (persistentCounts[COMPLEX_CODAS]  / total));
+		System.out.println("HIATUS\t" + (persistentCounts[SIMPLE_NUCLEI_WITH_HIATUS]  / total) + "\t" 
+									  + (persistentCounts[COMPLEX_NUCLEI_WITH_HIATUS]  / total));
+		System.out.println("COMPOUND INTERLUDES\t" + persistentCounts[COMPOUND_INTERLUDES] / total);
+		System.out.println("LIGHT RIMES\t" + persistentCounts[LIGHT_RIMES] / total);
+		System.out.println("HEAVY RIMES\t" + persistentCounts[HEAVY_RIMES] / total);
 		
 		System.out.println("Average time per language: " + time + "ms");
 	}
@@ -1533,7 +1637,6 @@ public class Phonology
 		SegmentProperty place2 = p2.segment.properties[0];
 		SegmentProperty voice1 = p1.segment.properties[1];
 		SegmentProperty voice2 = p2.segment.properties[1];
-		Segment s2 = p2.segment;
 		
 		if ((place1 == ConsonantProperty.PLOSIVE || place1 == ConsonantProperty.AFFRICATE || place1 == ConsonantProperty.FRICATIVE) &&
 			(place2 == ConsonantProperty.PLOSIVE || place2 == ConsonantProperty.AFFRICATE || place2 == ConsonantProperty.FRICATIVE) &&
@@ -1616,7 +1719,7 @@ public class Phonology
 				// The same is true of the cluster prominence values as well.
 				for (ConsonantProperty s : ((Consonant) segment).properties)
 				{
-					double deviance = prominences[s.ordinal()] - 1;
+					double deviance = baseProminences[s.ordinal()] - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					onsetInitialProminence += deviance;
 					

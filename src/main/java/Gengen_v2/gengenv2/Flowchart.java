@@ -1,3 +1,22 @@
+/** Copyright 2018 Clayton Cooper
+ *	
+ *	This file is part of gengen2.
+ *
+ *	gengen2 is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	gengen2 is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with gengen2.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
 package Gengen_v2.gengenv2;
 
 import java.util.ArrayList;
@@ -54,51 +73,51 @@ class Flowchart
 		double medialHeavyRimeComplexNucleus;
 		
 		// number of light rimes with simple interludes
-		medialLightRime = p.data[Phonology.SIMPLE_NUCLEI] * p.data[Phonology.SIMPLE_NUCLEI] * p.baseOnsetChance;
+		medialLightRime = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.SIMPLE_NUCLEI] * p.baseOnsetChance;
 		
 		// add number of light rimes with empty interludes
-		medialLightRime += p.data[Phonology.SIMPLE_NUCLEI_WITH_HIATUS] * (1 - p.baseOnsetChance); 
+		medialLightRime += p.counts[Phonology.SIMPLE_NUCLEI_WITH_HIATUS] * (1 - p.baseOnsetChance); 
 		
 		// number of heavy rimes with simple nuclei and complex onsets
-		medialHeavyRimeSimpleNucleus = p.data[Phonology.SIMPLE_NUCLEI] * p.data[Phonology.COMPLEX_ONSETS];
+		medialHeavyRimeSimpleNucleus = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.COMPLEX_ONSETS];
 		
 		// scale by chance of onset, complex onset | onset, !coda | onset
 		medialHeavyRimeSimpleNucleus *= p.baseOnsetChance;
 		medialHeavyRimeSimpleNucleus *= p.baseOnsetClusterChance;
-		medialHeavyRimeSimpleNucleus *= (1 - p.medialCodaChance);
+		medialHeavyRimeSimpleNucleus *= (1 - p.baseMedialCodaChance);
 		
 		// number of heavy rimes with simple nuclei an compound interludes
 		// scale by chance of onset, coda | onset
-		medialHeavyRimeSimpleNucleus += p.data[Phonology.SIMPLE_NUCLEI] * p.data[Phonology.COMPOUND_INTERLUDES] *
-										p.baseOnsetChance * p.medialCodaChance;
+		medialHeavyRimeSimpleNucleus += p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.COMPOUND_INTERLUDES] *
+										p.baseOnsetChance * p.baseMedialCodaChance;
 		
 		double terminalLightRime;
 		double terminalHeavyRimeSimpleNucleus;	
 		double terminalHeavyRimeComplexNucleus;
 		
 		// number of light rimes with simple codas
-		terminalLightRime = p.data[Phonology.SIMPLE_CODAS] * p.terminalCodaChance;
+		terminalLightRime = p.counts[Phonology.SIMPLE_CODAS] * p.baseTerminalCodaChance;
 		
 		// add number of light rimes with no codas
-		terminalLightRime += (1 - p.terminalCodaChance);
+		terminalLightRime += (1 - p.baseTerminalCodaChance);
 		
 		// number of heavy rimes with simple nuclei
-		terminalHeavyRimeSimpleNucleus = (p.data[Phonology.SIMPLE_CODAS] + p.data[Phonology.COMPLEX_CODAS]);
+		terminalHeavyRimeSimpleNucleus = (p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS]);
 		
 		// Scale the number of codas by the terminalCodaChance; we can't choose a simple nucleus if terminal codas aren't allowed!
-		terminalHeavyRimeSimpleNucleus *= p.terminalCodaChance;
+		terminalHeavyRimeSimpleNucleus *= p.baseTerminalCodaChance;
 		
 		// Scale the complement of the diphthong chance
 		terminalHeavyRimeSimpleNucleus *= (1 - p.baseDiphthongChance);
 		
 		// Start with the number of heavy rimes with complex nuclei
-		terminalHeavyRimeComplexNucleus = (p.data[Phonology.SIMPLE_CODAS] + p.data[Phonology.COMPLEX_CODAS]);
+		terminalHeavyRimeComplexNucleus = (p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS]);
 		
 		// Scale the number of coda-bearing rimes by the terminalCodaChance
-		terminalHeavyRimeComplexNucleus *= p.terminalCodaChance;
+		terminalHeavyRimeComplexNucleus *= p.baseTerminalCodaChance;
 		
 		// Add the number of coda-free rimes, scaled by their own chance
-		terminalHeavyRimeComplexNucleus += (1 - p.terminalCodaChance);
+		terminalHeavyRimeComplexNucleus += (1 - p.baseTerminalCodaChance);
 		
 		// Scale by the diphthong chance
 		terminalHeavyRimeComplexNucleus *= p.baseDiphthongChance;
@@ -155,11 +174,11 @@ class Flowchart
 			
 			// Empty onset chance
 			emptyOnsetChance = p.emptyInitialOnsetProminence *
-					Math.log(Math.pow(p.data[Phonology.SIMPLE_NUCLEI] + p.data[Phonology.COMPLEX_NUCLEI] + 1, 2));
+					Math.log(Math.pow(p.counts[Phonology.SIMPLE_NUCLEI] + p.counts[Phonology.COMPLEX_NUCLEI] + 1, 2));
 			total += emptyOnsetChance;
 			
 			// Simple onset chance
-			simpleOnsetChance = 1 * Math.log(p.data[Phonology.SIMPLE_ONSETS] + 1);
+			simpleOnsetChance = 1 * Math.log(p.counts[Phonology.SIMPLE_ONSETS] + 1);
 			total += simpleOnsetChance;
 			
 			// Complex onset chance
@@ -168,7 +187,7 @@ class Flowchart
 			{
 				double r = p.baseOnsetClusterChance;
 				complexOnsetChance = r * (Math.pow(r, p.maxOnsetLength) - 1) / (r - 1);	// why?
-				complexOnsetChance *= Math.log(p.data[Phonology.COMPLEX_ONSETS] + 1);
+				complexOnsetChance *= Math.log(p.counts[Phonology.COMPLEX_ONSETS] + 1);
 			}
 			total += complexOnsetChance;
 			
@@ -231,14 +250,14 @@ class Flowchart
 		public MedialSyllableWeightNode()
 		{
 			// As in MedialComplexNucleusNode
-			complexInterlude = p.data[Phonology.COMPLEX_ONSETS] * p.baseOnsetClusterChance * (1 - p.medialCodaChance);
-			complexInterlude += p.data[Phonology.COMPOUND_INTERLUDES] * p.medialCodaChance;
+			complexInterlude = p.counts[Phonology.COMPLEX_ONSETS] * p.baseOnsetClusterChance * (1 - p.baseMedialCodaChance);
+			complexInterlude += p.counts[Phonology.COMPOUND_INTERLUDES] * p.baseMedialCodaChance;
 			
 			// As in MedialComplexNucleusNode
-			complexNucleusSimpleInterlude = p.data[Phonology.SIMPLE_ONSETS];
+			complexNucleusSimpleInterlude = p.counts[Phonology.SIMPLE_ONSETS];
 			complexNucleusSimpleInterlude *= p.baseOnsetChance; // multiply by P(onset)
 			complexNucleusSimpleInterlude *= (1 - p.baseOnsetClusterChance); // multiply by P(!onset cluster | onset)
-			complexNucleusSimpleInterlude *= (1 - p.medialCodaChance); // multiply by P(!coda | onset)
+			complexNucleusSimpleInterlude *= (1 - p.baseMedialCodaChance); // multiply by P(!coda | onset)
 			
 			complexNucleusComplexInterlude = complexInterlude * p.baseOnsetChance;
 		}
@@ -255,7 +274,7 @@ class Flowchart
 			if (prev != null && prev.type == SegmentType.NUCLEUS)
 			{
 				// hiatus case
-				double simpleNucleusSimpleInterlude = prev.lastPhoneme().interludes[0].size() * p.data[Phonology.SIMPLE_ONSETS];
+				double simpleNucleusSimpleInterlude = prev.lastPhoneme().interludes[0].size() * p.counts[Phonology.SIMPLE_ONSETS];
 				simpleNucleusSimpleInterlude *= p.baseOnsetChance;
 				double simpleNucleusEmptyInterlude = 0;
 				for (int i = 0; i < prev.lastPhoneme().interludes[0].size(); i++)
@@ -282,12 +301,12 @@ class Flowchart
 			else
 			{
 				// no hiatus case
-				double simpleNucleusSimpleInterlude = p.data[Phonology.SIMPLE_NUCLEI] * p.data[Phonology.SIMPLE_ONSETS];
+				double simpleNucleusSimpleInterlude = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.SIMPLE_ONSETS];
 				simpleNucleusSimpleInterlude *= p.baseOnsetChance;
-				double simpleNucleusEmptyInterlude = p.data[Phonology.SIMPLE_NUCLEI_WITH_HIATUS] * (1 - p.baseOnsetChance);
+				double simpleNucleusEmptyInterlude = p.counts[Phonology.SIMPLE_NUCLEI_WITH_HIATUS] * (1 - p.baseOnsetChance);
 				
 				
-				double heavySimple = p.data[Phonology.SIMPLE_NUCLEI] * complexInterlude * (1 - p.baseDiphthongChance);
+				double heavySimple = p.counts[Phonology.SIMPLE_NUCLEI] * complexInterlude * (1 - p.baseDiphthongChance);
 				
 				double heavyComplex = 0; 
 				if (p.maxNucleusLength > 1)
@@ -296,7 +315,7 @@ class Flowchart
 							heavyComplex++;
 				heavyComplex = heavyComplex * (1 - p.baseOnsetChance); // now represents empty interlude prominence
 				heavyComplex += (complexNucleusSimpleInterlude + complexNucleusComplexInterlude) // add simple and complex interlude prominence,
-							  * p.data[Phonology.COMPLEX_NUCLEI]; 		 			// multiplied by number of complex nuclei available
+							  * p.counts[Phonology.COMPLEX_NUCLEI]; 		 			// multiplied by number of complex nuclei available
 				heavyComplex *= p.baseDiphthongChance; // take the log and multiply by base diphthong chance
 				
 				lightRimeProminence = Math.log(simpleNucleusSimpleInterlude + simpleNucleusEmptyInterlude + 1);
@@ -331,7 +350,7 @@ class Flowchart
 		
 		public MedialLightRimeNode()
 		{
-			simpleInterludeProminence = p.baseOnsetChance * Math.log(p.data[Phonology.SIMPLE_ONSETS] + 1);
+			simpleInterludeProminence = p.baseOnsetChance * Math.log(p.counts[Phonology.SIMPLE_ONSETS] + 1);
 		}
 		
 		public Node nextNode()
@@ -372,14 +391,14 @@ class Flowchart
 		
 		public MedialHeavyRimeNode()
 		{
-			baseComplexInterludeProminence = p.data[Phonology.COMPLEX_ONSETS] * p.baseOnsetClusterChance * (1 - p.medialCodaChance);
-			baseComplexInterludeProminence += p.data[Phonology.COMPOUND_INTERLUDES] * p.medialCodaChance;
+			baseComplexInterludeProminence = p.counts[Phonology.COMPLEX_ONSETS] * p.baseOnsetClusterChance * (1 - p.baseMedialCodaChance);
+			baseComplexInterludeProminence += p.counts[Phonology.COMPOUND_INTERLUDES] * p.baseMedialCodaChance;
 			
 			// As in MedialComplexNucleusNode
-			simpleInterludeProminence = p.data[Phonology.SIMPLE_ONSETS];
+			simpleInterludeProminence = p.counts[Phonology.SIMPLE_ONSETS];
 			simpleInterludeProminence *= p.baseOnsetChance; // multiply by P(onset)
 			simpleInterludeProminence *= (1 - p.baseOnsetClusterChance); // multiply by P(!onset cluster | onset)
-			simpleInterludeProminence *= (1 - p.medialCodaChance); // multiply by P(!coda | onset)
+			simpleInterludeProminence *= (1 - p.baseMedialCodaChance); // multiply by P(!coda | onset)
 			
 			complexInterludeProminence = baseComplexInterludeProminence *= p.baseOnsetChance; 
 		}
@@ -424,7 +443,7 @@ class Flowchart
 			// Otherwise, we may choose a nucleus freely
 			else
 			{
-				double simple = p.data[Phonology.SIMPLE_NUCLEI] * baseComplexInterludeProminence;
+				double simple = p.counts[Phonology.SIMPLE_NUCLEI] * baseComplexInterludeProminence;
 				simple = Math.log(simple + 1) * (1 - p.baseDiphthongChance);
 				
 				double complex = 0; 
@@ -434,7 +453,7 @@ class Flowchart
 							complex++;
 				complex = complex * (1 - p.baseOnsetChance); // now represents empty interlude prominence
 				complex += (simpleInterludeProminence + complexInterludeProminence) // add simple and complex interlude prominence,
-							* p.data[Phonology.COMPLEX_NUCLEI]; 		 			// multiplied by number of complex nuclei available
+							* p.counts[Phonology.COMPLEX_NUCLEI]; 		 			// multiplied by number of complex nuclei available
 				complex = Math.log(complex + 1) * p.baseDiphthongChance; // take the log and multiply by base diphthong chance
 				
 				if (rng.nextDouble() * (simple + complex) < simple)
@@ -460,18 +479,18 @@ class Flowchart
 		
 		public MedialComplexNucleusNode()
 		{
-			simpleInterludeProminence = Math.log(p.data[Phonology.SIMPLE_ONSETS] + 1);
+			simpleInterludeProminence = Math.log(p.counts[Phonology.SIMPLE_ONSETS] + 1);
 			simpleInterludeProminence *= p.baseOnsetChance; // multiply by P(onset)
 			simpleInterludeProminence *= (1 - p.baseOnsetClusterChance); // multiply by P(!onset cluster | onset)
-			simpleInterludeProminence *= (1 - p.medialCodaChance); // multiply by P(!coda | onset)
+			simpleInterludeProminence *= (1 - p.baseMedialCodaChance); // multiply by P(!coda | onset)
 			
-			complexInterludeProminence = Math.log(p.data[Phonology.COMPLEX_ONSETS] + p.data[Phonology.COMPOUND_INTERLUDES] + 1);
+			complexInterludeProminence = Math.log(p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES] + 1);
 
 			// multiple by P(onset), as all complex interludes have an onset of length 1+
 			complexInterludeProminence *= p.baseOnsetChance; 
 			
 			// multiply by P((onset cluster | onset) OR (coda | onset)), which equals the complement of P(neither) 
-			complexInterludeProminence *= (1 - (1 - p.baseOnsetClusterChance) * (1 - p.medialCodaChance));
+			complexInterludeProminence *= (1 - (1 - p.baseOnsetClusterChance) * (1 - p.baseMedialCodaChance));
 		}
 		
 		public Node nextNode()
@@ -508,12 +527,12 @@ class Flowchart
 		
 		public ComplexInterludeNode()
 		{
-			complexOnsetProminence = Math.log(p.data[Phonology.COMPLEX_ONSETS] + 1);
+			complexOnsetProminence = Math.log(p.counts[Phonology.COMPLEX_ONSETS] + 1);
 			complexOnsetProminence *= p.baseOnsetClusterChance;	// multiply by P(onset cluster | onset)
-			complexOnsetProminence *= (1 - p.medialCodaChance); // multiply by P(!coda | onset)
+			complexOnsetProminence *= (1 - p.baseMedialCodaChance); // multiply by P(!coda | onset)
 			
-			compoundInterludeProminence = Math.log(p.data[Phonology.COMPOUND_INTERLUDES] + 1);
-			compoundInterludeProminence *= p.medialCodaChance;	// multiply by P(coda | onset)
+			compoundInterludeProminence = Math.log(p.counts[Phonology.COMPOUND_INTERLUDES] + 1);
+			compoundInterludeProminence *= p.baseMedialCodaChance;	// multiply by P(coda | onset)
 		}
 		
 		public Node nextNode()
@@ -540,19 +559,19 @@ class Flowchart
 		public TerminalSyllableWeightNode()
 		{
 			// As per TerminalLightRimeNode
-			double lightRimeEmptyCoda = p.data[Phonology.SIMPLE_NUCLEI] * p.data[Phonology.SIMPLE_CODAS] * (1 - p.terminalCodaChance);
-			double lightRimeSimpleCoda = p.data[Phonology.SIMPLE_NUCLEI] * p.terminalCodaChance;
+			double lightRimeEmptyCoda = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.SIMPLE_CODAS] * (1 - p.baseTerminalCodaChance);
+			double lightRimeSimpleCoda = p.counts[Phonology.SIMPLE_NUCLEI] * p.baseTerminalCodaChance;
 			
 			// As per TerminalHeavyRimeNode()
-			double heavyRimeSimpleNucleus = p.data[Phonology.SIMPLE_NUCLEI];
-			heavyRimeSimpleNucleus *= (p.data[Phonology.SIMPLE_CODAS] + p.data[Phonology.COMPLEX_CODAS]);
-			heavyRimeSimpleNucleus *= p.terminalCodaChance;
+			double heavyRimeSimpleNucleus = p.counts[Phonology.SIMPLE_NUCLEI];
+			heavyRimeSimpleNucleus *= (p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS]);
+			heavyRimeSimpleNucleus *= p.baseTerminalCodaChance;
 			heavyRimeSimpleNucleus *= (1 - p.baseDiphthongChance);
 			
-			double heavyRimeComplexNucleus = p.data[Phonology.COMPLEX_NUCLEI];
-			heavyRimeComplexNucleus *= (p.data[Phonology.SIMPLE_CODAS] + p.data[Phonology.COMPLEX_CODAS]);
-			heavyRimeComplexNucleus *= p.terminalCodaChance;
-			heavyRimeComplexNucleus += p.data[Phonology.COMPLEX_NUCLEI] * (1 - p.terminalCodaChance);
+			double heavyRimeComplexNucleus = p.counts[Phonology.COMPLEX_NUCLEI];
+			heavyRimeComplexNucleus *= (p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS]);
+			heavyRimeComplexNucleus *= p.baseTerminalCodaChance;
+			heavyRimeComplexNucleus += p.counts[Phonology.COMPLEX_NUCLEI] * (1 - p.baseTerminalCodaChance);
 			heavyRimeComplexNucleus *= p.baseDiphthongChance;
 			
 			double lightRimeProminence = Math.log(lightRimeEmptyCoda + lightRimeSimpleCoda + 1);
@@ -571,23 +590,23 @@ class Flowchart
 			if (prev != null && prev.type == SegmentType.NUCLEUS)
 			{
 				// hiatus case
-				double simpleNucleusSimpleCoda = prev.lastPhoneme().interludes[0].size() * p.data[Phonology.SIMPLE_CODAS];
+				double simpleNucleusSimpleCoda = prev.lastPhoneme().interludes[0].size() * p.counts[Phonology.SIMPLE_CODAS];
 				simpleNucleusSimpleCoda *= p.baseOnsetChance;
 				double simpleNucleusEmptyCoda = prev.lastPhoneme().interludes[0].size();
 				simpleNucleusEmptyCoda *= (1 - p.baseOnsetChance);
 				
 				double heavySimple = prev.lastPhoneme().interludes[0].size() *
-						(p.data[Phonology.SIMPLE_CODAS] * (1 - p.baseCodaClusterChance) +
-						 p.data[Phonology.COMPLEX_CODAS] * p.baseCodaClusterChance);
+						(p.counts[Phonology.SIMPLE_CODAS] * (1 - p.baseCodaClusterChance) +
+						 p.counts[Phonology.COMPLEX_CODAS] * p.baseCodaClusterChance);
 				heavySimple *= (1 - p.baseDiphthongChance);
 				
 				double heavyComplex = 0;
 				if (p.maxNucleusLength > 1)
 				{
 					heavyComplex += 1;
-					heavyComplex *= (1 - p.terminalCodaChance); // now represents empty interlude prominence
-					heavyComplex += p.data[Phonology.SIMPLE_CODAS] * p.terminalCodaChance * (1 - p.baseCodaClusterChance);
-					heavyComplex += p.data[Phonology.COMPLEX_CODAS] * p.terminalCodaChance * p.baseCodaClusterChance;
+					heavyComplex *= (1 - p.baseTerminalCodaChance); // now represents empty interlude prominence
+					heavyComplex += p.counts[Phonology.SIMPLE_CODAS] * p.baseTerminalCodaChance * (1 - p.baseCodaClusterChance);
+					heavyComplex += p.counts[Phonology.COMPLEX_CODAS] * p.baseTerminalCodaChance * p.baseCodaClusterChance;
 					heavyComplex *= prev.lastPhoneme().interludes[1].size() * p.baseDiphthongChance;
 				}
 				
@@ -597,24 +616,24 @@ class Flowchart
 			else
 			{
 				// non-hiatus case
-				double simpleNucleusSimpleCoda = p.data[Phonology.SIMPLE_NUCLEI] * p.data[Phonology.SIMPLE_CODAS];
-				simpleNucleusSimpleCoda *= p.terminalCodaChance;
-				double simpleNucleusEmptyCoda = p.data[Phonology.SIMPLE_NUCLEI];
-				simpleNucleusEmptyCoda *= (1 - p.terminalCodaChance);
+				double simpleNucleusSimpleCoda = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.SIMPLE_CODAS];
+				simpleNucleusSimpleCoda *= p.baseTerminalCodaChance;
+				double simpleNucleusEmptyCoda = p.counts[Phonology.SIMPLE_NUCLEI];
+				simpleNucleusEmptyCoda *= (1 - p.baseTerminalCodaChance);
 				
-				double heavySimple = p.data[Phonology.SIMPLE_NUCLEI] *
-						(p.data[Phonology.SIMPLE_CODAS] * (1 - p.baseCodaClusterChance) +
-						 p.data[Phonology.COMPLEX_CODAS] * p.baseCodaClusterChance);
+				double heavySimple = p.counts[Phonology.SIMPLE_NUCLEI] *
+						(p.counts[Phonology.SIMPLE_CODAS] * (1 - p.baseCodaClusterChance) +
+						 p.counts[Phonology.COMPLEX_CODAS] * p.baseCodaClusterChance);
 				heavySimple *= (1 - p.baseDiphthongChance);
 				
 				double heavyComplex = 0;
 				if (p.maxNucleusLength > 1)
 				{
 					heavyComplex += 1;
-					heavyComplex *= (1 - p.terminalCodaChance); // now represents empty interlude prominence
-					heavyComplex += p.data[Phonology.SIMPLE_CODAS] * p.terminalCodaChance * (1 - p.baseCodaClusterChance);
-					heavyComplex += p.data[Phonology.COMPLEX_CODAS] * p.terminalCodaChance * p.baseCodaClusterChance;
-					heavyComplex *= p.data[Phonology.COMPLEX_NUCLEI] * p.baseDiphthongChance;
+					heavyComplex *= (1 - p.baseTerminalCodaChance); // now represents empty interlude prominence
+					heavyComplex += p.counts[Phonology.SIMPLE_CODAS] * p.baseTerminalCodaChance * (1 - p.baseCodaClusterChance);
+					heavyComplex += p.counts[Phonology.COMPLEX_CODAS] * p.baseTerminalCodaChance * p.baseCodaClusterChance;
+					heavyComplex *= p.counts[Phonology.COMPLEX_NUCLEI] * p.baseDiphthongChance;
 				}
 				
 				lightRimeProminence = Math.log(simpleNucleusEmptyCoda + simpleNucleusSimpleCoda + 1);
@@ -653,8 +672,8 @@ class Flowchart
 		
 		public TerminalLightRimeNode()
 		{
-			emptyCodaProminence = Math.log(p.data[Phonology.SIMPLE_NUCLEI]) * (1 - p.terminalCodaChance);
-			simpleCodaProminence = Math.log(p.data[Phonology.SIMPLE_NUCLEI] * p.data[Phonology.SIMPLE_CODAS]) * p.terminalCodaChance;
+			emptyCodaProminence = Math.log(p.counts[Phonology.SIMPLE_NUCLEI]) * (1 - p.baseTerminalCodaChance);
+			simpleCodaProminence = Math.log(p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.SIMPLE_CODAS]) * p.baseTerminalCodaChance;
 		}
 		
 		public Node nextNode()
@@ -694,8 +713,8 @@ class Flowchart
 		public TerminalHeavyRimeNode()
 		{
 			// adjusted number of codas possible
-			codaProminence = p.data[Phonology.SIMPLE_CODAS] * (1 - p.baseCodaClusterChance);
-			codaProminence += p.data[Phonology.COMPLEX_CODAS] * p.baseCodaClusterChance;
+			codaProminence = p.counts[Phonology.SIMPLE_CODAS] * (1 - p.baseCodaClusterChance);
+			codaProminence += p.counts[Phonology.COMPLEX_CODAS] * p.baseCodaClusterChance;
 		}
 		
 		public Node nextNode()
@@ -717,8 +736,8 @@ class Flowchart
 				if (p.maxNucleusLength > 1)
 				{
 					complex += prev.lastPhoneme().interludes[1].size() * codaProminence;
-					complex *= p.terminalCodaChance;
-					complex += prev.lastPhoneme().interludes[1].size() * (1 - p.terminalCodaChance);
+					complex *= p.baseTerminalCodaChance;
+					complex += prev.lastPhoneme().interludes[1].size() * (1 - p.baseTerminalCodaChance);
 					complex = Math.log(complex + 1) * p.baseDiphthongChance;
 				}
 				
@@ -731,12 +750,12 @@ class Flowchart
 			// Otherwise, we may choose a nucleus freely
 			else
 			{
-				double simple = p.data[Phonology.SIMPLE_NUCLEI] * codaProminence;
+				double simple = p.counts[Phonology.SIMPLE_NUCLEI] * codaProminence;
 				simple = Math.log(simple + 1) * (1 - p.baseDiphthongChance);
 				
-				double complex = p.data[Phonology.COMPLEX_NUCLEI] * codaProminence;
-				complex *= p.terminalCodaChance;
-				complex += p.data[Phonology.COMPLEX_NUCLEI] * (1 - p.terminalCodaChance);
+				double complex = p.counts[Phonology.COMPLEX_NUCLEI] * codaProminence;
+				complex *= p.baseTerminalCodaChance;
+				complex += p.counts[Phonology.COMPLEX_NUCLEI] * (1 - p.baseTerminalCodaChance);
 				complex = Math.log(complex + 1) * p.baseDiphthongChance;	
 				
 				if (rng.nextDouble() * (simple + complex) < simple)
@@ -763,8 +782,8 @@ class Flowchart
 		
 		public TerminalHeavyRimeSimpleNucleusNode()
 		{
-			simpleCodaProminence = Math.log(p.data[Phonology.SIMPLE_CODAS] + 1) * (1 - p.baseCodaClusterChance);
-			complexCodaProminence = Math.log(p.data[Phonology.COMPLEX_CODAS] + 1) * p.baseCodaClusterChance;
+			simpleCodaProminence = Math.log(p.counts[Phonology.SIMPLE_CODAS] + 1) * (1 - p.baseCodaClusterChance);
+			complexCodaProminence = Math.log(p.counts[Phonology.COMPLEX_CODAS] + 1) * p.baseCodaClusterChance;
 		}
 		
 		public Node nextNode()
@@ -786,9 +805,9 @@ class Flowchart
 		
 		public TerminalHeavyRimeComplexNucleusNode()
 		{
-			emptyCodaProminence = 1 - p.terminalCodaChance;
-			simpleCodaProminence = Math.log(p.data[Phonology.SIMPLE_CODAS] + 1) * p.terminalCodaChance * (1 - p.baseCodaClusterChance);
-			complexCodaProminence = Math.log(p.data[Phonology.COMPLEX_CODAS] + 1) * p.terminalCodaChance * p.baseCodaClusterChance;
+			emptyCodaProminence = 1 - p.baseTerminalCodaChance;
+			simpleCodaProminence = Math.log(p.counts[Phonology.SIMPLE_CODAS] + 1) * p.baseTerminalCodaChance * (1 - p.baseCodaClusterChance);
+			complexCodaProminence = Math.log(p.counts[Phonology.COMPLEX_CODAS] + 1) * p.baseTerminalCodaChance * p.baseCodaClusterChance;
 		}
 		
 		public Node nextNode()

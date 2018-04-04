@@ -403,7 +403,7 @@ public class GenGUI extends JFrame {
 			propertyLabels[i].setFont(new Font("Tahoma", Font.BOLD, 11));
 			
 			// Prominence fields
-			String label = Double.toString(p.prominences[i]);
+			String label = Double.toString(p.baseProminences[i]);
 			if (label.length() > 6)
 				label = label.substring(0, 6);
 				
@@ -411,7 +411,7 @@ public class GenGUI extends JFrame {
 			prominenceLabels[i].setFont(new Font("Tahoma", Font.PLAIN, 11));
 			prominenceLabels[i].getDocument().addDocumentListener(new TextFieldListener(prominenceLabels, i));
 			
-			if (p.prominences[i] == 0)
+			if (p.baseProminences[i] == 0)
 				prominenceLabels[i].setBackground(Color.RED);
 			
 			
@@ -477,7 +477,7 @@ public class GenGUI extends JFrame {
 			}
 			
 			if (target == prominenceLabels)
-				phonology.prominences[index] = x;
+				phonology.baseProminences[index] = x;
 			else if (target == aggreganceLabels)
 				phonology.onsetClusterLeadProminences[index] = x;
 		}
