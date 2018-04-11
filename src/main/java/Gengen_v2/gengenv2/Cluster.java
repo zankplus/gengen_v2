@@ -36,7 +36,7 @@ public class Cluster
 		{	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	1,	1,	3,	3	},	// 6. unvoiced nonsibilant fricatives
 		{	3,	2,	0,	0,	0,	0,	2,	0,	2,	1,	1,	2,	1,	3,	3	},	// 7. unvoiced sibilant fricatives
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	1,	1,	2,	2	},	// 8. voiced nonsibilant fricatives
-		{	0,	0,	2,	1,	0,	0,	0,	0,	1,	0,	1,	1,	1,	3,	3	},	// 9. voiced sibilant fricatives
+		{	0,	0,	2,	1,	0,	0,	0,	0,	1,	0,	1,	1,	1,	2,	3	},	// 9. voiced sibilant fricatives
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	1,	2,	2	},	// 10. glottal fricative
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	1,	2,	2	},	// 11. voiced nasals
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	2,	2	},	// 12. unvoiced nasals
@@ -107,24 +107,31 @@ public class Cluster
 		{	0,	3,	2,	3,	1,	1,	0},	// 6. y 
 	};
 	
+	/**
+	 * Every consonant is assigned a 'phonotactic category'; consonants sharing a category are assumed to
+	 * exhibit similar phonotactic behavior across all languages. These categories roughly correspond to
+	 * manners of articulation, with a number of exceptions, such as obstruents being sorted by voicing
+	 * to accommodate the fact that they prefer to agree in voicing with whatever they are clustered with.
+	 * Generally, a Phonology will admit any member of the same category in the same position. 
+	 */
 	static ArrayList<int[]> consonantCategories = new ArrayList<int[]>()
 	{
 		{
-			add(new int[] {0, 1, 2, 3});		// 1. unvoiced unaspirated stops
-			add(new int[] {4, 5, 6, 7});		// 2. unvoiced aspirated stops
-			add(new int[] {8, 9, 10});			// 3. voiced breathless stops
-			add(new int[] {11, 12, 13});		// 4. voiced breathy stops
-			add(new int[] {14, 15});			// 5. affricates
-			add(new int[] {16});				// 6. glottal stop
-			add(new int[] {17});				// 7. unvoiced nonsibilant fricatives
-			add(new int[] {18, 19});			// 8. unvoiced sibilant fricatives
-			add(new int[] {20});				// 9. voiced nonsibilant fricatives
-			add(new int[] {21, 22});			// 10. voiced sibilant fricatives
-			add(new int[] {23});				// 11. glottal fricative
-			add(new int[] {24, 25, 26});		// 12. voiced nasals
-			add(new int[] {27, 28});			// 13. unvoiced nasals
-			add(new int[] {29, 30});			// 14. liquids
-			add(new int[] {31, 32});			// 15. glides
+			add(new int[] {0, 1, 2, 3});		// 0. unvoiced unaspirated stops
+			add(new int[] {4, 5, 6, 7});		// 1. unvoiced aspirated stops
+			add(new int[] {8, 9, 10});			// 2. voiced breathless stops
+			add(new int[] {11, 12, 13});		// 3. voiced breathy stops
+			add(new int[] {14, 15});			// 4. affricates
+			add(new int[] {16});				// 5. glottal stop
+			add(new int[] {17});				// 6. unvoiced nonsibilant fricatives
+			add(new int[] {18, 19});			// 7. unvoiced sibilant fricatives
+			add(new int[] {20});				// 8. voiced nonsibilant fricatives
+			add(new int[] {21, 22});			// 9. voiced sibilant fricatives
+			add(new int[] {23});				// 10. glottal fricative
+			add(new int[] {24, 25, 26});		// 11. voiced nasals
+			add(new int[] {27, 28});			// 12. unvoiced nasals
+			add(new int[] {29, 30});			// 13. liquids
+			add(new int[] {31, 32});			// 14. glides
 		}
 	};
 	
