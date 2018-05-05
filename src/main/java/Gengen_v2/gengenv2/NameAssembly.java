@@ -189,6 +189,8 @@ class NameAssembly
 		
 		public Node nextNode()
 		{
+			curr = 0;
+			
 			double rand = p.rng.nextDouble() * emptyOnsetChance + nonemptyOnsetChance;
 			
 			// Option 1: Empty onset
@@ -623,7 +625,6 @@ class NameAssembly
 				lightRimeProminence = Math.log(simpleNucleusEmptyCoda + simpleNucleusSimpleCoda + 1);
 				heavyRimeProminence = Math.log(heavySimple + heavyComplex + 1);
 			}
-			
 			
 			double rand = rng.nextDouble();
 			if (pattern.length == 1 && name.size() == 0 && heavyRimeProminence > 0)

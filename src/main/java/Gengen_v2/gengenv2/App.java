@@ -5,7 +5,7 @@ public class App
     public static void main( String[] args )
     {
 //    	for (int i = 0; i < 500; i++)
-    		new Phonology();
+    		(new Phonology()).nameAssembly.makeWords(50);
 //    	StressSystem ss = new StressSystem();
 //    	System.out.println(ss);
     	
