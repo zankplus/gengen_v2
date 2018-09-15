@@ -1,5 +1,3 @@
-package Gengen_v2.gengenv2;
-
 /** Copyright 2018 Clayton Cooper
  *	
  *	This file is part of gengen2.
@@ -19,12 +17,27 @@ package Gengen_v2.gengenv2;
  * 
  */
 
+package Gengen_v2.gengenv2;
+
 import java.util.ArrayList;
 
-public class Cluster
+/**
+ * An auxiliary class containing static data for use by Phonologies. Two kinds of data are present:
+ * 1.	transition tables, which govern the likelihood that any sound may follow any other in consonant cluster
+ * 		or diphthong.
+ * 2.	category lists, which enumerate the ids of all consonants or vowels belonging to a transition category
+ *  
+ * @author	Clayton Cooper
+ * 
+ *
+ */
+final class Cluster
 {
 	// 3 = rare | 2 = common | 1 = rare | 0 = scandalous
 	
+	/**
+	 * Prevalence of transitions between consonants in onset clusters
+	 */
 	static int[][] onsetTransitions = new int[][]
 	{	//	0	1	2	3	4	5	6	7	8	9	10	11	13	14	15
 		{	0,	1,	1,	1,	1,	1,	1,	2,	1,	1,	0,	1,	1,	3,	3	},	// 0. unvoiced unaspirated stops
@@ -44,6 +57,9 @@ public class Cluster
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0	}	// 14. glides
 	};
 	
+	/**
+	 * Prevalence of transitions between vowels in diphthongs (nucleus clusters)
+	 */
 	static int[][] nucleusTransitions = new int[][]
 	{
 		//	0	1	2	3	4
@@ -54,6 +70,9 @@ public class Cluster
 		{	0,	0,	0,	0,	0	},	// 4. vowel lengthener
 	};
 	
+	/**
+	 * Prevalence of transitions between consonants in coda clusters
+	 */
 	static int[][] codaTransitions = new int[][]
 	{	//	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	
 		{	0,	0,	0,	0,	0,	0,	0,	3,	0,	0,	0,	0,	0,	0,	0	},	// 0. unvoiced unaspirated stops
@@ -73,7 +92,9 @@ public class Cluster
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0	}	// 14. glides
 	};
 
-	// Transitions between codas and onsets
+	/**
+	 * Prevalence of transitions between consonants across syllables, from codas to onsets
+	 */
 	static int[][] interludeTransitions = new int[][]
 	{
 		//	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	
@@ -94,7 +115,9 @@ public class Cluster
 		{	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0	}	// 14. glides
 	};
 	
-	// Transitions between 2 nuclei with no consonantal interlude
+	/**
+	 * Prevalence of transitions between vowels across syllables, from one nucleus to another
+	 */
 	static int[][] hiatusTransitions = new int[][]
 	{
 		//	ə	a	e	o	i	u	y
@@ -108,6 +131,7 @@ public class Cluster
 	};
 	
 	/**
+	 * Phonotactic categories for consonant sounds.
 	 * Every consonant is assigned a 'phonotactic category'; consonants sharing a category are assumed to
 	 * exhibit similar phonotactic behavior across all languages. These categories roughly correspond to
 	 * manners of articulation, with a number of exceptions, such as obstruents being sorted by voicing
@@ -135,6 +159,9 @@ public class Cluster
 		}
 	};
 	
+	/**
+	 * Phonotactic categories for vowel sounds
+	 */
 	static ArrayList<int[]> vowelCategories = new ArrayList<int[]>()
 	{
 		{

@@ -23,17 +23,27 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Random;
 
-public class StressSystem
+/**
+ * A set of rules for producing random stress patterns, which a Phonology's NameAssembly can use to guide
+ * name creation. The stress patterns consist in a series of 'strong', 'weak', and 'extrametrical' syllables,
+ * grouped into 'feet'; the job of the StressSystem is to know what patterns of syllables and what types of
+ * feet are permissible in a language.
+ * 
+ * @author 	Clayton Cooper
+ * @version	1.0
+ * @since	1.0
+ */
+class StressSystem
 {
 	Random rng;
 	
+	// Stress system properties
 	Rhythm rhythm;
-	FootDirection footDirection;
-	PrimaryStress primaryStress;
-	QuantitySensitivity quantitySensitivity;
-	boolean allowAdjacentStresses;
-	double[] metricalSyllableChances;
-	double[] extrametricalSyllableChances;
+	FootDirection footDirection;				// whether feet are assembled left-to-right or right-to-left
+	PrimaryStress primaryStress;				// which of the name's stresses is strongest
+	QuantitySensitivity quantitySensitivity;	// whether a weak syllable can steal the stress if it is heavy 
+	double[] metricalSyllableChances;			// chances of each number of syllables (combination of full & degenerate feet)
+	double[] extrametricalSyllableChances;		// chances of extrametrical feet occurring in different positions
 	
 	// Generator properties
 	static double degenerateFootChanceMean			= 0.50;
@@ -44,15 +54,23 @@ public class StressSystem
 	static double twoFootProminenceStdev			= 1.0 / 20;
 	static double extrametricalSyllableChanceStdev	= 0.80;
 	
+	// Each row is a rule governing in which feet extrametrical syllables might occur
 	static boolean[][] extrametricalPlacementRules = new boolean[][] {
-		/*1*/	{	true,	true,	false,	true,	false,	false	},
-		/*2*/	{	false,	false,	true,	false,	true,	false	},
-		/*3*/	{	false,	false,	false,	false,	false,	true	},
-		/*4*/	{	true,	false,	true,	false,	false,	true	},
-		/*5*/	{	false,	true,	false,	false,	true,	false	},
-		/*6*/	{	false,	false,	false,	true,	false,	false }
+		//			1/1		1/2		2/2		1/3		2/3		3/3
+		/*1*/	{	true,	true,	false,	true,	false,	false	},	// in the FIRST foot
+		/*2*/	{	false,	false,	true,	false,	true,	false	},	// in the SECOND foot
+		/*3*/	{	false,	false,	false,	false,	false,	true	},	// in the THIRD foot
+		/*4*/	{	true,	false,	true,	false,	false,	true	},	// in the LAST foot
+		/*5*/	{	false,	true,	false,	false,	true,	false	},	// in the SECOND TO LAST foot
+		/*6*/	{	false,	false,	false,	true,	false,	false 	}	// in the THIRD TO LAST foot
 		};
 	
+	/**
+	 * Sets all the parameters for the StressSystem: rhythm (foot dominance), foot direction, primary stress, quantity sensitivity,
+	 * the chances for different numbers of feet, degenerate feet, and the chances and possible locations of extrametrical syllables.
+	 * @param	seed	A seed passed from the Phonology, so the StressSystem always produces the same results for a given Phonology
+	 * @since	1.0 
+	 */
 	public StressSystem(long seed)
 	{
 		rng = new Random(seed);
@@ -68,11 +86,6 @@ public class StressSystem
 		
 		// Set quantity senstivity
 		quantitySensitivity = QuantitySensitivity.values()[rng.nextInt(QuantitySensitivity.values().length)];
-		
-		// Set stress adjacency
-		if (rng.nextDouble() < 0.25)
-			allowAdjacentStresses = false;
-		allowAdjacentStresses = true;
 		
 		// Set metrical syllable chances
 		// These 5 values correspond to the chances of a word having 1-5 metrical syllables.
@@ -111,7 +124,6 @@ public class StressSystem
 				total += metricalSyllableChances[i];
 		for (int i = 0; i < metricalSyllableChances.length; i++)
 			metricalSyllableChances[i] = metricalSyllableChances[i] / total;
-		
 		
 		// Set extrametrical syllable chances
 		extrametricalSyllableChances = new double[6];
@@ -152,6 +164,11 @@ public class StressSystem
 			}
 	}
 	
+	/**
+	 * Randomly creates a stress pattern according to the parameters defined in the constructor.
+	 * @return	A random stress pattern
+	 * @since	1.0
+	 */
 	public String makePattern()
 	{
 		// Determine metrical syllables
@@ -163,17 +180,19 @@ public class StressSystem
 			syllables = i + 1;
 			rand -= metricalSyllableChances[i];
 		}
-		
+
+		// Store count of full and degenerate feet
 		int degenerateFeet = syllables % 2;
 		int fullFeet = (syllables - degenerateFeet) / 2;
 		
+		// Store foot pattern
 		char[] fullFoot;
-		
 		if (rhythm == Rhythm.TROCHAIC)
 			fullFoot = new char[] {'S', 'w'};
 		else
 			fullFoot = new char[] {'w', 'S'};
 		
+		// Determine which feet are followed by extrametrical syllables
 		boolean[] extra = new boolean[3];
 		if (syllables == 5)
 		{
@@ -193,7 +212,7 @@ public class StressSystem
 		
 		String result = "";
 		
-		// Deal with full feet
+		// Add full feet to result string
 		for (int i = 0; i < fullFeet; i++)
 		{
 			String nextFoot;
@@ -206,7 +225,7 @@ public class StressSystem
 				result = nextFoot + result;
 		}
 		
-		// Deal with degenerate feet
+		// Add degenerate feet to result string
 		if (degenerateFeet == 1)
 		{
 			String nextFoot = "";
@@ -227,6 +246,10 @@ public class StressSystem
 		return result;
 	}
 	
+	/**
+	 * Returns an account of the StressSystem's parameters, as a string.
+	 * @since	1.0
+	 */
 	public String toString()
 	{
 		StringBuilder result = new StringBuilder();
@@ -250,28 +273,28 @@ public class StressSystem
 				result.append(String.format("  %d/%d: %.3f\n", i+1, j+1, ext[i*(i+1)/2 + j]));
 		result.append("\n");
 		
-		
+		// Prints the chances of a pattern of each length occurring
 		result.append("Word lengths\n");
-		result.append(String.format("  1: %.3f\n", met[0] * (1 - ext[0])));	// 1 syl * not 1/1
-		result.append(String.format("  2: %.3f\n", met[0] * ext[0] +			// 1 syl * 1/1
-												 met[1] * (1 - ext[0])));	// 2 syl * not 1/1
-		result.append(String.format("  3: %.3f\n", met[1] * ext[0] +			// 2 syl * 1/1
-												 met[2] * (1 - ext[1]) * (1 - ext[2]))); // 3 syl * not 2/1 * not 2/2
-		result.append(String.format("  4: %.3f\n", met[2] * ext[1] * (1 - ext[2]) +		 // 3 syl * 2/1 * not 2/2
-												 met[2] * (1 - ext[1]) * ext[2] +		 // 3 syl * not 2/1 * 2/2
-												 met[3] * (1 - ext[1]) * (1 - ext[2])));	 // 4 syl * not 2/1 * not 2/2
-		result.append(String.format("  5: %.3f\n", met[2] * ext[1] * ext[2] +			 // 3 syl * 2/1 * 2/2
-												 met[3] * ext[1] * (1 - ext[2]) +		 // 4 syl * 2/1 * not 2/2
-												 met[3] * (1 - ext[1]) * ext[2] +		 // 4 syl * not 2/1 * 2/2
-												 met[4] * (1 - ext[3]) * (1 - ext[4]) * (1 - ext[5])));	// 5 syl * not 3/1 * not 3/2 * not 3/3
-		result.append(String.format("  6: %.3f\n", met[3] * ext[1] * ext[2] +				 // 4 syl * 2/1 * 2/2
-												 met[4] * ext[3] * (1 - ext[4]) * (1 - ext[5]) +		// 5 syl * 3/1 * not 3/2 * not 3/3
-												 met[4] * (1 - ext[3]) * ext[4] * (1 - ext[5]) +		// 5 syl * not 3/1 * 3/2 * not 3/3
-												 met[4] * (1 - ext[3]) * (1 - ext[4]) * ext[5]));		// 5 syl * not 3/1 * not 3/2 * 3/3
-		result.append(String.format("  7: %.3f\n", met[4] * ext[3] * ext[4] * (1 - ext[5]) +		// 5 syl * 3/1 * 3/2 * not 3/3
-												 met[4] * ext[3] * (1 - ext[4]) * ext[5] +		// 5 syl * 3/1 * not 3/2 * 3/3
-												 met[4] * (1 - ext[3]) * ext[4] * ext[5]));		// 5 syl * not 3/1 * 3/2 * 3/3
-		result.append(String.format("  8: %.3f\n", met[4] * ext[3] * ext[4] * ext[5]));		// 5 syl * 3/1 * 3/2 * 3/3
+		result.append(String.format("  1: %.3f\n",	met[0] * (1 - ext[0])));	// 1 syl * not 1/1
+		result.append(String.format("  2: %.3f\n",	met[0] * ext[0] +			// 1 syl * 1/1
+												 	met[1] * (1 - ext[0])));	// 2 syl * not 1/1
+		result.append(String.format("  3: %.3f\n", 	met[1] * ext[0] +			// 2 syl * 1/1
+												 	met[2] * (1 - ext[1]) * (1 - ext[2]))); // 3 syl * not 2/1 * not 2/2
+		result.append(String.format("  4: %.3f\n", 	met[2] * ext[1] * (1 - ext[2]) +		// 3 syl * 2/1 * not 2/2
+												 	met[2] * (1 - ext[1]) * ext[2] +		// 3 syl * not 2/1 * 2/2
+												 	met[3] * (1 - ext[1]) * (1 - ext[2])));	// 4 syl * not 2/1 * not 2/2
+		result.append(String.format("  5: %.3f\n", 	met[2] * ext[1] * ext[2] +			// 3 syl * 2/1 * 2/2
+												 	met[3] * ext[1] * (1 - ext[2]) +	// 4 syl * 2/1 * not 2/2
+												 	met[3] * (1 - ext[1]) * ext[2] +	// 4 syl * not 2/1 * 2/2
+												 	met[4] * (1 - ext[3]) * (1 - ext[4]) * (1 - ext[5])));	// 5 syl * not 3/1 * not 3/2 * not 3/3
+		result.append(String.format("  6: %.3f\n", 	met[3] * ext[1] * ext[2] +				 			// 4 syl * 2/1 * 2/2
+												 	met[4] * ext[3] * (1 - ext[4]) * (1 - ext[5]) +		// 5 syl * 3/1 * not 3/2 * not 3/3
+												 	met[4] * (1 - ext[3]) * ext[4] * (1 - ext[5]) +		// 5 syl * not 3/1 * 3/2 * not 3/3
+												 	met[4] * (1 - ext[3]) * (1 - ext[4]) * ext[5]));	// 5 syl * not 3/1 * not 3/2 * 3/3
+		result.append(String.format("  7: %.3f\n", 	met[4] * ext[3] * ext[4] * (1 - ext[5]) +	// 5 syl * 3/1 * 3/2 * not 3/3
+												 	met[4] * ext[3] * (1 - ext[4]) * ext[5] +	// 5 syl * 3/1 * not 3/2 * 3/3
+												 	met[4] * (1 - ext[3]) * ext[4] * ext[5]));	// 5 syl * not 3/1 * 3/2 * 3/3
+		result.append(String.format("  8: %.3f\n", 	met[4] * ext[3] * ext[4] * ext[5]));		// 5 syl * 3/1 * 3/2 * 3/3
 		
 		return result.toString();
 	}

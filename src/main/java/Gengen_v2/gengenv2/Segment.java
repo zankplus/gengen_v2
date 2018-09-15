@@ -19,6 +19,15 @@
 
 package Gengen_v2.gengenv2;
 
+/**
+ * Abstract class representing a phonetic segment, or a discrete and distinct unit of sound. These are extended 
+ * into Consonant and Vowel classes with their own sets of properties, and form the basis of Phonemes in the
+ * Phonology class.
+ *  
+ * @author	Clayton Cooper
+ * @version	1.0
+ * @since	1.0
+ */
 abstract class Segment extends Object
 {
 	String expression;
@@ -26,6 +35,15 @@ abstract class Segment extends Object
 	int transitionCategory;
 	int id;
 	
+	/**
+	 * A basic constructor that sets the most fundamental variables of the Segment. The id field is not set here
+	 * but in the constructors of Segment's child classes, as the id of each Consonant is unique among Consonants,
+	 * and just so for Vowels, and so this value depends on the static counts only within those classes.
+	 *    
+	 * @param expression			The character or characters used to denote this sound orthographically
+	 * @param transitionCategory	The category to which this sound belongs for the purposes of cluster construction
+	 * @param properties			The list of consonant or vowel properties that define this sound
+	 */
 	public Segment(String expression, int transitionCategory, SegmentProperty[] properties)
 	{
 		this.expression = expression;
@@ -33,14 +51,32 @@ abstract class Segment extends Object
 		this.properties = properties;
 	}
 	
+	/**
+	 * Returns true if this Segment is a consonant. Otherwise it is a vowel and returns falls. 
+	 * @return	true if this segment is a consnant, false if it is a vowel
+	 */
 	abstract public boolean isConsonant();
 }
 
+/**
+ * An extension of the Segment class for representing consonantal segments.
+ * 
+ * @author	Clayton Cooper
+ * @version	1.0
+ * @since	1.0
+ */
 class Consonant extends Segment
 {
 	static int count = 0;
 	ConsonantProperty[] properties;
 	
+	/**
+	 * Sets Segment fields by calling the superclass's constructor - but also sets this Consonant's id by
+	 * checking the static count, and increments it.
+	 * @param expression			Character(s) representing this sound's orthographic representation
+	 * @param transitionCategory	Character's phonotactic category for the purposes of deciding consonant clusters
+	 * @param properties			List of character's phonetic properties
+	 */
 	public Consonant(String expression, int transitionCategory, ConsonantProperty[] properties)
 	{
 		super(expression, transitionCategory, properties);
@@ -49,11 +85,15 @@ class Consonant extends Segment
 		count++;
 	}
 	
+	/**
+	 * Returns true for all instances of this class.
+	 */
 	public boolean isConsonant()
 	{
 		return true;
 	}
 	
+	// Defines cross-linguistic consonantal inventory
 	static Consonant[] segments = new Consonant[]
 	{
 /* 0*/	new Consonant("k" ,  0, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICELESS,	ConsonantProperty.UNASPIRATED}),
@@ -100,42 +140,82 @@ class Consonant extends Segment
 	};
 }
 
+/**
+ * An extension of the Segment class for representing vocalic segments.
+ * 
+ * @author	Clayton Cooper
+ * @version	1.0
+ * @since	1.0
+ */
 class Vowel extends Segment
 {
 	static int count = 0;
 	VowelProperty[] properties;
+	public final String diaeresis;
 	
-	public Vowel(String expression, int transitionCategory, VowelProperty[] properties)
+	/**
+	 * Sets Segment fields by calling the superclass's constructor - but also sets this Vowel's id by
+	 * checking the static count, and increments it.
+	 * @param expression			Character(s) representing this sound's orthographic representation
+	 * @param transitionCategory	Character's phonotactic category for the purposes of deciding consonant clusters
+	 * @param properties			List of character's phonetic properties
+	 */
+	public Vowel(String expression, String diaeresis, int transitionCategory, VowelProperty[] properties)
 	{
 		super(expression, transitionCategory, properties);
 		this.properties = properties;
+		this.diaeresis = diaeresis;
 		id = count;
 		count++;
 	}
 	
+	/**
+	 * Returns true for all instances of this class.
+	 */
 	public boolean isConsonant()
 	{
 		return false;
 	}
 	
+	// Defines cross-linguistic consonantal inventory
 	static Vowel[] segments = new Vowel[]
 	{
-		/*0*/	new Vowel("ə" , 0, new VowelProperty[] {VowelProperty.SCHWA}),
-		/*1*/	new Vowel("a" , 1, new VowelProperty[] {VowelProperty.OPEN}),
-		/*2*/	new Vowel("e" , 2, new VowelProperty[] {VowelProperty.MID,	VowelProperty.FRONT}),
-		/*3*/	new Vowel("o" , 2, new VowelProperty[] {VowelProperty.MID,	VowelProperty.BACK}),
-		/*4*/	new Vowel("i" , 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.FRONT}),
-		/*5*/	new Vowel("u" , 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.BACK}),
-		/*6*/	new Vowel("y" , 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.CENTER}),
-		/*7*/	new Vowel(":" , 4, new VowelProperty[] {VowelProperty.LONG}),
+		/*0*/	new Vowel("ə", "",  0, new VowelProperty[] {VowelProperty.SCHWA}),
+		/*1*/	new Vowel("a", "ä", 1, new VowelProperty[] {VowelProperty.OPEN}),
+		/*2*/	new Vowel("e", "ë", 2, new VowelProperty[] {VowelProperty.MID,		VowelProperty.FRONT}),
+		/*3*/	new Vowel("o", "ö", 2, new VowelProperty[] {VowelProperty.MID,		VowelProperty.BACK}),
+		/*4*/	new Vowel("i", "ï", 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.FRONT}),
+		/*5*/	new Vowel("u", "ü", 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.BACK}),
+		/*6*/	new Vowel("y", "ÿ", 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.CENTER}),
+		/*7*/	new Vowel(":", "",  4, new VowelProperty[] {VowelProperty.LONG}),
 	};
 }
 
+/**
+ * Interface used by ConsonantProperty and VowelProperty enums to grant them some semblance of polymorphism in
+ * relevant contexts.
+ * 
+ * In Gengen, a Segment is defined chiefly by its SegmentProperties. A property's probability represents the odds
+ * that sounds with that property will occur in the Phonology; any Segment all the properties of which occur in the
+ * Phonology will itself appear in the Phonology's phonemic inventory. Accordingly, the raw chance of a Segment
+ * occurring is equal to the product of the probability values of each of its properties. 
+ * @since	1.0
+ */
 interface SegmentProperty
 {
 	abstract double getProbability();
 };
 
+/**
+ * The set of phonetic properties used to define consonantal segments. These cover a range of standard properties,
+ * including manner and location of articulation, voicing, aspiration, etc., but also further categorizations
+ * like 'liquid' and 'glide'. Even more specific labels like 'glottal fricative' or 'velar nasal' are used to
+ * control probabilities and ensure they approximate real-world values.
+ * 
+ * @author	Clayton Cooper
+ * @version	1.0
+ * @since	1.0
+ */
 enum ConsonantProperty implements SegmentProperty
 {
 	PLOSIVE(1), AFFRICATE(.624), FRICATIVE(.922), NASAL(.962), VOICELESS_NASAL(.038), APPROXIMANT(.969),
@@ -161,9 +241,19 @@ enum ConsonantProperty implements SegmentProperty
 	public double getProbability() { return probability; }
 }
 
+/**
+ * The set of phonetic properties used to define vocalic segments. These include chiefly two features: vowel height 
+ * (or closeness) and vowel backness. As a possibly temporary provision, the 'schwa' property is included as the sole
+ * feature of its corresponding Segment, as is the 'long' property, which follows another vowel (as if in a diphthong)
+ * to make it long by nature. 
+ * 
+ * @author	Clayton Cooper
+ * @version	1.0
+ * @since	1.0
+ */
 enum VowelProperty implements SegmentProperty
 {
-	SCHWA(.169), OPEN(.984), MID(.920), CLOSE(.993),
+	SCHWA(/*.169*/ 0), OPEN(.984), MID(.920), CLOSE(.993),
 	FRONT(.991), CENTER(.159), BACK(.991),
 	LONG(.250);	// this one is extremely fudged
 	
