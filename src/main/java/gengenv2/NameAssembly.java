@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.Hashtable;
 import java.util.Random;
 
-import gengenv2.Phonology.SyllableSegment;
+import gengenv2.Phonology.Constituent;
 
 /**
  * A sort of flowchart or state machine for generating names according to a Phonology's inventory, phonotactics, 
@@ -41,15 +41,15 @@ class NameAssembly
 	Phonology p;
 	
 	// Flowchart nodes
-	Node startNode, syllableLocationNode, medialSyllableWeightNode, medialLightRimeNode, medialHeavyRimeNode,
+	public Node startNode, syllableLocationNode, medialSyllableWeightNode, medialLightRimeNode, medialHeavyRimeNode,
 		 medialComplexNucleusNode, complexInterludeNode,
-		 terminalSyllableWeightNode, terminalLightRimeNode, terminalHeavyRimeNode,
-		 terminalHeavyRimeSimpleNucleusNode, terminalHeavyRimeComplexNucleusNode;
+		 terminalSyllableWeightNode, terminalLightRimeNode, terminalHeavyRimeNode, terminalHeavyRimeComplexNucleusNode;
 	
 	// Current name variables
-	ArrayList<SyllableSegment> name;	// The name currently being generated
-	char[] pattern;						// The stress pattern governing the current name
-	int curr;							// The syllable of the current name currently being generated
+	Name name;				// The name currently being generated
+	int length;				// The intended length of the currently generated word, in syllables
+	int curr;				// The syllable of the current name currently being generated
+	Constituent prev;		// The most recent syllable constituent added to the name
 	
 	/**
 	 * Constructor simply initializes all Nodes in the assembly flowchart, and saves the reference to the
@@ -72,7 +72,6 @@ class NameAssembly
 		terminalSyllableWeightNode = new TerminalSyllableWeightNode();
 		terminalLightRimeNode = new TerminalLightRimeNode();
 		terminalHeavyRimeNode = new TerminalHeavyRimeNode();
-		terminalHeavyRimeSimpleNucleusNode = new TerminalHeavyRimeSimpleNucleusNode();
 		terminalHeavyRimeComplexNucleusNode = new TerminalHeavyRimeComplexNucleusNode(); 
 		
 //		makeAdjustedCounts();
@@ -139,10 +138,17 @@ class NameAssembly
 	 * Generates a name by first resetting the naming variables and then invoking the StartNode. This initiates
 	 * a decision process that propagates through all the Nodes in the flowchart, each of which may add a
 	 * SyllableSegment (or two, for interludes) to the name list
-	 * @return
+	 * @return	The completed name
+	 * @since	1.0
 	 */
 	protected Name makeName()
 	{
+		// Initialize naming variables
+		curr = 0;
+		length = rng.nextInt(5) + 1;
+		name = new Name();
+		prev = null;
+		
 		// Propagate through the flowchart until one of the nodes returns null
 		Node node = startNode;
 
@@ -152,17 +158,14 @@ class NameAssembly
 			node = node.nextNode();
 		} catch (Exception e)
 		{
-			StringBuilder nameBuilder = new StringBuilder();
-			for (SyllableSegment ss : name)
-				nameBuilder.append(ss);
-			
-			System.err.println(nameBuilder.toString());
+			System.err.println(name);
 			e.printStackTrace();
 			System.exit(0);
 		}
+		
+		name.scan();
 
-
-		return new Name(name);
+		return name;
 	}
 	
 	/**
@@ -172,6 +175,8 @@ class NameAssembly
 	 */
 	private interface Node
 	{
+		double lightRimeProminence = 0;
+
 		public Node nextNode();
 	}
 
@@ -215,12 +220,7 @@ class NameAssembly
 		}
 		
 		public Node nextNode()
-		{
-			// Initialize naming variables
-			curr = 0;
-			name = new ArrayList<SyllableSegment>();
-			pattern = p.getStressSystem().makePattern().toCharArray();
-			
+		{	
 			double rand = p.rng.nextDouble();
 			
 			// Option 1: Empty onset
@@ -232,7 +232,7 @@ class NameAssembly
 			// Option 2: Nonempty onset
 			else
 			{
-				name.add(p.pickOnset());
+				addConstituent(p.pickOnset());
 				return syllableLocationNode;
 			}
 		}
@@ -253,7 +253,7 @@ class NameAssembly
 		public Node nextNode()
 		{
 			// Option 1: Initial/medial syllable
-			if (curr < pattern.length - 1)
+			if (curr < length - 1)
 			{
 				curr++;
 				return medialSyllableWeightNode;
@@ -280,43 +280,50 @@ class NameAssembly
 	 */
 	private class MedialSyllableWeightNode implements Node
 	{
-		double complexNucleusSimpleInterlude;
-		double complexNucleusComplexInterlude;
-		double complexInterlude;
+		public double lightRimeProminence;
+		double heavyRimeProminence;
 		
 		public MedialSyllableWeightNode()
 		{
-			// As in MedialComplexNucleusNode
-			complexInterlude = p.counts[Phonology.COMPLEX_ONSETS] * p.baseOnsetClusterChance * (1 - p.baseMedialCodaChance);
-			complexInterlude += p.counts[Phonology.COMPOUND_INTERLUDES] * p.baseMedialCodaChance;
+			// light rimes
+			double simpleNucleusSimpleInterlude = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.SIMPLE_ONSETS];
+			double simpleNucleusEmptyInterlude = p.counts[Phonology.SIMPLE_NUCLEI_WITH_HIATUS];
 			
-			// As in MedialComplexNucleusNode
-			complexNucleusSimpleInterlude = p.counts[Phonology.SIMPLE_ONSETS];
-			complexNucleusSimpleInterlude *= p.baseMedialOnsetChance; // multiply by P(onset)
-			complexNucleusSimpleInterlude *= (1 - p.baseOnsetClusterChance); // multiply by P(!onset cluster | onset)
-			complexNucleusSimpleInterlude *= (1 - p.baseMedialCodaChance); // multiply by P(!coda | onset)
+			// heavy rimes
+			double heavySimple = p.counts[Phonology.SIMPLE_NUCLEI] * (p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES]);
 			
-			complexNucleusComplexInterlude = complexInterlude * p.baseMedialOnsetChance;
+			double heavyComplex = 0; 
+			if (p.maxNucleusLength > 1)
+			{
+				heavyComplex += p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
+				heavyComplex *= p.counts[Phonology.COMPLEX_NUCLEI];
+				heavyComplex += p.counts[Phonology.COMPLEX_NUCLEI_WITH_HIATUS];
+			}
+			
+			lightRimeProminence = Math.log(simpleNucleusSimpleInterlude + simpleNucleusEmptyInterlude + 1);
+			heavyRimeProminence = Math.log(heavySimple + heavyComplex + 1);
+			
+			double sum = lightRimeProminence + heavyRimeProminence;
+			lightRimeProminence /= sum;
+			heavyRimeProminence /= sum;
+			
+			System.out.println("Medial light rime:\t" + lightRimeProminence);
+			System.out.println("Medial heavy rime:\t" + heavyRimeProminence);
 		}
 		
 		public Node nextNode()
 		{
 			// If the previous syllable segment was a nucleus, hiatus occurs, and the following nucleus must be added
 			// from the previous one's interlude inventory. 
-			SyllableSegment prev = null;
-			if (name.size() > 0)
-				prev = name.get(name.size() - 1);
-		
-			double lightRimeProminence;
-			double heavyRimeProminence;
 			
 			if (prev != null && prev.type == SegmentType.NUCLEUS)
 			{
 				// light rimes
 				double simpleNucleusSimpleInterlude = prev.lastPhoneme().interludes[0].size() * p.counts[Phonology.SIMPLE_ONSETS];
+
 				double simpleNucleusEmptyInterlude = 0;
 				for (int i = 0; i < prev.lastPhoneme().interludes[0].size(); i++)
-					if (prev.lastPhoneme().interludes[0].get(i).ss.lastPhoneme().interludes[0].size() > 0)
+					if (prev.lastPhoneme().interludes[0].get(i).c.lastPhoneme().interludes[0].size() > 0)
 						simpleNucleusEmptyInterlude++;
 				
 				// heavy rimes
@@ -325,7 +332,7 @@ class NameAssembly
 				double heavyComplex = 0; 
 				if (p.maxNucleusLength > 1)
 				{
-					heavyComplex += p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
+					heavyComplex = p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
 					heavyComplex *= prev.lastPhoneme().interludes[1].size();
 				}
 				
@@ -334,46 +341,12 @@ class NameAssembly
 			}
 
 			// If hiatus does not occur, select a nucleus from the master inventory instead.
-			else
-			{
-				// light rimes
-				double simpleNucleusSimpleInterlude = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.SIMPLE_ONSETS];
-				double simpleNucleusEmptyInterlude = p.counts[Phonology.SIMPLE_NUCLEI_WITH_HIATUS];
-				
-				// heavy rimes
-				double heavySimple = p.counts[Phonology.SIMPLE_NUCLEI] * (p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES]);
-				
-				double heavyComplex = 0; 
-				if (p.maxNucleusLength > 1)
-				{
-					heavyComplex += p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
-					heavyComplex *= p.counts[Phonology.COMPLEX_NUCLEI];
-					heavyComplex += p.counts[Phonology.COMPLEX_NUCLEI_WITH_HIATUS];
-				}
-				
-				lightRimeProminence = Math.log(simpleNucleusSimpleInterlude + simpleNucleusEmptyInterlude + 1);
-				heavyRimeProminence = Math.log(heavySimple + heavyComplex + 1);
-			}
 						
-			double rand = rng.nextDouble();
-			if (pattern[curr] == 'S')
-			{
-				rand *= (lightRimeProminence * p.strongLightRimeChance) + (heavyRimeProminence * p.strongHeavyRimeChance);
-				
-				if (rand < lightRimeProminence * p.strongLightRimeChance)
-					return medialLightRimeNode;
-				else
-					return medialHeavyRimeNode;
-			}
+			double rand = rng.nextDouble() * (lightRimeProminence + heavyRimeProminence / length);
+			if (rand < lightRimeProminence)
+				return medialLightRimeNode;
 			else
-			{
-				rand *= (lightRimeProminence * p.weakLightRimeChance) + (heavyRimeProminence * p.weakHeavyRimeChance);
-
-				if (rand < lightRimeProminence * p.weakLightRimeChance)
-					return medialLightRimeNode;
-				else
-					return medialHeavyRimeNode;
-			}
+				return medialHeavyRimeNode;
 		}
 	}
 	
@@ -393,12 +366,7 @@ class NameAssembly
 		
 		public Node nextNode()
 		{
-			// Reference to previous syllable segment
-			SyllableSegment prev = null;
-			if (name.size() > 0)
-				prev = name.get(name.size() - 1);
-			
-			SyllableSegment next;
+			Constituent next;
 
 			// If this is hiatus, add an nucleus from the previous vowel's interlude list.
 			// Otherwise, add any available simple nucleus
@@ -408,7 +376,7 @@ class NameAssembly
 				next = p.pickSimpleNucleus();
 			
 			// Add nucleus
-			name.add(next);
+			addConstituent(next);
 			
 			// Decide whether to add next an empty interlude or a simple interlude.
 			// hiatus prominence = (complement of onset chance) scaled by log of the available hiatus count for this phoneme
@@ -418,7 +386,7 @@ class NameAssembly
 			
 			//S Select and add a simple onset, if fortune sees fit
 			if (rng.nextDouble() * (simpleInterludeProminence + emptyInterludeProminence) < simpleInterludeProminence)
-				name.add(p.pickSimpleOnset());
+				addConstituent(p.pickSimpleOnset());
 			
 			// Rime complete; transition back to the syllable location node either way
 			return syllableLocationNode;
@@ -436,30 +404,29 @@ class NameAssembly
 	{		
 		public Node nextNode()
 		{
-			// Reference to previous syllable segment
-			SyllableSegment prev = null;
-			if (name.size() > 0)
-				prev = name.get(name.size() - 1);
-			
-			SyllableSegment next;
+			Constituent next;
 			double simple = 0, complex = 0;
 			
-			// Hiatus: If the previous phoneme was a vowel, this nucleus must come from that vowel's interlude table
+			// Hiatus: If the previous syllable ended with a vowel, this nucleus must come from that vowel's interlude table
 			if (prev != null && prev.type == SegmentType.NUCLEUS)
 			{
-				simple = prev.lastPhoneme().interludes[0].size() * (p.counts[Phonology.COMPLEX_ONSETS] +	// count of all heavy simple nucleus rimes
-								p.counts[Phonology.COMPOUND_INTERLUDES]);
-				simple = Math.log(simple + 1);	// log scale the count
-				simple *= (1 - p.baseDiphthongChance);
+				// Count all heavy rhymes with simple nuclei
+				simple = p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
+				simple *= prev.lastPhoneme().interludes[0].size();	
+				
+				// Log scale the count and multiply it by the inverse of the base diphthong chance
+				simple = Math.log(simple + 1);	
+				simple *= 1 - p.baseDiphthongChance;
 				
 				if (p.maxNucleusLength > 1)
 				{
 					// Add the remaining types of interlude and multiply by the number of diphthongs in the preceding vowel's hiatus list
-					complex += p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
+					complex = p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
 					complex *= prev.lastPhoneme().interludes[1].size();
 					
-					// Multiply the log of the count by the base diphthong chance
-					complex = Math.log(complex + 1) * p.baseDiphthongChance;
+					// Log scale the count and multiply it by the base diphthong chance
+					complex = Math.log(complex + 1);
+					complex *= p.baseDiphthongChance;
 				}
 				
 				// Select and add the next nucleus
@@ -469,21 +436,27 @@ class NameAssembly
 					next = prev.lastPhoneme().pickInterlude(1);
 			}
 			
-			// Otherwise, we may choose a nucleus freely
+			// No Hiatus: If the previous syllable ended with a consonant, we may choose a nucleus freely
 			else
 			{
-				simple = p.counts[Phonology.SIMPLE_NUCLEI] * (p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES]); 
-				simple = Math.log(simple + 1) * (1 - p.baseDiphthongChance);
+				// Count the number of heavy rhymes with simple nuclei
+				simple = p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES]; 
+				simple *= p.counts[Phonology.SIMPLE_NUCLEI];
+				
+				// Log scale the count and multiply it by the inverse of the base diphthong chance
+				simple = Math.log(simple + 1);
+				simple *= 1 - p.baseDiphthongChance;
 				
 				if (p.maxNucleusLength > 1)
 				{
-					// Add the non-empty interludes to the count
-					complex += p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
+					// Count the number of heavy rhymes with complex nuclei
+					complex = p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
 					complex *= p.counts[Phonology.COMPLEX_NUCLEI];
 					complex += p.counts[Phonology.COMPLEX_NUCLEI_WITH_HIATUS];
 					
 					// Multiply the log of the count by the base diphthong chance
-					complex = Math.log(complex + 1) * p.baseDiphthongChance;
+					complex = Math.log(complex + 1);
+					complex *= p.baseDiphthongChance;
 				}
 
 				// Select and add the next nucleus
@@ -493,9 +466,10 @@ class NameAssembly
 					next = p.pickComplexNucleus();
 			}
 			
-			// Add next syllable segment to name
-			name.add(next);
+			// Add the chosen nucleus to name
+			addConstituent(next);
 			
+			// Advance to the next node
 			if (next.content.length == 1)
 				return complexInterludeNode;
 			else
@@ -524,21 +498,18 @@ class NameAssembly
 			
 			complexInterludeProminence = Math.log(p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES] + 1);
 
-			// multiple by P(onset), as all complex interludes include an onset of length 1+
+			// multiply by P(onset), as all complex interludes include an onset of length 1+
 			complexInterludeProminence *= p.baseMedialOnsetChance; 
 			
 			// multiply by P((onset cluster AND !coda | onset) OR (coda | onset)) 
-			complexInterludeProminence *= ((p.baseOnsetClusterChance * (1 - p.baseMedialCodaChance)) + p.baseMedialCodaChance);
+			complexInterludeProminence *= (p.baseOnsetClusterChance * (1 - p.baseMedialCodaChance)) + p.baseMedialCodaChance;
 		}
 		
 		public Node nextNode()
 		{
-			// Reference to previous syllable segment
-			SyllableSegment nucleus = name.get(name.size() - 1);
-			
 			// Calculate emptyInterludeProminence, which depends on the number of interludes available to the last vowel
 			double emptyInterludeProminence = 0;
-			if (nucleus.lastPhoneme().interludes[0].size() > 0)
+			if (prev.lastPhoneme().interludes[0].size() > 0)
 				emptyInterludeProminence = Math.log(1 + 1) * (1 - p.baseMedialOnsetChance);
 			
 			double rand = rng.nextDouble() * (emptyInterludeProminence + simpleInterludeProminence + complexInterludeProminence);
@@ -550,7 +521,7 @@ class NameAssembly
 			// Simple interlude
 			else if (rand < emptyInterludeProminence + simpleInterludeProminence)
 			{
-				name.add(p.pickSimpleOnset());
+				addConstituent(p.pickSimpleOnset());
 				return syllableLocationNode;
 			}
 			
@@ -583,13 +554,13 @@ class NameAssembly
 		public Node nextNode()
 		{
 			if (rng.nextDouble() * (complexOnsetProminence + compoundInterludeProminence) < complexOnsetProminence)
-				name.add(p.pickComplexOnset());
+				addConstituent(p.pickComplexOnset());
 			else
 			{
-				// Add any coda and then an interlude that that coda's final phoneme's interlude list
-				SyllableSegment next = p.pickCoda();
-				name.add(next);
-				name.add(p.pickInterlude(next.lastPhoneme()));
+				// Add any coda and then an interlude from that coda's final phoneme's interlude list
+				Constituent next = p.pickCoda();
+				addConstituent(next);
+				addConstituent(p.pickInterlude(next.lastPhoneme()));
 			}
 			
 			return syllableLocationNode;
@@ -605,11 +576,6 @@ class NameAssembly
 	{
 		public Node nextNode()
 		{
-			// Reference to previous syllable segment
-			SyllableSegment prev = null;
-			if (name.size() > 0)
-				prev = name.get(name.size() - 1);
-		
 			double lightRimeProminence;
 			double heavyRimeProminence;
 			
@@ -629,14 +595,15 @@ class NameAssembly
 				// heavy rimes
 				double heavySimple = 0;
 				if (p.baseTerminalCodaChance > 0)
-					heavySimple = prev.lastPhoneme().interludes[0].size() * (p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS]);
+					heavySimple = prev.lastPhoneme().interludes[0].size() * p.counts[Phonology.COMPLEX_CODAS];
 				
 				double heavyComplex = 0;
 				if (p.maxNucleusLength > 1)
 				{
-					heavyComplex = 1;
 					if (p.baseTerminalCodaChance > 0)
 						heavyComplex += p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS];
+					if (p.baseTerminalCodaChance < 1)
+						heavyComplex += 1;
 					
 					heavyComplex *= prev.lastPhoneme().interludes[1].size();
 					heavyComplex = Math.log(heavyComplex + 1) * p.baseDiphthongChance;
@@ -661,7 +628,7 @@ class NameAssembly
 				// heavy rimes
 				double heavySimple = 0;
 				if (p.baseTerminalCodaChance > 0)
-					heavySimple = p.counts[Phonology.SIMPLE_NUCLEI] * (p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS]);
+					heavySimple = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.COMPLEX_CODAS];
 				
 				double heavyComplex = 0;
 				if (p.maxNucleusLength > 1)
@@ -679,23 +646,15 @@ class NameAssembly
 			}
 			
 			double rand = rng.nextDouble();
-			if (pattern.length == 1 && name.size() == 0 && heavyRimeProminence > 0)
+			if (length == 1 && name.syllables.size() == 0 && heavyRimeProminence > 0)
 			{
 				return terminalHeavyRimeNode;
 			}
-			else if (pattern[curr] == 'S')
-			{
-				
-				rand *= (lightRimeProminence * p.strongLightRimeChance) + (heavyRimeProminence * p.strongHeavyRimeChance);
-				if (rand < lightRimeProminence * p.strongLightRimeChance)
-					return terminalLightRimeNode;
-				else
-					return terminalHeavyRimeNode;
-			}
 			else
 			{
-				rand *= (lightRimeProminence * p.weakLightRimeChance) + (heavyRimeProminence * p.weakHeavyRimeChance);
-				if (rand < lightRimeProminence * p.weakLightRimeChance)
+				
+				rand *= lightRimeProminence + heavyRimeProminence;
+				if (rand < lightRimeProminence)
 					return terminalLightRimeNode;
 				else
 					return terminalHeavyRimeNode;
@@ -706,7 +665,7 @@ class NameAssembly
 	/**
 	 * Adds a simple nucleus to a light rime in the terminal syllable. Decides whether to add a simple coda as well.
 	 * Selects and adds the appropriate coda, if it is indeed appropriate, then exits the flowchart.
-	 * @author claym
+	 * @since	1.1
 	 *
 	 */
 	private class TerminalLightRimeNode implements Node
@@ -722,12 +681,7 @@ class NameAssembly
 		
 		public Node nextNode()
 		{
-			// Reference to previous syllable segment
-			SyllableSegment prev = null;
-			if (name.size() > 0)
-				prev = name.get(name.size() - 1);
-			
-			SyllableSegment next;
+			Constituent next;
 		
 			// If this is hiatus, add an nucleus from the previous vowel's interlude list.
 			// Otherwise, add any available simple nucleus
@@ -737,11 +691,11 @@ class NameAssembly
 				next = p.pickSimpleNucleus();
 			
 			// Add nucleus
-			name.add(next);
+			addConstituent(next);
 						
 			// Decide whether to add next a simple coda or none at all
 			if (rng.nextDouble() * (simpleCodaProminence + emptyCodaProminence) < simpleCodaProminence)
-				name.add(p.pickSimpleCoda());
+				addConstituent(p.pickSimpleCoda());
 			
 			// Rime complete; return null to exit loop
 			return null;
@@ -750,31 +704,32 @@ class NameAssembly
 	
 	/** 
 	 * Decides whether a simple or complex nucleus should feature in a heavy rime in the terminal syllable.
-	 * Selects and adds either a simple or complex nucleus and transitions to either the TerminalSyllableHeavyRimeSimpleNucleus or 
-	 * TerminalSyllableHeavyRimeComplexNucleus node accordingly.
+	 * Selects and adds either a simple or complex nucleus and either transitions to the TerminalSyllableHeavyRimeComplexNucleus
+	 * node, in the case of a complex nucleus, or in the case of a simple one, adds a complex coda and exits the flowchart.
+	 * or exits 
 	 * @since	1.0
 	 */
 	private class TerminalHeavyRimeNode implements Node
 	{
 		public Node nextNode()
 		{
-			// Reference to previous syllable segment
-			SyllableSegment prev = null;
-			if (name.size() > 0)
-				prev = name.get(name.size() - 1);
-			
-			SyllableSegment next;
+			Constituent next;
 			
 			// Hiatus case: If the previous phoneme was a vowel, this nucleus must come from that vowel's interlude table
 			if (prev != null && prev.type == SegmentType.NUCLEUS)
 			{
-				// Number of heavy rimes with simple nuclei is proportionate to the number of simple nuclei times codas,
+				// Number of heavy rimes with simple nuclei is proportionate to the number of simple nuclei times complex codas,
 				// as long as terminal codas are allowed.
 				double simple = 0;
 				if (p.baseTerminalCodaChance > 0)
 				{
-					simple = prev.lastPhoneme().interludes[0].size() * (p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS]);
-					simple = Math.log(simple + 1) * (1 - p.baseDiphthongChance);
+					// Count all heavy rhymes with simple nuclei
+					simple = p.counts[Phonology.COMPLEX_CODAS];
+					simple *= prev.lastPhoneme().interludes[0].size();
+
+					// Log scale the count and multiply it by the inverse of the base diphthong chance
+					simple = Math.log(simple + 1);
+					simple *= 1 - p.baseDiphthongChance;
 				}
 				
 				// Number of heavy rimes with complex nuclei is proportionate to the number of complex nuclei times the number
@@ -782,9 +737,13 @@ class NameAssembly
 				double complex = 0;
 				if (p.maxNucleusLength > 1)
 				{
-					complex = 1;
+					// Rimes with codas
 					if (p.baseTerminalCodaChance > 0)
 						complex += p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS];
+					
+					// Rimes without
+					if (p.baseTerminalCodaChance < 1)
+						complex += 1;
 					
 					complex *= prev.lastPhoneme().interludes[1].size();
 					complex = Math.log(complex + 1) * p.baseDiphthongChance;
@@ -805,7 +764,7 @@ class NameAssembly
 				double simple = 0;
 				if (p.baseTerminalCodaChance > 0)
 				{
-					simple = p.counts[Phonology.SIMPLE_NUCLEI] * (p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS]);
+					simple = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.COMPLEX_CODAS];
 					simple = Math.log(simple + 1) * (1 - p.baseDiphthongChance);
 				}
 				
@@ -829,42 +788,17 @@ class NameAssembly
 					next = p.pickComplexNucleus();
 			}
 			
-			// Add next syllable segment to name
-			name.add(next);
+			// Add the chosen nucleus to name
+			addConstituent(next);
 
 			// Select next node
 			if (next.content.length == 1)
-				return terminalHeavyRimeSimpleNucleusNode;
+			{
+				addConstituent(p.pickComplexCoda());
+				return null;
+			}
 			else
 				return terminalHeavyRimeComplexNucleusNode;
-		}
-	}
-	
-	/**
-	 * Decides what type of coda should follow a simple nucleus in the terminal syllable.
-	 * Selects and adds the appropriate coda and exits the flowchart.
-	 * @since	1.0
-	 */
-	public class TerminalHeavyRimeSimpleNucleusNode implements Node
-	{
-		double simpleCodaProminence;
-		double complexCodaProminence;
-		
-		public TerminalHeavyRimeSimpleNucleusNode()
-		{
-			simpleCodaProminence = Math.log(p.counts[Phonology.SIMPLE_CODAS] + 1) * (1 - p.baseCodaClusterChance);
-			complexCodaProminence = Math.log(p.counts[Phonology.COMPLEX_CODAS] + 1) * p.baseCodaClusterChance;
-		}
-		
-		public Node nextNode()
-		{
-			if (rng.nextDouble() * (simpleCodaProminence + complexCodaProminence) < simpleCodaProminence)
-				name.add(p.pickSimpleCoda());
-			else
-				name.add(p.pickComplexCoda());
-			
-			// Rime complete; return null to exit loop
-			return null;
 		}
 	}
 	
@@ -881,7 +815,7 @@ class NameAssembly
 		
 		public TerminalHeavyRimeComplexNucleusNode()
 		{
-			emptyCodaProminence = 1 - p.baseTerminalCodaChance;
+			emptyCodaProminence = Math.log(1 + 1) * (1 - p.baseTerminalCodaChance);
 			simpleCodaProminence = Math.log(p.counts[Phonology.SIMPLE_CODAS] + 1) * p.baseTerminalCodaChance * (1 - p.baseCodaClusterChance);
 			complexCodaProminence = Math.log(p.counts[Phonology.COMPLEX_CODAS] + 1) * p.baseTerminalCodaChance * p.baseCodaClusterChance;
 		}
@@ -891,13 +825,19 @@ class NameAssembly
 			double rand = rng.nextDouble() * (emptyCodaProminence + simpleCodaProminence + complexCodaProminence);
 			
 			if (rand < simpleCodaProminence)
-				name.add(p.pickSimpleCoda());
+				addConstituent(p.pickSimpleCoda());
 			else if (rand < simpleCodaProminence + complexCodaProminence)
-				name.add(p.pickComplexCoda());
+				addConstituent(p.pickComplexCoda());
 
 			// Rime complete; return null to exit loop
 			return null;
 		}
+	}
+	
+	private void addConstituent(Constituent c)
+	{
+		prev = c;
+		name.add(c);
 	}
 }
 

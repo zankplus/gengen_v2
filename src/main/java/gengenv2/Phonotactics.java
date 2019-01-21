@@ -31,7 +31,7 @@ import java.util.ArrayList;
  * 
  *
  */
-final class Cluster
+final class Phonotactics
 {
 	// 3 = rare | 2 = common | 1 = rare | 0 = scandalous
 	
