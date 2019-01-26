@@ -555,6 +555,7 @@ public class Phonology
 		
 		// Make easy reference to consonant segment array
 		Consonant[] consonants = Consonant.segments;
+		ArrayList<Consonant> defective = new ArrayList<Consonant>();
 		
 		// Populate consonant inventory
 		for (int i = 0; i < consonants.length; i++)
@@ -572,8 +573,30 @@ public class Phonology
 				}
 			
 			if (add)
-				inv.add(new Phoneme(consonants[i]));
+			{
+				if (rng.nextDouble() > consonants[i].defectiveChance)
+					inv.add(new Phoneme(consonants[i]));
+				else
+					defective.add(consonants[i]);
+			}		
 		}
+		
+		// Print available consonants
+		System.out.print("INVENTORY:\t");
+		for (Phoneme p : inv)
+		{
+			String ex = p.segment.expression;
+			System.out.print((ex.length() == 1 ? " " : "") + ex + " ");
+		}
+		
+		System.out.print("\nDEFECTIVE:\t");
+		
+		for (Segment s : defective)
+		{
+			String ex = s.expression;
+			System.out.print((ex.length() == 1 ? " " : "") + ex + " ");
+		}
+		System.out.println();
 		
 		consonantInventory = inv.toArray(new Phoneme[0]);
 		

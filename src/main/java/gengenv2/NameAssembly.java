@@ -145,7 +145,7 @@ class NameAssembly
 	{
 		// Initialize naming variables
 		curr = 0;
-		length = rng.nextInt(5) + 1;
+		length = rng.nextInt(4) + 2;
 		name = new Name();
 		prev = null;
 		
@@ -162,8 +162,6 @@ class NameAssembly
 			e.printStackTrace();
 			System.exit(0);
 		}
-		
-		name.scan();
 
 		return name;
 	}

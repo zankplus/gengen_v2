@@ -68,6 +68,7 @@ abstract class Segment extends Object
 class Consonant extends Segment
 {
 	static int count = 0;
+	double defectiveChance;
 	ConsonantProperty[] properties;
 	
 	/**
@@ -75,11 +76,13 @@ class Consonant extends Segment
 	 * checking the static count, and increments it.
 	 * @param expression			Character(s) representing this sound's orthographic representation
 	 * @param transitionCategory	Character's phonotactic category for the purposes of deciding consonant clusters
+	 * @param defectiveChance		The chance of this segment being defective, i.e., absent form a language, despite the presence of all of its properties
 	 * @param properties			List of character's phonetic properties
 	 */
-	public Consonant(String expression, int transitionCategory, ConsonantProperty[] properties)
+	public Consonant(String expression, int transitionCategory, double defectiveChance, ConsonantProperty[] properties)
 	{
 		super(expression, transitionCategory, properties);
+		this.defectiveChance = defectiveChance;
 		this.properties = properties; 
 		id = count;
 		count++;
@@ -96,47 +99,46 @@ class Consonant extends Segment
 	// Defines cross-linguistic consonantal inventory
 	static Consonant[] segments = new Consonant[]
 	{
-/* 0*/	new Consonant("k" ,  0, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICELESS,	ConsonantProperty.UNASPIRATED}),
-/* 1*/	new Consonant("p" ,  0, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.BILABIAL, 	ConsonantProperty.VOICELESS,	ConsonantProperty.UNASPIRATED}),
-/* 2*/	new Consonant("t" ,  0, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICELESS,	ConsonantProperty.UNASPIRATED}),
-/* 3*/	new Consonant("q" ,  0, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.UVULAR, 		ConsonantProperty.VOICELESS,	ConsonantProperty.UNASPIRATED}),
+/* 0*/	new Consonant("p" ,  0,	0.129,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.BILABIAL, 	ConsonantProperty.VOICELESS}),
+/* 1*/	new Consonant("t" ,  0,	0.043,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICELESS}),
+/* 2*/	new Consonant("k" ,  0,	0.052,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICELESS}),
+/* 3*/	new Consonant("q" ,  0,	0, 		new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.UVULAR, 		ConsonantProperty.VOICELESS}),
+/* 4*/	new Consonant("b" ,  2, 0.165,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.BILABIAL, 	ConsonantProperty.VOICED}),
+/* 5*/	new Consonant("d" ,  2, 0.195,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED}),
+/* 6*/	new Consonant("g" ,  2, 0.259,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICED}),
+/* 7*/	new Consonant("'" ,  5, 0.357,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE, 	ConsonantProperty.GLOTTAL}),
 
-/* 4*/	new Consonant("kh",  1, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICELESS,	ConsonantProperty.ASPIRATED}),
-/* 5*/	new Consonant("ph",  1, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.BILABIAL, 	ConsonantProperty.VOICELESS,	ConsonantProperty.ASPIRATED}),
-/* 6*/	new Consonant("th",  1, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICELESS,	ConsonantProperty.ASPIRATED}),
-/* 7*/	new Consonant("qh",  1, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.UVULAR, 		ConsonantProperty.VOICELESS,	ConsonantProperty.ASPIRATED}),
+/* 8*/	new Consonant("c" ,  4, 0.452,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
+/* 9*/	new Consonant("ch",  4, 0,		new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
+/*10*/	new Consonant("j" ,  4, 0.025,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR, ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
 
-/* 8*/	new Consonant("g" ,  2, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICED,		ConsonantProperty.BREATHLESS}),
-/* 9*/	new Consonant("b" ,  2, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.BILABIAL, 	ConsonantProperty.VOICED,		ConsonantProperty.BREATHLESS}),
-/*10*/	new Consonant("d" ,  2, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED,		ConsonantProperty.BREATHLESS}),
+/*11*/	new Consonant("ph",  6, 0.863,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.BILABIAL,		ConsonantProperty.VOICELESS,	ConsonantProperty.NONSIBILANT}),
+/*12*/	new Consonant("th",  6, 0.937,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.ALVEOLAR,		ConsonantProperty.VOICELESS,	ConsonantProperty.NONSIBILANT}),
+/*13*/	new Consonant("kh",  6, 0.568,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.VELAR,		ConsonantProperty.VOICELESS,	ConsonantProperty.NONSIBILANT}),
+/*14*/	new Consonant("qh",  6, 0,		new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.UVULAR,		ConsonantProperty.VOICELESS,	ConsonantProperty.NONSIBILANT}),
+/*15*/	new Consonant("f" ,  6, 0.093,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.LABIODENTAL,	ConsonantProperty.VOICELESS,	ConsonantProperty.NONSIBILANT}),
+/*16*/	new Consonant("s" ,  7, 0.016,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.ALVEOLAR,		ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
+/*17*/	new Consonant("sh",  7, 0.156,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
 
-/*11*/	new Consonant("gh",  3, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICED,		ConsonantProperty.BREATHY}),
-/*12*/	new Consonant("bh",  3, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.BILABIAL, 	ConsonantProperty.VOICED,		ConsonantProperty.BREATHY}),
-/*13*/	new Consonant("dh",  3, new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED,		ConsonantProperty.BREATHY}),
+/*18*/	new Consonant("bh",  8, 0.754,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.BILABIAL, 	ConsonantProperty.VOICED,		ConsonantProperty.NONSIBILANT}),
+/*19*/	new Consonant("dh",  8, 0.900,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED,		ConsonantProperty.NONSIBILANT}),
+/*20*/	new Consonant("gh",  8, 0.748,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.VELAR, 		ConsonantProperty.VOICED,		ConsonantProperty.NONSIBILANT}),
+/*21*/	new Consonant("v" ,  8, 0.211,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.LABIODENTAL,	ConsonantProperty.VOICED,		ConsonantProperty.NONSIBILANT}),
+/*22*/	new Consonant("z" ,  9, 0.580,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.ALVEOLAR,		ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
+/*23*/	new Consonant("zh",  9, 0.646,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
 
-/*14*/	new Consonant("ch",  4, new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
-/*15*/	new Consonant("j" ,  4, new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR, ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
-
-/*16*/	new Consonant("'" ,  5, new ConsonantProperty[] {ConsonantProperty.PLOSIVE, 	ConsonantProperty.GLOTTAL}),
-
-/*17*/	new Consonant("f" ,  6, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.LABIODENTAL,	ConsonantProperty.VOICELESS}),
-/*18*/	new Consonant("s" ,  7, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.ALVEOLAR,		ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
-/*19*/	new Consonant("sh",  7, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
-/*20*/	new Consonant("v" ,  8, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.LABIODENTAL,	ConsonantProperty.VOICED}),
-/*21*/	new Consonant("z" ,  9, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.ALVEOLAR,		ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT,	ConsonantProperty.VOICED_SIBILANT_FRICATIVE}),
-/*22*/	new Consonant("zh",  9, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT,	ConsonantProperty.VOICED_SIBILANT_FRICATIVE}),
-/*23*/	new Consonant("h" , 10, new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.GLOTTAL_FRICATIVE}),
+/*24*/	new Consonant("h" , 10, 0.058,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.GLOTTAL}),
 		
-/*24*/	new Consonant("m" , 11, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.BILABIAL}),
-/*25*/	new Consonant("n" , 11, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.ALVEOLAR}),
-/*26*/	new Consonant("ng", 11, new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.VELAR,		ConsonantProperty.VELAR_NASAL}),
-/*27*/	new Consonant("mh", 12, new ConsonantProperty[] {ConsonantProperty.VOICELESS_NASAL,	ConsonantProperty.BILABIAL}),
-/*28*/	new Consonant("nh", 12, new ConsonantProperty[] {ConsonantProperty.VOICELESS_NASAL,	ConsonantProperty.ALVEOLAR}),
+/*25*/	new Consonant("m" , 11, 0.015,	new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.BILABIAL}),
+/*26*/	new Consonant("n" , 11, 0.004,	new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.ALVEOLAR}),
+/*27*/	new Consonant("ng", 11, 0.447,	new ConsonantProperty[] {ConsonantProperty.NASAL,		ConsonantProperty.VELAR}),
+/*28*/	new Consonant("mh", 12, 0,		new ConsonantProperty[] {ConsonantProperty.VOICELESS_NASAL,	ConsonantProperty.BILABIAL}),
+/*29*/	new Consonant("nh", 12, 0.112,	new ConsonantProperty[] {ConsonantProperty.VOICELESS_NASAL,	ConsonantProperty.ALVEOLAR}),
 
-/*29*/	new Consonant("r" , 13, new ConsonantProperty[] {ConsonantProperty.LIQUID,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.ALVEOLAR_TRILL}),
-/*30*/	new Consonant("l" , 13, new ConsonantProperty[] {ConsonantProperty.LIQUID,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LATERAL_APPROX}),
-/*31*/	new Consonant("y" , 14, new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.PALATAL_APPROX}),
-/*32*/	new Consonant("w" , 14, new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LABIOVELAR_APPROX}),
+/*30*/	new Consonant("r" , 13, 0,		new ConsonantProperty[] {ConsonantProperty.LIQUID,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.ALVEOLAR_TRILL}),
+/*31*/	new Consonant("l" , 13, 0,		new ConsonantProperty[] {ConsonantProperty.LIQUID,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LATERAL_APPROX}),
+/*32*/	new Consonant("y" , 14, 0,		new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.PALATAL_APPROX}),
+/*33*/	new Consonant("w" , 14, 0,		new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LABIOVELAR_APPROX}),
 	};
 }
 
@@ -218,18 +220,14 @@ interface SegmentProperty
  */
 enum ConsonantProperty implements SegmentProperty
 {
-	PLOSIVE(1), AFFRICATE(.624), FRICATIVE(.922), NASAL(.962), VOICELESS_NASAL(.038), APPROXIMANT(.969),
-	GLOTTAL(.166), UVULAR(.140), VELAR(.953), POSTALVEOLAR(.590), ALVEOLAR(.965), LABIODENTAL(.510), BILABIAL(.942),
+	PLOSIVE(1), AFFRICATE(.623), FRICATIVE(.922), NASAL(.962), VOICELESS_NASAL(.038), APPROXIMANT(.969),
+	GLOTTAL(.745), UVULAR(.140), VELAR(.987), POSTALVEOLAR(.590), ALVEOLAR(.997), LABIODENTAL(.574), BILABIAL(.993),
 	VOICELESS(.989), VOICED(.767),
-	UNASPIRATED(.949), ASPIRATED(.253),
-	BREATHLESS(.789), BREATHY(.027),
-	GLOTTAL_FRICATIVE(.647),
-	SIBILANT(.914),
-	LIQUID(.924),	// liquid | approximant
-	GLIDE(.912),	// glide | approximant
-	PALATAL_APPROX(.865), LABIOVELAR_APPROX(.761),	// x | approximant & glide 
-	LATERAL_APPROX(.778), ALVEOLAR_TRILL(.698),		// x | approximant & liquid
-	VELAR_NASAL(.552), VOICED_SIBILANT_FRICATIVE(.412);
+	SIBILANT(.914), NONSIBILANT(.694),
+	LIQUID(.896),	// liquid | approximant
+	GLIDE(.889),	// glide | approximant
+	PALATAL_APPROX(.838), LABIOVELAR_APPROX(.741),	// x | approximant & glide 
+	LATERAL_APPROX(.754), ALVEOLAR_TRILL(.661);		// x | approximant & liquid;
 	
 	double probability;
 	

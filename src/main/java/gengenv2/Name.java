@@ -34,17 +34,6 @@ public class Name implements Comparable<Name>
 		this.syllables = new ArrayList<Syllable>();
 	}
 	
-	/**
-	 * Scans through the Name syllable by syllable and uses the language's stress rules to apply
-	 * primary and secondary stresses.
-	 * @since	1.1
-	 */
-	public void scan()
-	{
-		if (syllables.size() > 1)
-			syllables.get(1).stress = Stress.PRIMARY;
-	}
-	
 	public String toString()
 	{
 		if (orthography == null)
@@ -112,7 +101,7 @@ public class Name implements Comparable<Name>
 			// 1. Indicate stress and syllable breaks
 			if (syl.stress == Stress.PRIMARY)
 				sb.append('ˈ');
-			else if (syl.stress == Stress.SECONDARY)
+			else if (syl.stress == Stress.STRONG)
 				sb.append('ˌ');
 			else if (i > 0)
 				sb.append('.');
@@ -172,19 +161,63 @@ public class Name implements Comparable<Name>
 	{
 		return toString().compareTo(other.toString());
 	}
-	
-	
-	private class Syllable
+
+	class Syllable
 	{
 		Constituent[] constituents; // 0 = onset, 1 = nucleus, 2 = coda
 		Stress stress;
+		int index;
 		
 		public Syllable()
 		{
 			constituents = new Constituent[3];
-			stress = Stress.NONE;
+			stress = Stress.WEAK;
+			index = syllables.size();
+		}
+	
+		/**
+		 * Returns true if this syllable is considered heavy, depending on its position and its subjection to
+		 * rules of extrametricality.
+		 * 
+		 * @param 	applyConsonantExtrametricality	If true, the last consonant of a terminal syllable is ignored
+		 * @return	true if the syllable is heavy, false if it's light
+		 */
+		public boolean isHeavy(boolean applyConsonantExtrametricality)
+		{
+			Syllable syl = syllables.get(index);
+			
+			// If the final syllable is accessed, return true if the syllable includes a complex nucleus or complex coda
+			if (index == syllables.size() - 1)
+			{
+				if (syl.constituents[1].content.length > 1 ||
+						((syl.constituents[2] != null) && 
+							((syl.constituents[2].content.length >= 2 && !applyConsonantExtrametricality) ||
+									syl.constituents[2].content.length >= 3)))
+				{
+					return true;
+				}
+			}
+			// Otherwise, return true if the syllable includes a complex nucleus or any coda, or the next syllable includes
+			// a complex onset
+			else if (index < syllables.size() - 1 &&
+					(syl.constituents[1].content.length > 1 ||
+							syl.constituents[2] != null ||
+									syllables.get(index + 1).constituents[0] != null && 
+										syllables.get(index + 1).constituents[0].content.length > 1))
+				return true;
+			
+			return false;
+		}
+		
+		/**
+		 * 
+		 * @return
+		 */
+		public boolean isHeavy()
+		{
+			return isHeavy(false);
 		}
 	}
 }
 
-enum Stress { NONE, SECONDARY, PRIMARY }
+enum Stress { WEAK, STRONG, PRIMARY }
