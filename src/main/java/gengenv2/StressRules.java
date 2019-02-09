@@ -1,3 +1,22 @@
+/** Copyright 2018, 2019 Clayton Cooper
+ *	
+ *	This file is part of gengen2.
+ *
+ *	gengen2 is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	gengen2 is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with gengen2.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
 package gengenv2;
 
 import java.util.Random;
@@ -92,7 +111,6 @@ public class StressRules
 				// 1. Quantity sensitivity attracts stress to heavy syllables
 				if (quantitySensitive && syl.isHeavy(consonantExtrametricality))
 				{
-					System.out.print("[1]");
 					// 1a. Quantity sensitivity doesn't apply to a syllable when it would cause a forbidden clash
 					if (i > 0 && name.syllables.get(i - 1).stress == Stress.STRONG && !allowClashes)
 					{
@@ -115,7 +133,6 @@ public class StressRules
 				else if (internalExtrametricality && i > 0 && !syl.isHeavy(consonantExtrametricality) && name.syllables.get(i - 1).stress == rightStress &&
 						 (i < lastMetricalSyllable && name.syllables.get(i + 1).isHeavy(consonantExtrametricality) == (leftStress == Stress.STRONG)))
 				{
-					System.out.print("[2]");
 					// Make this syllable strong if it would result in 3 consecutive weak syllables
 					if (externalExtrametricality && i == lastMetricalSyllable && stressRhythm == StressRhythm.TROCHAIC)
 						syl.stress = Stress.STRONG;
@@ -135,14 +152,12 @@ public class StressRules
 				// 3a. Application of default stress according to position in foot (beginning of foot)
 				else if (footPosition == 0)
 				{
-					System.out.print("[3a]");
 					syl.stress = leftStress;
 					footPosition = 1;
 				}
 				// 3b. Application of default stress according to position in foot (end of foot)
 				else
 				{
-					System.out.print("[3b]");
 					syl.stress = rightStress;
 					footPosition = 0;
 				}
@@ -157,9 +172,6 @@ public class StressRules
 				// 1. Quantity sensitivity attracts stress to heavy syllables
 				if (quantitySensitive && syl.isHeavy(consonantExtrametricality))
 				{
-					if (i < lastMetricalSyllable)
-						System.out.print("[" + (i < lastMetricalSyllable) + " " + (name.syllables.get(i + 1).stress == Stress.STRONG) + " " + !allowClashes + "/1]" );
-					
 					// 1a. Quantity sensitivity doesn't apply to a syllable when it would cause a forbidden clash
 					if (i < lastMetricalSyllable && name.syllables.get(i + 1).stress == Stress.STRONG && !allowClashes)
 					{
@@ -233,7 +245,7 @@ public class StressRules
 					return;
 				}
 			}
-			name.syllables.get(name.syllables.size()).stress = Stress.PRIMARY;
+			name.syllables.get(name.syllables.size() - 1).stress = Stress.PRIMARY;
 		}
 
 	}
@@ -273,21 +285,5 @@ public class StressRules
 		}
 		
 		return result;
-	}
-	
-	public static void main(String args[])
-	{
-		StressRules rules = new StressRules(-2743780903480868822L);
-		Phonology p = new Phonology(7122940268964242656L);
-		
-		
-		System.out.println(rules);
-		
-		for (int i = 0; i < 20; i++)
-		{
-			Name name = p.makeName();
-			rules.addStresses(name);
-			System.out.println(name);
-		}
 	}
 }

@@ -1,4 +1,4 @@
-/** Copyright 2018 Clayton Cooper
+/** Copyright 2018, 2019 Clayton Cooper
  *	
  *	This file is part of gengen2.
  *
@@ -28,6 +28,8 @@ import java.util.Random;
 
 import org.apache.commons.math3.distribution.LogNormalDistribution;
 
+import gengenv2.Phonology.Phoneme.Follower;
+
 
 /**
  * An individual, complete Phonology, or language. Each Phonology contains its own set of sounds (phonemic inventory),
@@ -51,11 +53,11 @@ public class Phonology
 	 * Auxiliary systems
 	 * 
 	 * These are other special systems used by the Phonology to aid in name-making, defined in their own classes.
-	 * StressSystem represents the Phonology's rules for stress as well as rhythm and word length, and is used
-	 * to create stress patterns. NameAssembly takes these stress patterns and uses the Phonology's phonemes
-	 * and phonotactics to create names that follow the pattern.
+	 * nameAssembly creates words using phonology's rules for syllable structure. stressRules represents the 
+	 * Phonology's rules for stress and rhythm, and is used to assign stress to words NameAssembly has made.
 	 */
 	NameAssembly nameAssembly;
+	StressRules stressRules;
 	
 	/* Prominence values
 	 * 
@@ -208,7 +210,7 @@ public class Phonology
 	protected double strongLightRimeChance;
 	protected double weakHeavyRimeChance;
 	protected double weakLightRimeChance;
-	protected double emptyInitialOnsetProminence;
+	protected double baseEmptyInitialOnsetChance;
 	protected double baseMedialOnsetChance;
 	protected double baseMedialCodaChance;
 	protected double baseTerminalCodaChance;
@@ -321,7 +323,7 @@ public class Phonology
 	 */
 	private void constructPhonology()
 	{
-		System.out.println("Seed: " + seed);
+		System.out.println("Phonology Seed: " + seed);
 		
 		// Commence construction
 		makeBasicSyllableStructure();
@@ -350,6 +352,9 @@ public class Phonology
 		
 		// Create flowchart
 		nameAssembly = new NameAssembly(this);
+		
+		// Create stress rules
+		stressRules = new StressRules();
 	}
 	
 	/**
@@ -405,7 +410,7 @@ public class Phonology
 			codas[i] = new ArrayList<Constituent>();
 		
 		
-		// Determine cluster chances and cluster offsets
+		// Determine cluster offsets
 		if (maxOnsetLength > 0)
 		{
 			baseOnsetClusterChance = Math.max(rng.nextGaussian() * onsetClusterProminenceStdev + onsetClusterProminenceMean,
@@ -582,23 +587,32 @@ public class Phonology
 		}
 		
 		// Print available consonants
-		System.out.print("INVENTORY:\t");
-		for (Phoneme p : inv)
-		{
-			String ex = p.segment.expression;
-			System.out.print((ex.length() == 1 ? " " : "") + ex + " ");
-		}
-		
-		System.out.print("\nDEFECTIVE:\t");
-		
-		for (Segment s : defective)
-		{
-			String ex = s.expression;
-			System.out.print((ex.length() == 1 ? " " : "") + ex + " ");
-		}
-		System.out.println();
+//		System.out.print("INVENTORY:\t");
+//		for (Phoneme p : inv)
+//		{
+//			String ex = p.segment.expression;
+//			System.out.print((ex.length() == 1 ? " " : "") + ex + " ");
+//		}
+//		
+//		System.out.print("\nDEFECTIVE:\t");
+//		
+//		for (Segment s : defective)
+//		{
+//			String ex = s.expression;
+//			System.out.print((ex.length() == 1 ? " " : "") + ex + " ");
+//		}
+//		System.out.println();
 		
 		consonantInventory = inv.toArray(new Phoneme[0]);
+		
+		// If this language has no consonants, add 'P' to the inventory
+		if (consonantInventory.length == 0)
+		{
+			for (int i = 0; i < Consonant.segments[0].properties.length; i++)
+				baseProminences[Consonant.segments[0].properties[i].ordinal()] = 1;
+			
+			consonantInventory = new Phoneme[] { new Phoneme(Consonant.segments[0]) };
+		}
 		
 		// Mark phonotactic transition categories represented in this language's inventory
 		consonantCategoriesRepresented = new boolean[Phonotactics.consonantCategories.size()];
@@ -627,6 +641,13 @@ public class Phonology
 		}
 		
 		vowelInventory = inv.toArray(new Phoneme[inv.size()]);
+		
+		// If this language has no vowels, add 'A' to the inventory
+		if (vowelInventory.length == 0)
+		{
+			vowelProminences[VowelProperty.OPEN.ordinal()] = 1;
+			vowelInventory = new Phoneme[] { new Phoneme(Vowel.segments[1]) };
+		}
 		
 		// Mark phonotactic transition categories represented in this language's inventory
 		vowelCategoriesRepresented = new boolean[Phonotactics.vowelCategories.size()];
@@ -691,6 +712,10 @@ public class Phonology
 		// Shrink maxOnsetLength to hide lengths with empty arrays
 		if (maxOnsetLength > 0)
 			for ( ; onsets[maxOnsetLength - 1].size() == 0; maxOnsetLength--);
+		
+		// If max onset length = 0, the base cluster chance should be 0
+		if (maxOnsetLength < 2)
+			baseOnsetClusterChance = 0;
 		
 		// Normalize probabilities and sort each onset list according to them
 		for (int i = 0; i < maxOnsetLength; i++)
@@ -758,25 +783,32 @@ public class Phonology
 				System.out.println("Removed lengthener from simple nuclei");
 			}
 		
+		
 		// Removed any unused nuclei
 		for (ArrayList<Constituent> list : nuclei)
-			for (int i = 0; i < list.size(); i++)
-				if (list.get(i).probability < 0)
+		for (int j = 0; j < nuclei.length; j++)
+			for (int i = 0; i < nuclei[j].size(); i++)
+				if (nuclei[j].get(i).probability < 0)
 				{
-					list.remove(i);
-					i--;
+					// don't remove the last simple nucleus
+					if (j != 0 || nuclei[j].size() > 1)
+					{
+						nuclei[j].remove(i);
+						i--;
+					}
 				}
-		
-		// Shrink maxNucleusLength to hide lengths with empty arrays 
-		if  (maxNucleusLength > 0)
-			for ( ; nuclei[maxNucleusLength - 1].size() == 0; maxNucleusLength--);
-		
+
+		// Shrink maxNucleusLength to hide lengths with empty arrays
+		for ( ; maxNucleusLength > 0 && nuclei[maxNucleusLength - 1].size() == 0; maxNucleusLength--);
+			
+			
 		// Normalize probabilities and sort each nucleus list according to them
 		for (int i = 0; i < maxNucleusLength; i++)
 		{
 			double total = 0;
 			for (Constituent nucleus : nuclei[i])
-				if (nucleus.probability > 0)
+				// Add nucleus prominence, unless it is negative or it is the only simple nucleus
+				if (nucleus.probability > 0 || (i == 0 && nuclei[i].size() == 1))
 					total += nucleus.probability;
 			
 			for (Constituent nucleus : nuclei[i])
@@ -1094,7 +1126,7 @@ public class Phonology
 	private void setBaseChances()
 	{
 		// Chance of a name starting with a vowel
-		emptyInitialOnsetProminence = Math.max(rng.nextGaussian() * emptyInitialOnsetProminenceStdev + emptyInitialOnsetProminenceMean, 0);
+		baseEmptyInitialOnsetChance = Math.max(rng.nextGaussian() * emptyInitialOnsetProminenceStdev + emptyInitialOnsetProminenceMean, 0);
 		
 		// Determine the chances of finding light or heavy rimes in weak or strong syllables.
 		// If the Phonology has no heavy rimes, then it must have light ones in all positions.
@@ -1164,6 +1196,14 @@ public class Phonology
 		
 		baseMedialCodaChance =   Math.max(Math.min(baseCodaChance * codaLocationBalance, 1), 0);
 		baseTerminalCodaChance = Math.max(Math.min(baseCodaChance * (1 - codaLocationBalance), 1), 0);
+		
+		if (baseMedialCodaChance == 0)
+			counts[Phonology.COMPOUND_INTERLUDES] = 0;
+		
+		// Correct cluster chances
+		if (maxOnsetLength < 2)	baseOnsetClusterChance = 0;
+		if (maxNucleusLength < 2)	baseDiphthongChance = 0;
+		if (maxCodaLength < 2)		baseCodaClusterChance = 0;
 	}
 	
 	/**
@@ -1275,7 +1315,7 @@ public class Phonology
 	 * @param	p	The last phoneme of the current syllable, hence the final element of either a coda or nucleus
 	 * @return	SyllableSegment	The first syllable segment of the next syllable, hence either an onset or nucleus 
 	 */
-	protected Constituent pickInterlude(Phoneme p)
+	protected Follower pickInterlude(Phoneme p)
 	{
 		if (maxOnsetLength == 1)
 			return p.pickInterlude(0);
@@ -2069,13 +2109,13 @@ public class Phonology
 		 * @return	The selected onset/nucleus
 		 * @since	1.0
 		 */
-		public Constituent pickInterlude(int length)
+		public Follower pickInterlude(int length)
 		{
 			double rand = rng.nextDouble();
 			for (Follower f : interludes[length])
 			{
 				if (rand < f.probability)
-					return f.c;
+					return f;
 				else
 					rand -= f.probability;
 			}

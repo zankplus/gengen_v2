@@ -1,4 +1,4 @@
-/** Copyright 2018 Clayton Cooper
+/** Copyright 2018, 2019 Clayton Cooper
  *	
  *	This file is part of gengen2.
  *
@@ -27,7 +27,10 @@ public class Name implements Comparable<Name>
 {
 	Phonology language;
 	ArrayList<Syllable> syllables;
-	String orthography;
+	String plain;
+	String ipa;
+	String clear;
+	double informationContent;
 	
 	public Name()
 	{
@@ -36,9 +39,28 @@ public class Name implements Comparable<Name>
 	
 	public String toString()
 	{
-		if (orthography == null)
-			parseOrthography();
-		return orthography;
+		return getClear() + "\t" + getPlain() + "\t" + getIPA();
+	}
+	
+	public String getPlain()
+	{
+		if (plain == null)
+			renderPlain();
+		return plain;
+	}
+	
+	public String getIPA()
+	{
+		if (ipa == null)
+			renderIPA();
+		return ipa;
+	}
+	
+	public String getClear()
+	{
+		if (clear == null)
+			renderClear();
+		return clear;
 	}
 	
 	/**
@@ -89,7 +111,11 @@ public class Name implements Comparable<Name>
 		}
 	}	
 	
-	public void parseOrthography()
+	/**
+	 * Renders the name without any diacritics or symbols (besides glottal stops)
+	 * @since 1.1
+	 */
+	public void renderPlain()
 	{
 		Segment prev, curr = null;
 		
@@ -98,13 +124,49 @@ public class Name implements Comparable<Name>
 		{
 			Syllable syl = syllables.get(i);
 			
-			// 1. Indicate stress and syllable breaks
-			if (syl.stress == Stress.PRIMARY)
-				sb.append('ˈ');
-			else if (syl.stress == Stress.STRONG)
-				sb.append('ˌ');
-			else if (i > 0)
-				sb.append('.');
+			for (int j = 0; j < 3; j++)
+			{
+				Constituent c = syl.constituents[j];
+				if (c != null)
+					for (int k = 0; k < c.content.length; k++)
+					{
+						prev = curr;
+						curr = c.content[k].segment;
+				
+						// 1. Omit initial glottal stops
+						if (sb.length() == 0 && curr.expression.equals("'"))
+						{
+							
+						}
+						
+						// 2. Initial uppercase letter
+						else if (sb.length() == 0)
+						{
+							sb.append(curr.expression.substring(0,1).toUpperCase() + curr.expression.substring(1));
+						}
+						
+						// 2. Replace vowel lengtheners with a second of the corresponding vowel
+						else if (curr.expression.equals(":") && j > 0)
+						{
+							String prevChar = "" + sb.charAt(sb.length() - 1); 
+							sb.append(prevChar.toLowerCase());
+						}
+						else
+							sb.append(curr.expression);
+					}
+			}	
+		}
+		plain = sb.toString();
+	}
+	
+	public void renderClear()
+	{
+		Segment prev, curr = null;
+		
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < syllables.size(); i++)
+		{
+			Syllable syl = syllables.get(i);
 
 			for (int j = 0; j < 3; j++)
 			{
@@ -128,14 +190,26 @@ public class Name implements Comparable<Name>
 							sb.append(curr.expression.substring(0,1).toUpperCase() + curr.expression.substring(1));
 						}
 						
-						// 2. Replace vowel lengtheners with a second of the corresponding vowel
+						// 2. Add acute accents to mark unexpected emphasis
+						else if (j == 1 && k == 0 && syl.stress == Stress.PRIMARY && 
+							!((syllables.size() >= 3 && i == syllables.size() - 3 && !syllables.get(syllables.size() - 2).isHeavy()) 
+									|| syllables.size() >= 3 && i == syllables.size() - 2 && syllables.get(syllables.size() - 2).isHeavy()
+									|| syllables.size() == 2 && i == syllables.size() - 2))
+						{
+							String vowel = ((Vowel) curr).stress;
+							if (sb.length() == 0)
+								vowel = vowel.toUpperCase();
+							sb.append(vowel);
+						}
+						
+						// 3. Replace vowel lengtheners with a second of the corresponding vowel
 						else if (curr.expression.equals(":") && j > 0)
 						{
 							sb.append(sb.charAt(sb.length() - 1));
 						}
 						
-						// 3. Add diaeresis for applicable hiatus
-						else if (!curr.isConsonant() && j == 0 && prev != null && !prev.isConsonant())
+						// 4. Add diaeresis for applicable hiatus
+						else if (j == 1 && k == 0 && prev != null && !prev.isConsonant())
 						{
 							VowelProperty currClose = (VowelProperty) curr.properties[0];
 							VowelProperty prevClose = (VowelProperty) prev.properties[0];
@@ -154,12 +228,56 @@ public class Name implements Comparable<Name>
 				}
 			}	
 		}
-		orthography = sb.toString();
+		clear = sb.toString();
+	}
+	
+	public void renderIPA()
+	{
+		Segment prev, curr = null;
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("[");
+		
+		for (int i = 0; i < syllables.size(); i++)
+		{
+			Syllable syl = syllables.get(i);
+			
+			// 1. Indicate stress and syllable breaks
+			if (syl.stress == Stress.PRIMARY)
+				sb.append('ˈ');
+			else if (syl.stress == Stress.STRONG)
+				sb.append('ˌ');
+			else if (i > 0)
+				sb.append('.');
+
+			for (int j = 0; j < 3; j++)
+			{
+				Constituent c = syl.constituents[j];
+				if (c != null)
+				{
+					for (int k = 0; k < c.content.length; k++)
+					{
+						prev = curr;
+						curr = c.content[k].segment;
+						sb.append(curr.ipa);
+					}
+				}
+			}	
+		}
+		
+		sb.append("]");
+		ipa = sb.toString();
 	}
 		
 	public int compareTo(Name other)
 	{
-		return toString().compareTo(other.toString());
+		// return toString().compareTo(other.toString());
+		if (informationContent > other.informationContent)
+			return 1;
+		else if (informationContent < other.informationContent)
+			return -1;
+		else
+			return 0; 
 	}
 
 	class Syllable
