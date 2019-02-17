@@ -23,9 +23,15 @@ import java.util.Random;
 
 import gengenv2.Name.Syllable;
 
+/**
+ * A set of rules for assigning weak, strong, and primary stresses to a Name whose Syllables have already been
+ * generated.
+ * 
+ * @since	1.1
+ */
 public class StressRules
 {
-	enum StressHead		{ LEFT, RIGHT};
+	enum StressHead		{ LEFT, RIGHT };
 	enum StressRhythm	{ IAMBIC, TROCHAIC };
 	enum PrimaryStress	{ FIRST, LAST };
 	
@@ -39,21 +45,29 @@ public class StressRules
 	public boolean consonantExtrametricality;	// If enabled, the last consonant of the word is ignored when determining syllable weight
 	public boolean avoidFinalPrimaryStress;		// If enabled, primary stress will not fall on the final syllable unless it is the only stress
 	
+	/**
+	 * Calls the other constructor with a random seed.
+	 */
 	public StressRules ()
 	{
 		this(new Random().nextLong());
 	}
 	
+	/**
+	 * Seeds a random number generator and randomly decides all rules for stress assignment. Due to a lack of
+	 * available data, the probabilities for the assignment of each rule are merely estimates. 
+	 * 
+	 * @param seed	The seed for the random number generator
+	 */
 	public StressRules (long seed)
 	{
-		System.out.println("Stress Rules Seed: " + seed);
+//		System.out.println("Stress Rules Seed: " + seed);
 		Random rng = new Random(seed);
 		
 		// Set rules at random
 		stressHead = (rng.nextInt(2) == 0) ? StressHead.LEFT : StressHead.RIGHT;
 		stressRhythm = (rng.nextInt(2) == 0) ? StressRhythm.IAMBIC : StressRhythm.TROCHAIC;
-//		primaryStress = (rng.nextInt(2) == 0) ? PrimaryStress.FIRST : PrimaryStress.LAST;
-		primaryStress = stressHead == StressHead.LEFT ? PrimaryStress.FIRST : PrimaryStress.LAST;
+		primaryStress = (stressHead == StressHead.LEFT) ? PrimaryStress.FIRST : PrimaryStress.LAST;
 		
 		// Iambic languages are usually quantity-sensitive
 		if (stressRhythm == StressRhythm.IAMBIC)
@@ -79,7 +93,7 @@ public class StressRules
 	public void addStresses(Name name)
 	{
 		// Only assign stress in polysyllabic names
-		if (name.syllables.size() == 1)
+		if (name.getSyllables().size() == 1)
 			return;
 		
 		Stress leftStress, rightStress;
@@ -97,7 +111,7 @@ public class StressRules
 		}
 		
 		// Word-extrametricality causes us to ignore the last syllable in versification
-		int lastMetricalSyllable = name.syllables.size() - 1;
+		int lastMetricalSyllable = name.getSyllables().size() - 1;
 		if (externalExtrametricality)
 			lastMetricalSyllable--;
 		
@@ -106,13 +120,13 @@ public class StressRules
 		if (stressHead == StressHead.LEFT)
 			for (int i = 0; i <= lastMetricalSyllable; i++)
 			{	
-				Syllable syl = name.syllables.get(i);
+				Syllable syl = name.getSyllables().get(i);
 				
 				// 1. Quantity sensitivity attracts stress to heavy syllables
 				if (quantitySensitive && syl.isHeavy(consonantExtrametricality))
 				{
 					// 1a. Quantity sensitivity doesn't apply to a syllable when it would cause a forbidden clash
-					if (i > 0 && name.syllables.get(i - 1).stress == Stress.STRONG && !allowClashes)
+					if (i > 0 && name.getSyllables().get(i - 1).stress == Stress.STRONG && !allowClashes)
 					{
 						syl.stress = Stress.WEAK;
 						footPosition = leftStress == Stress.WEAK ? 1 : 0;
@@ -130,8 +144,8 @@ public class StressRules
 				// This is a sort of quantity-sensitivity that helps attract the next foot's stress to heavy syllables,
 				// although this can come at the expense of still more distant feet. Still, in that short range,
 				// it helps improve rhythm.
-				else if (internalExtrametricality && i > 0 && !syl.isHeavy(consonantExtrametricality) && name.syllables.get(i - 1).stress == rightStress &&
-						 (i < lastMetricalSyllable && name.syllables.get(i + 1).isHeavy(consonantExtrametricality) == (leftStress == Stress.STRONG)))
+				else if (internalExtrametricality && i > 0 && !syl.isHeavy(consonantExtrametricality) && name.getSyllables().get(i - 1).stress == rightStress &&
+						 (i < lastMetricalSyllable && name.getSyllables().get(i + 1).isHeavy(consonantExtrametricality) == (leftStress == Stress.STRONG)))
 				{
 					// Make this syllable strong if it would result in 3 consecutive weak syllables
 					if (externalExtrametricality && i == lastMetricalSyllable && stressRhythm == StressRhythm.TROCHAIC)
@@ -144,7 +158,7 @@ public class StressRules
 				// If the current syllable is the initial syllable, and the following is weak, the current syllable 
 				// must be strong to prevent a pair of initial weak syllables (lapse). In a left-headed language, 
 				// this only occurs in a two-syllable iambic word with an extrametrical final syllable.
-				else if (i == 0 && externalExtrametricality && name.syllables.size() == 2)
+				else if (i == 0 && externalExtrametricality && name.getSyllables().size() == 2)
 				{
 					syl.stress = Stress.STRONG;
 				}
@@ -167,13 +181,13 @@ public class StressRules
 		else
 			for (int i = lastMetricalSyllable; i >= 0; i--)
 			{	
-				Syllable syl = name.syllables.get(i);
+				Syllable syl = name.getSyllables().get(i);
 				
 				// 1. Quantity sensitivity attracts stress to heavy syllables
 				if (quantitySensitive && syl.isHeavy(consonantExtrametricality))
 				{
 					// 1a. Quantity sensitivity doesn't apply to a syllable when it would cause a forbidden clash
-					if (i < lastMetricalSyllable && name.syllables.get(i + 1).stress == Stress.STRONG && !allowClashes)
+					if (i < lastMetricalSyllable && name.getSyllables().get(i + 1).stress == Stress.STRONG && !allowClashes)
 					{
 						syl.stress = Stress.WEAK;
 						footPosition = rightStress == Stress.WEAK ? 1 : 0;
@@ -189,8 +203,8 @@ public class StressRules
 				// The rules for a extrametricality are different on a right-edged word. For starters, in order to ensure
 				// a variety of language that includes both 
 				else if (internalExtrametricality && i < lastMetricalSyllable && !syl.isHeavy(consonantExtrametricality) &&
-						 name.syllables.get(i + 1).stress == leftStress &&
-						 (i > 0 && name.syllables.get(i - 1).isHeavy(consonantExtrametricality) == (rightStress == Stress.STRONG)))
+						 name.getSyllables().get(i + 1).stress == leftStress &&
+						 (i > 0 && name.getSyllables().get(i - 1).isHeavy(consonantExtrametricality) == (rightStress == Stress.STRONG)))
 				{
 					// Make this syllable strong if it would result in 3 consecutive weak syllables
 					if (externalExtrametricality && i == lastMetricalSyllable && stressRhythm == StressRhythm.TROCHAIC)
@@ -202,7 +216,7 @@ public class StressRules
 				// 3. Initial lapse prevention
 				// If the current syllable is the initial syllable, and the following is weak, the current syllable must be strong
 				// to prevent a pair of initial weak syllables (lapse)
-				else if (i == 0 && name.syllables.get(i + 1).stress == Stress.WEAK)
+				else if (i == 0 && name.getSyllables().get(i + 1).stress == Stress.WEAK)
 				{
 					syl.stress = Stress.STRONG;
 				}
@@ -225,31 +239,34 @@ public class StressRules
 		// Assign primary stress
 		// Primary stress on first strong syllable
 		if (primaryStress == PrimaryStress.FIRST)
-			for (int i = 0; i < name.syllables.size(); i++)
+			for (int i = 0; i < name.getSyllables().size(); i++)
 			{
-				if (name.syllables.get(i).stress == Stress.STRONG)
+				if (name.getSyllables().get(i).stress == Stress.STRONG)
 				{
-					name.syllables.get(i).stress = Stress.PRIMARY;
+					name.getSyllables().get(i).stress = Stress.PRIMARY;
 					return;
 				}
 			}
 		// Primary stress on last strong syllable
 		else
 		{
-			for (int i = name.syllables.size() - 1; i >= 0; i--)
+			for (int i = name.getSyllables().size() - 1; i >= 0; i--)
 			{
-				if (name.syllables.get(i).stress == Stress.STRONG &&
-						(!avoidFinalPrimaryStress || i != name.syllables.size() - 1))
+				if (name.getSyllables().get(i).stress == Stress.STRONG &&
+						(!avoidFinalPrimaryStress || i != name.getSyllables().size() - 1))
 				{
-					name.syllables.get(i).stress = Stress.PRIMARY;
+					name.getSyllables().get(i).stress = Stress.PRIMARY;
 					return;
 				}
 			}
-			name.syllables.get(name.syllables.size() - 1).stress = Stress.PRIMARY;
+			name.getSyllables().get(name.getSyllables().size() - 1).stress = Stress.PRIMARY;
 		}
 
 	}
 	
+	/**
+	 * @return	A string description of all rules for stress assignment in effect
+	 */
 	public String toString()
 	{
 		String result = "quantity-";

@@ -105,7 +105,7 @@ class NameAssembly
 	{
 		// Initialize naming variables
 		icTarget = rng.nextGaussian() * infoConStdev + infoConMean;
-		name = new Name();
+		name = new Name(p);
 		prev = null;
 		pName = 1;
 		
@@ -123,7 +123,7 @@ class NameAssembly
 			System.exit(0);
 		}
 
-		name.informationContent = -Math.log(pName);
+		name.setInformationContent(-Math.log(pName));
 		p.stressRules.addStresses(name);
 		
 		return name;
@@ -142,6 +142,7 @@ class NameAssembly
 	/**
 	 * The first node called by makeName(). Its job is to reset the naming variables and pick an initial onset before
 	 * advancing to the SyllableLocationNode.
+	 * 
 	 * @since 1.0
 	 */
 	private class InitialOnsetNode implements Node
@@ -218,6 +219,7 @@ class NameAssembly
 	 * Note that the use of 'rime' herein includes the onset of the next syllable, which is contrary to technical usage in
 	 * linguistics. In gengen, medial onsets are grouped with the previous syllable as they contribute to that syllable's
 	 * weight rather than its own, as per the Latin scansion rules on which gengen's syllable weighting is based.
+	 * 
 	 * @since	1.0
 	 */
 	private class SyllableLocationNode implements Node
@@ -249,6 +251,7 @@ class NameAssembly
 	 * number of every feature referenced throughout the remainder of the medial branch of the tree; furthermore, it must
 	 * be performed every time, as the number of rimes possible depends on the number of nuclei available, which can vary
 	 * if this syllable is onset-free following a hiatus.  
+	 * 
 	 * @since 1.0
 	 */
 	private class MedialSyllableWeightNode implements Node
@@ -288,7 +291,7 @@ class NameAssembly
 			// Hiatus: If the previous constituent was a nucleus, the probabilities for light and heavy rimes must be
 			// recalculated based on the number of nuclei in the previous nucleus' hiatus list (instead of deferring
 			// to the master nucleus list)
-			if (prev != null && prev.type == SegmentType.NUCLEUS)
+			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
 				// chance of light rimes
 				double simpleNucleusSimpleInterlude = prev.lastPhoneme().interludes[0].size() * 
@@ -339,6 +342,7 @@ class NameAssembly
 	/**
 	 * Adds a simple nucleus to a light rime in a medial syllable. Decides then whether to add a simple interlude or an empty one.
 	 * Selects and adds the appropriate onset, if it is indeed appropriate, then transitions to the SyllableLocationNode.
+	 * 
 	 * @since	1.0
 	 */
 	private class MedialLightRimeNode implements Node
@@ -349,7 +353,7 @@ class NameAssembly
 
 			// If this is hiatus, add an nucleus from the previous vowel's interlude list.
 			// Otherwise, add any available simple nucleus
-			if (prev != null && prev.type == SegmentType.NUCLEUS)
+			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
 				Follower f = prev.lastPhoneme().pickInterlude(0); 
 				next = f.c;
@@ -374,6 +378,7 @@ class NameAssembly
 	 * Selects and adds either a simple or complex nucleus. If a simple nucleus was selected, this method transitions to
 	 * HeavyInterludeNode; if a complex nucleus was selected, it transitions to MedialComplexNucleusNode instead to decide
 	 * what type of interlude to add.
+	 * 
 	 * @since	1.0
 	 */
 	private class MedialHeavyRimeNode implements Node
@@ -424,7 +429,7 @@ class NameAssembly
 			// Hiatus: If the previous syllable ended with a vowel, this nucleus must come from that vowel's 
 			// interlude table, and the chance of choosing between simple and complex nuclei must be
 			// accordingly recalculated
-			if (prev != null && prev.type == SegmentType.NUCLEUS)
+			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
 				// Count all heavy rhymes with simple nuclei
 				simple = p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
@@ -499,7 +504,8 @@ class NameAssembly
 	/**
 	 * Determines what type of interlude (light or heavy) should follow a complex nucleus in a heavy rime in a medial
 	 * syllable. (A heavy interlude can be a compound interlude (simple/complex coda + simple/complex onset), or merely
-	 * a complex onset.) Transitions to LightInterludeNode or HeavyInterludeNode without adding a new constituent.  
+	 * a complex onset.) Transitions to LightInterludeNode or HeavyInterludeNode without adding a new constituent.
+	 *   
 	 * @since 1.0
 	 */
 	private class MedialComplexNucleusNode implements Node
@@ -581,6 +587,7 @@ class NameAssembly
 	/**
 	 * Decides what type of light interlude to add: an empty interlude (hiatus), or a simple onset.
 	 * Selects and adds an appropriate interlude and transitions to the SyllableLocationNode.
+	 * 
 	 * @since 1.0
 	 */
 	private class LightInterludeNode implements Node
@@ -641,6 +648,7 @@ class NameAssembly
 	/**
 	 * Decides what type of heavy interlude to add: a complex onset, or a compound interlude.
 	 * Selects and adds an appropriate interlude and transitions to the SyllableLocationNode.
+	 * 
 	 * @since 1.0
 	 */
 	private class HeavyInterludeNode implements Node
@@ -709,6 +717,7 @@ class NameAssembly
 	/**
 	 * Decides whether to add a light or heavy rime, then transitions to TerminalLightRimeNode or TerminalHeavyRimeNode accordingly.
 	 * Does not add a SyllableSegment to the name.
+	 * 
 	 * @since	1.0
 	 */
 	private class TerminalSyllableWeightNode implements Node
@@ -759,7 +768,7 @@ class NameAssembly
 			
 			// If the previous constituent was a nucleus, hiatus occurs, and the following nucleus must be added
 			// from the previous one's interlude inventory. 
-			if (prev != null && prev.type == SegmentType.NUCLEUS)
+			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
 				// light rimes
 				double simpleNucleusSimpleCoda = 0;
@@ -817,6 +826,7 @@ class NameAssembly
 	/**
 	 * Adds a simple nucleus to a light rime in the terminal syllable. In order to add a coda and finish the rime,
 	 * it then advances to the lightCodaNode.
+	 * 
 	 * @since	1.1
 	 *
 	 */
@@ -828,7 +838,7 @@ class NameAssembly
 			
 			// If this is hiatus, add an nucleus from the previous vowel's interlude list.
 			// Otherwise, add any available simple nucleus
-			if (prev != null && prev.type == SegmentType.NUCLEUS)
+			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
 				Follower f = prev.lastPhoneme().pickInterlude(0);
 				next = f.c;
@@ -852,7 +862,7 @@ class NameAssembly
 	 * Decides whether a simple or complex nucleus should feature in a heavy rime in the terminal syllable.
 	 * Selects and adds either a simple or complex nucleus and either transitions to the TerminalSyllableHeavyRimeComplexNucleus
 	 * node, in the case of a complex nucleus, or in the case of a simple one, adds a complex coda and exits the flowchart.
-	 * or exits 
+	 * 
 	 * @since	1.0
 	 */
 	private class TerminalHeavyRimeNode implements Node
@@ -902,7 +912,7 @@ class NameAssembly
 			
 			// Hiatus case: If the previous phoneme was a vowel, this nucleus must come from that vowel's 
 			// interlude table, and the probabilities for picking a simple or complex nucleus must be recalculated
-			if (prev != null && prev.type == SegmentType.NUCLEUS)
+			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
 				// Number of heavy rimes with simple nuclei is proportionate to the number of simple nuclei times
 				// complex codas, as long as terminal codas are allowed.
@@ -991,6 +1001,7 @@ class NameAssembly
 	/**
 	 * Decides what type of coda, if any, should follow a complex nucleus in the terminal syllable.
 	 * If light, transitions to TerminalLightRimeNode, otherwise adds a complex coda and exits the flowchart.
+	 * 
 	 * @since	1.0
 	 */
 	public class TerminalHeavyRimeComplexNucleusNode implements Node
@@ -1031,6 +1042,10 @@ class NameAssembly
 		}
 	}
 	
+	/**
+	 * Adds either a simple coda to the Name, or none at all, then exits. 
+	 * @since	1.1
+	 */
 	private class LightCodaNode implements Node
 	{
 		double emptyCodaChance;
@@ -1067,16 +1082,26 @@ class NameAssembly
 		}
 	}
 	
+	/**
+	 * Adds a Constituent to the end of the current Name, while updating the preference to the
+	 * previous Constituent.
+	 * @param c	The Constituent to append
+	 */
 	private void addConstituent(Constituent c)
 	{
 		prev = c;
 		name.add(c);
 	}
 	
+	/**
+	 * Compiles and stores a collection of entropy measurements for each Node. Useful for predicting the
+	 * information content of various Nodes and Constituents.
+	 * @since	1.1
+	 */
 	private class EntropyStats
 	{
-		public double medialRimeH;
-		public double terminalRimeH;
+		public double medialRimeH;		// Entropy of the MedialRimeNode
+		public double terminalRimeH;	// Entropy of the TerminalRimeNode
 
 		public EntropyStats()
 		{
@@ -1216,6 +1241,10 @@ class NameAssembly
 		
 	}
 	
+	/**
+	 * @param	The probability of a certain outcome
+	 * @return	The information content of that outcome
+	 */
 	private double scaledInfo(double p)
 	{
 		if (p == 0)
@@ -1223,6 +1252,14 @@ class NameAssembly
 		return -p * Math.log(p);
 	}
 	
+	/**
+	 * Determines the entropy of an event where one subsequent event is chosen at random from a list of events
+	 * with known probabilities and entropies. 
+	 * 
+	 * @param probabilities	The probabilities for an array of events
+	 * @param entropies		The corresponding entropy measurements for an array of events
+	 * @return				The entropy measurement for the decision between subsequent events
+	 */
 	private double decisionEntropy(double[] probabilities, double[] entropies)
 	{
 		if (probabilities.length != entropies.length)

@@ -23,51 +23,37 @@ import java.util.ArrayList;
 
 import gengenv2.Phonology.Constituent;
 
-public class Name implements Comparable<Name>
+/**
+ * The underlying representation for a phonological word produced by a Phonology. In addition to containing
+ * the string representation of a name, the Name class stores the sequence of Phonemes that constitutes the name,
+ * as well as alternative string representations.
+ * 
+ * @since	1.1
+ */
+public class Name
 {
-	Phonology language;
-	ArrayList<Syllable> syllables;
-	String plain;
-	String ipa;
-	String clear;
-	double informationContent;
+	private Phonology phonology;			// Reference to the Phonology whence this Name was generated
+	private ArrayList<Syllable> syllables;	// List of syllables (made of constituents) comprising this Name
+	private String defaultRep;				// Recommended representation with diacritics and symbols for clarity
+	private String plain;					// Representation of the Name free of diacritics and symbols (except ')
+	private String ipa;						// IPA representation of Name for unambiguous pronunciation
+	private double informationContent;		// Information content, roughly representing the complexity of this Name
 	
-	public Name()
+	/**
+	 * Creates a new Name with an empty list of Syllables and a reference to the parent language.
+	 * @since	1.1
+	 */
+	public Name(Phonology p)
 	{
+		Phonology language = p;
 		this.syllables = new ArrayList<Syllable>();
 	}
 	
-	public String toString()
-	{
-		return getClear() + "\t" + getPlain() + "\t" + getIPA();
-	}
-	
-	public String getPlain()
-	{
-		if (plain == null)
-			renderPlain();
-		return plain;
-	}
-	
-	public String getIPA()
-	{
-		if (ipa == null)
-			renderIPA();
-		return ipa;
-	}
-	
-	public String getClear()
-	{
-		if (clear == null)
-			renderClear();
-		return clear;
-	}
-	
 	/**
-	 * Adds a syllable Constituent to the name at the most immediate appropriate position, creating a new syllable
-	 * if necessary
+	 * Adds a syllable Constituent to the Name at the most immediate appropriate position, creating a new syllable
+	 * if necessary.
 	 *  
-	 * @param	c		The syllable constituent to be appended to the name
+	 * @param	c		The syllable constituent to be appended to the Name
 	 * @since	1.1
 	 */
 	public void add(Constituent c)
@@ -76,6 +62,7 @@ public class Name implements Comparable<Name>
 		{
 			case ONSET:
 			{
+				// Always add a new syllable before inserting the onset
 				Syllable syl = new Syllable();
 				syl.constituents[0] = c;
 				syllables.add(syl);
@@ -109,15 +96,100 @@ public class Name implements Comparable<Name>
 				break;
 			}
 		}
-	}	
-	
+	}
+
 	/**
-	 * Renders the name without any diacritics or symbols (besides glottal stops)
+	 * Renders the Name with diacritics to mark stress and hiatus, and hyphens to disambiguate clusters, and
+	 * saves the result in a variable.
+	 * @since 1.1
+	 */
+	public void renderDefault()
+	{
+		Segment prev, curr = null;
+		
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < syllables.size(); i++)
+		{
+			Syllable syl = syllables.get(i);
+	
+			for (int j = 0; j < 3; j++)
+			{
+				Constituent c = syl.constituents[j];
+				if (c != null)
+				{
+					for (int k = 0; k < c.content.length; k++)
+					{
+						prev = curr;
+						curr = c.content[k].segment;
+				
+						// 1. Omit initial glottal stops
+						if (sb.length() == 0 && curr.expression.equals("'"))
+						{
+							
+						}
+						
+						// 2. Add acute accents to mark unexpected emphasis
+						else if (j == 1 && k == 0 && syl.stress == Stress.PRIMARY && 
+							!((syllables.size() >= 3 && i == syllables.size() - 3 && !syllables.get(syllables.size() - 2).isHeavy()) 
+									|| syllables.size() >= 3 && i == syllables.size() - 2 && syllables.get(syllables.size() - 2).isHeavy()
+									|| syllables.size() == 2 && i == syllables.size() - 2))
+						{
+							String vowel = ((Vowel) curr).stress;
+							if (sb.length() == 0)
+								vowel = vowel.toUpperCase();
+							sb.append(vowel);
+						}
+						
+						// 2. Initial uppercase letter
+						else if (sb.length() == 0)
+						{
+							sb.append(curr.expression.substring(0,1).toUpperCase() + curr.expression.substring(1));
+						}
+						
+						// 3. Replace vowel lengtheners with a second of the corresponding vowel
+						else if (curr.expression.equals(":") && j > 0)
+						{
+							String prevChar = "" + sb.charAt(sb.length() - 1); 
+							sb.append(prevChar.toLowerCase());
+						}
+						
+						// 4. Add diaeresis for applicable hiatus
+						else if (j == 1 && k == 0 && prev != null && !prev.isConsonant())
+						{
+							VowelProperty currClose = (VowelProperty) curr.properties[0];
+							VowelProperty prevClose = (VowelProperty) prev.properties[0];
+							
+							curr = (Vowel) curr;
+							if (prev.expression.equals("y"))
+								sb.append(((Vowel) curr).diaeresis);
+							else if (currClose.ordinal() > prevClose.ordinal() || curr == prev)
+								sb.append(((Vowel) curr).diaeresis);
+							else
+								sb.append(curr.expression);
+						}
+						
+						// 5. Add hyphens before post-initial 'ng' onsets
+						else if (j == 0 && curr.expression.equals("ng"))
+						{
+							sb.append("-");
+							sb.append(curr.expression);
+						}
+						else
+							sb.append(curr.expression);
+					}
+				}
+			}	
+		}
+		defaultRep = sb.toString();
+	}
+
+	/**
+	 * Renders the Name without any diacritics or symbols (besides glottal stops) and saves the result in a variable.
 	 * @since 1.1
 	 */
 	public void renderPlain()
 	{
-		Segment prev, curr = null;
+		Segment curr = null;
 		
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < syllables.size(); i++)
@@ -130,7 +202,6 @@ public class Name implements Comparable<Name>
 				if (c != null)
 					for (int k = 0; k < c.content.length; k++)
 					{
-						prev = curr;
 						curr = c.content[k].segment;
 				
 						// 1. Omit initial glottal stops
@@ -158,82 +229,14 @@ public class Name implements Comparable<Name>
 		}
 		plain = sb.toString();
 	}
-	
-	public void renderClear()
-	{
-		Segment prev, curr = null;
-		
-		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < syllables.size(); i++)
-		{
-			Syllable syl = syllables.get(i);
 
-			for (int j = 0; j < 3; j++)
-			{
-				Constituent c = syl.constituents[j];
-				if (c != null)
-				{
-					for (int k = 0; k < c.content.length; k++)
-					{
-						prev = curr;
-						curr = c.content[k].segment;
-				
-						// 1. Omit initial glottal stops
-						if (sb.length() == 0 && curr.expression.equals("'"))
-						{
-							
-						}
-						
-						// 2. Initial uppercase letter
-						else if (sb.length() == 0)
-						{
-							sb.append(curr.expression.substring(0,1).toUpperCase() + curr.expression.substring(1));
-						}
-						
-						// 2. Add acute accents to mark unexpected emphasis
-						else if (j == 1 && k == 0 && syl.stress == Stress.PRIMARY && 
-							!((syllables.size() >= 3 && i == syllables.size() - 3 && !syllables.get(syllables.size() - 2).isHeavy()) 
-									|| syllables.size() >= 3 && i == syllables.size() - 2 && syllables.get(syllables.size() - 2).isHeavy()
-									|| syllables.size() == 2 && i == syllables.size() - 2))
-						{
-							String vowel = ((Vowel) curr).stress;
-							if (sb.length() == 0)
-								vowel = vowel.toUpperCase();
-							sb.append(vowel);
-						}
-						
-						// 3. Replace vowel lengtheners with a second of the corresponding vowel
-						else if (curr.expression.equals(":") && j > 0)
-						{
-							sb.append(sb.charAt(sb.length() - 1));
-						}
-						
-						// 4. Add diaeresis for applicable hiatus
-						else if (j == 1 && k == 0 && prev != null && !prev.isConsonant())
-						{
-							VowelProperty currClose = (VowelProperty) curr.properties[0];
-							VowelProperty prevClose = (VowelProperty) prev.properties[0];
-							
-							curr = (Vowel) curr;
-							if (prev.expression.equals("y"))
-								sb.append(((Vowel) curr).diaeresis);
-							else if (currClose.ordinal() > prevClose.ordinal() || curr == prev)
-								sb.append(((Vowel) curr).diaeresis);
-							else
-								sb.append(curr.expression);
-						}
-						else
-							sb.append(curr.expression);
-					}
-				}
-			}	
-		}
-		clear = sb.toString();
-	}
-	
+	/**
+	 * Renders the Name in IPA symbols and stores the result in a variable.
+	 * @since 1.1
+	 */
 	public void renderIPA()
 	{
-		Segment prev, curr = null;
+		Segment curr = null;
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append("[");
@@ -249,7 +252,7 @@ public class Name implements Comparable<Name>
 				sb.append('ˌ');
 			else if (i > 0)
 				sb.append('.');
-
+	
 			for (int j = 0; j < 3; j++)
 			{
 				Constituent c = syl.constituents[j];
@@ -257,7 +260,6 @@ public class Name implements Comparable<Name>
 				{
 					for (int k = 0; k < c.content.length; k++)
 					{
-						prev = curr;
 						curr = c.content[k].segment;
 						sb.append(curr.ipa);
 					}
@@ -268,24 +270,97 @@ public class Name implements Comparable<Name>
 		sb.append("]");
 		ipa = sb.toString();
 	}
-		
-	public int compareTo(Name other)
+
+	/**
+	 * @return	The recommended representation of this Name, with symbols and diacritics to clarify pronunciation
+	 * @since	1.1
+	 */
+	public String getDefault()
 	{
-		// return toString().compareTo(other.toString());
-		if (informationContent > other.informationContent)
-			return 1;
-		else if (informationContent < other.informationContent)
-			return -1;
-		else
-			return 0; 
+		if (defaultRep == null)
+			renderDefault();
+		return defaultRep;
 	}
 
+	/**
+	 * @return	A concise representation of the Name with no diacritics or symbols, except the glottal stop (')
+	 * @since	1.1
+	 */
+	public String getPlain()
+	{
+		if (plain == null)
+			renderPlain();
+		return plain;
+	}
+	
+	/**
+	 * @return	A representation of the Name in IPA symbols
+	 * @since	1.1
+	 */
+	public String getIPA()
+	{
+		if (ipa == null)
+			renderIPA();
+		return ipa;
+	}
+	
+	/**
+	 * @return	A reference to the Phonology that generated this Name
+	 */
+	public Phonology getPhonology()
+	{
+		return phonology;
+	}
+	
+	/**
+	 * @return	A reference to the list of Syllables comprising this Name
+	 */
+	public ArrayList<Syllable> getSyllables()
+	{
+		return syllables;
+	}
+
+	/** 
+	 * @return	A measurement of the information content of this Name
+	 */
+	public double getInformationContent()
+	{
+		return informationContent;
+	}
+	
+	/**
+	 * @param ic	Value to which to set this Name's information content
+	 */
+	public void setInformationContent(double ic)
+	{
+		this.informationContent = ic;
+	}
+
+	/**
+	 * @return	The default representation of the Name
+	 * @since	1.1
+	 */
+	public String toString()
+	{
+		return getDefault();
+	}
+	
+	/**
+	 * The basic unit of the Name, the Syllable comprises 3 syllable Constituents (some of which may be empty):
+	 * an onset (optional), a nucleus (required), and a coda (optional). 
+	 * @since	1.1
+	 */
 	class Syllable
 	{
-		Constituent[] constituents; // 0 = onset, 1 = nucleus, 2 = coda
-		Stress stress;
-		int index;
+		Constituent[] constituents; // References to each of this Syllable's Constituents.
+									// 0 = onset, 1 = nucleus, 2 = coda
+		Stress stress;				// Denotes the strength of this syllable's Stress
+		int index;					// This Syllable's location within the Name
 		
+		/**
+		 * Produces a new Syllable with an empty array of Constituents and "weak" stress. The index is
+		 * set on the assumption that new Syllables are always added to the end of the Name. 
+		 */
 		public Syllable()
 		{
 			constituents = new Constituent[3];
@@ -322,14 +397,15 @@ public class Name implements Comparable<Name>
 							syl.constituents[2] != null ||
 									syllables.get(index + 1).constituents[0] != null && 
 										syllables.get(index + 1).constituents[0].content.length > 1))
+			{
 				return true;
+			}
 			
 			return false;
 		}
 		
 		/**
-		 * 
-		 * @return
+		 * @return	true if the current syllable is heavy, false if it's light
 		 */
 		public boolean isHeavy()
 		{
@@ -338,4 +414,8 @@ public class Name implements Comparable<Name>
 	}
 }
 
+/**
+ * Indication of a syllable's stress level, from weak (weakest) to "primary" (strongest)
+ * @since	1.1
+ */
 enum Stress { WEAK, STRONG, PRIMARY }

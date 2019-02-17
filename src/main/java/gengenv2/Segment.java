@@ -113,9 +113,9 @@ class Consonant extends Segment
 /* 6*/	new Consonant("g" ,  "g",	2,	0.259,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICED}),
 /* 7*/	new Consonant("'" ,  "ʔ", 	5,	0.357,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE, 	ConsonantProperty.GLOTTAL}),
 
-/* 8*/	new Consonant("c" ,  "t͡s",	4, 0.452,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
-/* 9*/	new Consonant("ch",  "t͡ʃ",	4, 0,		new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
-/*10*/	new Consonant("j" ,  "d͡ʒ",	4, 0.025,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR, ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
+/* 8*/	new Consonant("c" ,  "ts",	4, 0.452,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
+/* 9*/	new Consonant("ch",  "tʃ",	4, 0,		new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
+/*10*/	new Consonant("j" ,  "dʒ",	4, 0.025,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR, ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
 
 /*11*/	new Consonant("ph",  "ɸ",	6, 0.863,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.BILABIAL,		ConsonantProperty.VOICELESS,	ConsonantProperty.NONSIBILANT}),
 /*12*/	new Consonant("th",  "θ",	6, 0.937,	new ConsonantProperty[] {ConsonantProperty.FRICATIVE,	ConsonantProperty.ALVEOLAR,		ConsonantProperty.VOICELESS,	ConsonantProperty.NONSIBILANT}),
