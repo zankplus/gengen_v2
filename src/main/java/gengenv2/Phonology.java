@@ -154,6 +154,7 @@ public class Phonology
 	 */
 	double onsetNgOffset;			// reduces the chance of a onset 'ng'
 	double onsetTlDlOffset; 		// reduces the chances of an onset 'tl' or 'dl'
+	double codaGlottalStopOffset;	// reduces the chances of a coda glottal stop (')
 	double nasalDissonanceOffset;	// reduces the prevalence of coda nasal-plosive clusters that disagree in articulation
 	double unequalVoicingOffset;	// reduces the prevalence of interludes that disagree in voicing
 	
@@ -248,6 +249,8 @@ public class Phonology
 	static double onsetNgOffsetStdev				= 1;
 	static double onsetTlDlOffsetMean				= 1;
 	static double onsetTlDlOffsetStdev				= 0.5;
+	static double codaGlottalStopOffsetMean			= 2;
+	static double codaGlottalStopOffsetStdev			= 1;
 	static double nasalDissonanceOffsetMean			= 2;
 	static double nasalDissonanceOffsetStdev		= 1;
 	static double unequalVoicingOffsetMean			= 1.25;
@@ -323,7 +326,7 @@ public class Phonology
 	 */
 	private void constructPhonology()
 	{
-		System.out.println("Phonology Seed: " + seed);
+//		System.out.println("Phonology Seed: " + seed);
 		
 		// Commence construction
 		makeBasicSyllableStructure();
@@ -363,7 +366,6 @@ public class Phonology
 	 * appropriate length, and also determines the base cluster/diphthong chances and offsets. 
 	 * @since	1.0
 	 */
-//	@SuppressWarnings("unchecked")
 	private void makeBasicSyllableStructure()
 	{
 		int roll;
@@ -544,6 +546,7 @@ public class Phonology
 		// Set miscellaneous phonotactic offsets
 		onsetNgOffset   	  = Math.max(rng.nextGaussian() * onsetNgOffsetStdev + onsetNgOffsetMean, 0);
 		onsetTlDlOffset 	  = Math.max(rng.nextGaussian() * onsetTlDlOffsetStdev + onsetTlDlOffsetMean, 0);
+		codaGlottalStopOffset = Math.max(rng.nextGaussian() * codaGlottalStopOffsetStdev + codaGlottalStopOffsetMean, 0);
 		nasalDissonanceOffset = Math.max(rng.nextGaussian() * nasalDissonanceOffsetStdev + nasalDissonanceOffsetMean, 0);
 		unequalVoicingOffset  = Math.max(rng.nextGaussian() * unequalVoicingOffsetStdev + unequalVoicingOffsetMean, 0);
 	}
@@ -876,6 +879,8 @@ public class Phonology
 	 * is analogous to that used by the makeOnsets/Nuclei/Codas methods, except that transitions occur directly
 	 * between vowels instead of phonotactic categories, if a transition is found, it is immediately added to the
 	 * leading vowel's interlude list.
+	 * 
+	 * @since	1.0
 	 */
 	private void makeHiatus()
 	{
@@ -916,6 +921,8 @@ public class Phonology
 	 * makeOnsets/Nuclei/Codas; though like these method it considers transitions between phonotactic
 	 * categories, it operates on individual phonemes and adds connecting onsets directly to the coda's
 	 * interlude list.  
+	 * 
+	 * @since	1.0
 	 */
 	private void makeInterludes()
 	{
@@ -1431,7 +1438,7 @@ public class Phonology
 			}
 		
 		// Add the current onset to the appropriate onset inventory
-		Constituent seg = new Constituent(SegmentType.ONSET, onset.toArray(new Phoneme[onset.size()]), prominence);
+		Constituent seg = new Constituent(ConstituentType.ONSET, onset.toArray(new Phoneme[onset.size()]), prominence);
 		onsets[onset.size() - 1].add(seg);
 		
 		// If you've reached the largest cluster size, return immediately and do not examine large clusters
@@ -1506,7 +1513,7 @@ public class Phonology
 				prominence += nucleus.get(i).nucleusLeadProminence + nucleus.get(i+1).nucleusFollowProminence - 2 - diphthongOffset;
 		
 		// Add this nucleus to the appropriate nucleus inventory
-		Constituent seg = new Constituent(SegmentType.NUCLEUS, nucleus.toArray(new Phoneme[nucleus.size()]), prominence);
+		Constituent seg = new Constituent(ConstituentType.NUCLEUS, nucleus.toArray(new Phoneme[nucleus.size()]), prominence);
 		nuclei[nucleus.size() - 1].add(seg);
 		
 		// If you've reached the largest nucleus length, return without examining any longer diphthongs
@@ -1586,7 +1593,7 @@ public class Phonology
 			}
 		
 		// Add the current coda to the appropriate coda inventory
-		Constituent seg = new Constituent(SegmentType.CODA, coda.toArray(new Phoneme[coda.size()]), prominence);
+		Constituent seg = new Constituent(ConstituentType.CODA, coda.toArray(new Phoneme[coda.size()]), prominence);
 		codas[coda.size() - 1].add(seg);
 		
 		// If you've reached the largest cluster size, return immediately and do not examine large clusters
@@ -1784,7 +1791,7 @@ public class Phonology
 	 * @param	list	The list to be printed
 	 * @since	1.0
 	 */
-	private void printInventory(ArrayList<Constituent> list)
+	public void printInventory(ArrayList<Constituent> list)
 	{
 		if (list.size() == 0)
 			return;
@@ -1870,6 +1877,12 @@ public class Phonology
 				{
 					onsetInitialProminence    -= onsetNgOffset;
 					interludeFollowProminence -= onsetNgOffset;
+				}
+				else if (segment.expression.equals("'"))
+				{
+					codaInitialProminence		-= codaGlottalStopOffset;
+					codaClusterLeadProminence	-= codaGlottalStopOffset;
+					codaClusterFollowProminence -= codaGlottalStopOffset;
 				}
 				
 //				if (segment.expression.equals("sh") || segment.expression.equals("zh"))
@@ -2219,7 +2232,7 @@ public class Phonology
 	 */
 	class Constituent implements Comparable<Constituent>
 	{
-		SegmentType type;
+		ConstituentType type;
 		Phoneme[] content;
 		double probability;
 				
@@ -2230,7 +2243,7 @@ public class Phonology
 		 * @param	probability	Probability of this segment appearing out of all syllable segments of same type and length
 		 * @since	1.0
 		 */
-		public Constituent (SegmentType type, Phoneme[] content, double probability)
+		public Constituent (ConstituentType type, Phoneme[] content, double probability)
 		{
 			this.type = type;
 			this.content = content;
@@ -2288,10 +2301,27 @@ public class Phonology
 		}
 	}
 	
+	/**
+	 * Sets the seed to the given value.
+	 * @param 	newSeed		the value to which to set the seed
+	 */
 	public void setSeed(long newSeed)
 	{
 		rng.setSeed(newSeed);
 	}
+	
+	/**
+	 * Returns the original seed for the phonology's random number generator.
+	 * @return	The Phonology's original seed
+	 */
+	public long getSeed()
+	{
+		return seed;
+	}
 }
 
-enum SegmentType { ONSET, NUCLEUS, CODA; }
+/**
+ * The structural role of a Constituent (a sequence of Phonemes) in a syllable. 
+ * @since	1.0
+ */
+enum ConstituentType { ONSET, NUCLEUS, CODA; }
