@@ -31,7 +31,7 @@ import java.util.List;
 public class App 
 {
 	/**
-	 * Generates a phonology and generates a number of names, which are then printed along with their
+	 * Generates a Phonology and generates a number of names, which are then printed along with their
 	 * information content measurement and IPA pronunciation.
 	 * @param	args	Default parameter
 	 * @since	1.0

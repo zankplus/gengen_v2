@@ -1278,6 +1278,9 @@ class NameAssembly
 		
 		return result;
 	}
+	
+	public double getEmptyCodaChance()
+	{
+		return lcNode.emptyCodaChance;
+	}
 }
-
-

@@ -326,7 +326,7 @@ public class Phonology
 	 */
 	private void constructPhonology()
 	{
-//		System.out.println("Phonology Seed: " + seed);
+		System.out.println("Phonology Seed: " + seed);
 		
 		// Commence construction
 		makeBasicSyllableStructure();
@@ -588,23 +588,6 @@ public class Phonology
 					defective.add(consonants[i]);
 			}		
 		}
-		
-		// Print available consonants
-//		System.out.print("INVENTORY:\t");
-//		for (Phoneme p : inv)
-//		{
-//			String ex = p.segment.expression;
-//			System.out.print((ex.length() == 1 ? " " : "") + ex + " ");
-//		}
-//		
-//		System.out.print("\nDEFECTIVE:\t");
-//		
-//		for (Segment s : defective)
-//		{
-//			String ex = s.expression;
-//			System.out.print((ex.length() == 1 ? " " : "") + ex + " ");
-//		}
-//		System.out.println();
 		
 		consonantInventory = inv.toArray(new Phoneme[0]);
 		
@@ -1815,6 +1798,22 @@ public class Phonology
 		
 		for (Constituent coda : list)
 			coda.content[coda.content.length - 1].printInterludes();
+	}
+	
+	/**
+	 * Return an array containing linguistic data about the Phonology. Each array item represents a different
+	 * set of information:
+	 * 
+	 * 0. Medial and terminal syllable structure
+	 * 1. Consonant inventory
+	 * 2. Vowel inventory
+	 * 
+	 * @return	An assortment of linguistic data about this Phonology	
+	 * @since	1.1.2
+	 */
+	public LanguageData getLanguageData()
+	{
+		return new LanguageData(this);
 	}
 
 	/**
