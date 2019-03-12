@@ -25,7 +25,6 @@ import java.util.Hashtable;
 import java.util.Random;
 
 import gengenv2.Phonology.Constituent;
-import gengenv2.Phonology.Phoneme.Follower;
 
 /**
  * A sort of flowchart or state machine for generating names according to a Phonology's inventory, phonotactics, 
@@ -191,7 +190,7 @@ class NameAssembly
 			// Option 2: Simple onset
 			else if (rand < emptyOnsetChance + simpleOnsetChance)
 			{
-				Constituent c = p.pickSimpleOnset();
+				Constituent c = p.medialOnsets.pickSimple();
 				pName *= simpleOnsetChance;
 				pName *= c.probability;
 				addConstituent(c);
@@ -201,10 +200,10 @@ class NameAssembly
 			// Option 3: Complex onset
 			else
 			{
-				Constituent c = p.pickComplexOnset();
+				Constituent c = p.medialOnsets.pickComplex();
 				pName *= complexOnsetChance;
 				pName *= c.probability;
-				pName *= p.onsetClusterLengthProbabilities[c.content.length - 2];
+				pName *= p.medialOnsets.getLengthProbability(c.content.length);
 				addConstituent(c);
 				return slNode;
 			}
@@ -269,7 +268,7 @@ class NameAssembly
 			double heavySimple = p.counts[Phonology.SIMPLE_NUCLEI] * (p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES]);
 			
 			double heavyComplex = 0; 
-			if (p.maxNucleusLength > 1)
+			if (p.nuclei.maxLength() > 1)
 			{
 				heavyComplex += p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
 				heavyComplex *= p.counts[Phonology.COMPLEX_NUCLEI];
@@ -294,24 +293,25 @@ class NameAssembly
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
 				// chance of light rimes
-				double simpleNucleusSimpleInterlude = prev.lastPhoneme().interludes[0].size() * 
+				double simpleNucleusSimpleInterlude = prev.lastPhoneme().followers.countMembersOfLength(1) * 
 						p.counts[Phonology.SIMPLE_ONSETS];
 
 				double simpleNucleusEmptyInterlude = 0;
-				for (int i = 0; i < prev.lastPhoneme().interludes[0].size(); i++)
-					if (prev.lastPhoneme().interludes[0].get(i).c.lastPhoneme().interludes[0].size() > 0)
+				for (int i = 0; i < prev.lastPhoneme().followers.countMembersOfLength(1); i++)
+					if (prev.lastPhoneme().followers.getMembersOfLength(1).get(i).lastPhoneme().
+							followers.countMembersOfLength(1) > 0)
 						simpleNucleusEmptyInterlude++;
 				
 				// chance of heavy rimes
-				double heavySimple = prev.lastPhoneme().interludes[0].size() * (p.counts[Phonology.COMPLEX_ONSETS] + 
+				double heavySimple = prev.lastPhoneme().followers.countMembersOfLength(1) * (p.counts[Phonology.COMPLEX_ONSETS] + 
 						p.counts[Phonology.COMPOUND_INTERLUDES]);
 				
 				double heavyComplex = 0; 
-				if (p.maxNucleusLength > 1)
+				if (p.nuclei.maxLength() > 1)
 				{
 					heavyComplex = p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + 
 							p.counts[Phonology.COMPOUND_INTERLUDES];
-					heavyComplex *= prev.lastPhoneme().interludes[1].size();
+					heavyComplex *= prev.lastPhoneme().followers.countMembersOfLength(2);
 				}
 				
 				light = Math.log(simpleNucleusSimpleInterlude + simpleNucleusEmptyInterlude + 1);
@@ -355,13 +355,12 @@ class NameAssembly
 			// Otherwise, add any available simple nucleus
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
-				Follower f = prev.lastPhoneme().pickInterlude(0); 
-				next = f.c;
-				pName *= f.probability;
+				next = prev.lastPhoneme().followers.pickSimple();
+				pName *= next.probability;
 			}
 			else
 			{
-				next = p.pickSimpleNucleus();
+				next = p.nuclei.pickSimple();
 				pName *= next.probability;
 			}
 			
@@ -397,7 +396,7 @@ class NameAssembly
 			basicSimpleNucleusChance *= 1 - p.baseDiphthongChance;
 			
 			basicComplexNucleusChance = 0;
-			if (p.maxNucleusLength > 1)
+			if (p.nuclei.maxLength() > 1)
 			{
 				// Count the number of heavy rhymes with complex nuclei
 				basicComplexNucleusChance += p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
@@ -433,17 +432,17 @@ class NameAssembly
 			{
 				// Count all heavy rhymes with simple nuclei
 				simple = p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
-				simple *= prev.lastPhoneme().interludes[0].size();	
+				simple *= prev.lastPhoneme().followers.countMembersOfLength(1);	
 				
 				// Log scale the count and multiply it by the inverse of the base diphthong chance
 				simple = Math.log(simple + 1);	
 				simple *= 1 - p.baseDiphthongChance;
 				
-				if (p.maxNucleusLength > 1)
+				if (p.nuclei.maxLength() > 1)
 				{
 					// Add the remaining types of interlude and multiply by the number of diphthongs in the preceding vowel's hiatus list
 					complex = p.counts[Phonology.SIMPLE_ONSETS] + p.counts[Phonology.COMPLEX_ONSETS] + p.counts[Phonology.COMPOUND_INTERLUDES];
-					complex *= prev.lastPhoneme().interludes[1].size();
+					complex *= prev.lastPhoneme().followers.countMembersOfLength(2);
 					
 					// Log scale the count and multiply it by the base diphthong chance
 					complex = Math.log(complex + 1);
@@ -455,17 +454,15 @@ class NameAssembly
 				
 				if (rng.nextDouble() * sum < simple)
 				{
-					Follower f = prev.lastPhoneme().pickInterlude(0);
-					next = f.c;
+					next = prev.lastPhoneme().followers.pickSimple();
 					pName *= simple / sum;
-					pName *= f.probability;
+					pName *= next.probability;
 				}
 				else
 				{
-					Follower f = prev.lastPhoneme().pickInterlude(1);
-					next = f.c;
+					next = prev.lastPhoneme().followers.pickComplex();;
 					pName *= complex / sum;
-					pName *= f.probability;
+					pName *= next.probability;
 				}
 			}
 			
@@ -478,13 +475,13 @@ class NameAssembly
 				// Select and add the next nucleus
 				if (rng.nextDouble() * sum < simple)
 				{
-					next = p.pickSimpleNucleus();
+					next = p.nuclei.pickSimple();
 					pName *= next.probability * simple / sum;
 					pName *= next.probability;
 				}
 				else
 				{
-					next = p.pickComplexNucleus();
+					next = p.nuclei.pickComplex();
 					pName *= next.probability * complex / sum;
 					pName *= next.probability;
 				}
@@ -523,9 +520,9 @@ class NameAssembly
 			// Chance the preceding nucleus is eligible for hiatus, assuming the current syllable
 			// did not begin with hiatus itself
 			complexNucleusWithHiatusChance = 0;
-			if (p.maxNucleusLength == 2)
-				for (Constituent n : p.nuclei[1])
-					if (n.content[0].interludes[0].size() > 0 || n.content[0].interludes[1].size() > 0)
+			if (p.nuclei.maxLength() == 2)
+				for (Constituent n : p.nuclei.getMembersOfLength(2))
+					if (n.content[0].followers.countMembersOfLength(1) > 0 || n.content[0].followers.countMembersOfLength(2) > 0)
 						complexNucleusWithHiatusChance += n.probability; 
 			
 			double lightInterludeProminence = Math.log(1 + p.counts[Phonology.SIMPLE_ONSETS] +
@@ -562,7 +559,7 @@ class NameAssembly
 			
 			// Recalculate light interlude prominence according to the immediately preceding nucleus
 			int lightInterludeCount = p.counts[Phonology.SIMPLE_ONSETS];
-			if (prev.content[1].interludes[0].size() > 0)
+			if (prev.content[1].followers.countMembersOfLength(1) > 0)
 				lightInterludeCount++;
 			light = Math.log(lightInterludeCount + 1) * lightInterludeMultiplier;
 			
@@ -605,8 +602,8 @@ class NameAssembly
 			simpleOnsetProminence *= p.baseMedialOnsetChance;
 			
 			double pSimpleNucleusWithHiatus = 0;	// chance of a simple nucleus being eligible for hiatus
-			for (Constituent n : p.nuclei[0])
-				if (n.content[0].interludes[0].size() > 0)
+			for (Constituent n : p.nuclei.getMembersOfLength(1))
+				if (n.content[0].followers.countMembersOfLength(1) > 0)
 					pSimpleNucleusWithHiatus += n.probability;
 			
 			// Chance of this node being reached with a nonzero possibility of hiatus occurring
@@ -627,13 +624,13 @@ class NameAssembly
 		
 		public Node nextNode()
 		{
-			double hiatusProminence = Math.log((prev.lastPhoneme().interludes[0].size() > 0 ? 1 : 0) + 1);
+			double hiatusProminence = Math.log((prev.lastPhoneme().followers.countMembersOfLength(1) > 0 ? 1 : 0) + 1);
 			hiatusProminence *= (1 - p.baseMedialOnsetChance);
 			
 			// Add either an onset or nothing, according to probability, before ending the rhyme
 			if (rng.nextDouble() * (hiatusProminence + simpleOnsetProminence) < simpleOnsetProminence)
 			{
-				Constituent next = p.pickSimpleOnset();
+				Constituent next = p.medialOnsets.pickSimple();
 				pName *= simpleOnsetProminence / (simpleOnsetProminence + hiatusProminence);
 				pName *= next.probability;
 				addConstituent(next);	
@@ -682,32 +679,27 @@ class NameAssembly
 			if (rng.nextDouble() * sum < complexOnsetChance)
 			{
 				pName *= complexOnsetChance / sum;
-				addConstituent(p.pickComplexOnset());
+				
+				addConstituent(p.medialOnsets.pickComplex());
 			}
 			else
 			{
 				// Add compound interlude: Add any coda, then any onset from that coda's interlude list
 				// Add coda
-				Constituent next = p.pickCoda();
-				Follower f = p.pickInterlude(next.lastPhoneme());
+				Constituent next = p.codas.pick();
+				Constituent nextOnset = next.lastPhoneme().followers.pick();
 				
 				pName *= compoundInterludeChance / sum;
 				
 				pName *= next.probability;
-				if (next.content.length == 1)
-					pName *= p.simpleCodaProbability;
-				else
-					pName *= (1 - p.simpleCodaProbability) * p.codaClusterLengthProbabilities[next.content.length - 2];
+				pName *= p.codas.getLengthProbability(next.size());
 				
-				pName *= f.probability;
-				Constituent o = f.c;
-				if (o.content.length == 1)
-					pName *= p.simpleOnsetProbability;
-				else
-					pName *= (1 - p.simpleOnsetProbability) * p.onsetClusterLengthProbabilities[o.content.length - 2];
+				pName *= nextOnset.probability;
+				if (nextOnset.content.length == 1)
+					pName *= p.medialOnsets.getLengthProbability(nextOnset.size());
 				
 				addConstituent(next);
-				addConstituent(f.c);
+				addConstituent(nextOnset);
 			}
 			
 			return slNode;
@@ -742,7 +734,7 @@ class NameAssembly
 				heavySimple = p.counts[Phonology.SIMPLE_NUCLEI] * p.counts[Phonology.COMPLEX_CODAS];
 			
 			double heavyComplex = 0;
-			if (p.maxNucleusLength > 1)
+			if (p.nuclei.maxLength() > 1)
 			{
 				heavyComplex = 1;
 				if (p.baseTerminalCodaChance > 0)
@@ -773,26 +765,26 @@ class NameAssembly
 				// light rimes
 				double simpleNucleusSimpleCoda = 0;
 				if (p.baseTerminalCodaChance > 0)
-					simpleNucleusSimpleCoda = prev.lastPhoneme().interludes[0].size() * p.counts[Phonology.SIMPLE_CODAS];
+					simpleNucleusSimpleCoda = prev.lastPhoneme().followers.countMembersOfLength(1) * p.counts[Phonology.SIMPLE_CODAS];
 				
 				double simpleNucleusEmptyCoda = 0;
 				if (p.baseTerminalCodaChance < 1)
-					simpleNucleusEmptyCoda = prev.lastPhoneme().interludes[0].size();
+					simpleNucleusEmptyCoda = prev.lastPhoneme().followers.countMembersOfLength(1);
 
 				// heavy rimes
 				double heavySimple = 0;
 				if (p.baseTerminalCodaChance > 0)
-					heavySimple = prev.lastPhoneme().interludes[0].size() * p.counts[Phonology.COMPLEX_CODAS];
+					heavySimple = prev.lastPhoneme().followers.countMembersOfLength(1) * p.counts[Phonology.COMPLEX_CODAS];
 				
 				double heavyComplex = 0;
-				if (p.maxNucleusLength > 1)
+				if (p.nuclei.maxLength() > 1)
 				{
 					if (p.baseTerminalCodaChance > 0)
 						heavyComplex += p.counts[Phonology.SIMPLE_CODAS] + p.counts[Phonology.COMPLEX_CODAS];
 					if (p.baseTerminalCodaChance < 1)
 						heavyComplex += 1;
 					
-					heavyComplex *= prev.lastPhoneme().interludes[1].size();
+					heavyComplex *= prev.lastPhoneme().followers.countMembersOfLength(2);
 					heavyComplex = Math.log(heavyComplex + 1) * p.baseDiphthongChance;
 				}
 			
@@ -840,13 +832,12 @@ class NameAssembly
 			// Otherwise, add any available simple nucleus
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
-				Follower f = prev.lastPhoneme().pickInterlude(0);
-				next = f.c;
-				pName *= f.probability;
+				next = prev.lastPhoneme().followers.pickSimple();
+				pName *= next.probability;
 			}
 			else
 			{
-				next = p.pickSimpleNucleus();
+				next = p.nuclei.pickSimple();
 				pName *= next.probability;
 			}
 			
@@ -884,7 +875,7 @@ class NameAssembly
 			// Number of heavy rimes with complex nuclei is proportionate to the number of complex nuclei times the number
 			// of codas availables, including the null coda.
 			basicComplexNucleusChance = 0;
-			if (p.maxNucleusLength > 1)
+			if (p.nuclei.maxLength() > 1)
 			{
 				basicComplexNucleusChance = 1;
 				if (p.baseTerminalCodaChance > 0)
@@ -921,7 +912,7 @@ class NameAssembly
 				{
 					// Count all heavy rhymes with simple nuclei
 					simple = p.counts[Phonology.COMPLEX_CODAS];
-					simple *= prev.lastPhoneme().interludes[0].size();
+					simple *= prev.lastPhoneme().followers.countMembersOfLength(1);
 
 					// Log scale the count and multiply it by the inverse of the base diphthong chance
 					simple = Math.log(simple + 1);
@@ -931,7 +922,7 @@ class NameAssembly
 				// Number of heavy rimes with complex nuclei is proportionate to the number of complex nuclei times 
 				// the number of codas availables, including the null coda.
 				double complex = 0;
-				if (p.maxNucleusLength > 1)
+				if (p.nuclei.maxLength() > 1)
 				{
 					// Rimes with codas
 					if (p.baseTerminalCodaChance > 0)
@@ -941,7 +932,7 @@ class NameAssembly
 					if (p.baseTerminalCodaChance < 1)
 						complex += 1;
 					
-					complex *= prev.lastPhoneme().interludes[1].size();
+					complex *= prev.lastPhoneme().followers.countMembersOfLength(2);
 					complex = Math.log(complex + 1) * p.baseDiphthongChance;
 				}
 				
@@ -949,17 +940,15 @@ class NameAssembly
 				double sum = simple + complex;
 				if (rng.nextDouble() * sum < simple)
 				{
-					Follower f = prev.lastPhoneme().pickInterlude(0);
-					next = f.c;
+					next = prev.lastPhoneme().followers.pickSimple();
 					pName *= simple / sum;
-					pName *= f.probability;
+					pName *= next.probability;
 				}
 				else
 				{
-					Follower f = prev.lastPhoneme().pickInterlude(1);
-					next = f.c;
+					next = prev.lastPhoneme().followers.pickComplex();
 					pName *= complex / sum;
-					pName *= f.probability;
+					pName *= next.probability;
 				}
 			}
 			
@@ -972,13 +961,13 @@ class NameAssembly
 				double sum = simple + complex;
 				if (rng.nextDouble() * sum < simple)
 				{
-					next = p.pickSimpleNucleus();
+					next = p.nuclei.pickSimple();
 					pName *= simple / sum;
 					pName *= next.probability;
 				}
 				else
 				{
-					next = p.pickComplexNucleus();
+					next = p.nuclei.pickComplex();
 					pName *= complex / sum;
 					pName *= next.probability;
 				}
@@ -990,7 +979,7 @@ class NameAssembly
 			// Select next node
 			if (next.content.length == 1)
 			{
-				addConstituent(p.pickComplexCoda());
+				addConstituent(p.codas.pickComplex());
 				return null;
 			}
 			else
@@ -1033,9 +1022,9 @@ class NameAssembly
 			}
 			else
 			{
-				Constituent next = p.pickComplexCoda();
+				Constituent next = p.codas.pickComplex();
 				pName *= heavyCodaChance;
-				pName *= next.probability * p.codaClusterLengthProbabilities[next.content.length - 2];
+				pName *= next.probability * p.codas.getLengthProbability(next.size());
 				addConstituent(next);
 				return null;
 			}
@@ -1067,7 +1056,7 @@ class NameAssembly
 			double sum = simpleCodaChance + emptyCodaChance;
 			if (rng.nextDouble() * sum < simpleCodaChance)
 			{
-				Constituent next = p.pickSimpleCoda();
+				Constituent next = p.codas.pickSimple();
 				pName *= simpleCodaChance;
 				pName *= next.probability;
 				addConstituent(next);
@@ -1114,53 +1103,46 @@ class NameAssembly
 			double complexCodaH = 0;
 			double compoundInterludeH = 0;
 			
-			for (int i = 0; i < p.onsets[0].size(); i++)										// Simple onset
-				simpleOnsetH += scaledInfo(p.onsets[0].get(i).probability);
+			for (int i = 1; i <= p.medialOnsets.maxLength(); i++)
+				for (Constituent c : p.medialOnsets.getMembersOfLength(i))
+				{
+					double e = scaledInfo(c.probability * p.medialOnsets.getLengthProbability(i));
+					if (i == 1)
+						simpleOnsetH += e;
+					else
+						complexOnsetH += e;
+				}
 			
-			for (int j = 0; j < p.onsetClusterLengthProbabilities.length; j++)					// Complex onset
-				for (int i = 0; i < p.onsets[j + 1].size(); i++)
-					complexOnsetH += scaledInfo(p.onsets[j + 1].get(i).probability * 
-							p.onsetClusterLengthProbabilities[j]);
-			
-			for (int i = 0; i < p.nuclei[0].size(); i++)										// Simple nuclei
-				simpleNucleusH += scaledInfo(p.nuclei[0].get(i).probability);
+			for (int i = 0; i < p.nuclei.countMembersOfLength(1); i++)			// Simple nuclei
+				simpleNucleusH += scaledInfo(p.nuclei.getMembersOfLength(1).get(i).probability);
 
-			if (p.maxNucleusLength == 2)															// Complex nuclei
-				for (int i = 0; i < p.nuclei[1].size(); i++)
-					complexNucleusH += scaledInfo(p.nuclei[1].get(i).probability);
+			if (p.nuclei.maxLength() == 2)										// Complex nuclei
+				for (int i = 0; i < p.nuclei.countMembersOfLength(2); i++)
+					complexNucleusH += scaledInfo(p.nuclei.getMembersOfLength(2).get(i).probability);
 			
-			if (p.maxCodaLength > 0)
+			if (p.codas != null)
 			{
-				for (int i = 0; i < p.codas[0].size(); i++)											// Simple coda
-					simpleCodaH += scaledInfo(p.codas[0].get(i).probability);
+				for (int i = 1; i <= p.codas.maxLength(); i++)
+					for (Constituent c : p.codas.getMembersOfLength(i))
+					{
+						double e = scaledInfo(c.probability * p.codas.getLengthProbability(i));
+						if (i == 1)
+							simpleCodaH += e;	// Simple coda
+						else
+							complexCodaH += e;	// Complex coda
+					}
 				
-				for (int j = 0; j < p.codaClusterLengthProbabilities.length; j++)					// Complex coda
-					for (int i = 0; i < p.codas[j + 1].size(); i++)
-						complexCodaH += scaledInfo(p.codas[j + 1].get(i).probability * 
-								p.codaClusterLengthProbabilities[j]);
-				
-				for (int i = 0; i < p.maxCodaLength; i++)
-					for (Constituent coda : p.codas[i])
+				for (int i = 1; i <= p.codas.maxLength(); i++)
+					for (Constituent coda : p.codas.getMembersOfLength(i))
 					{
 						// Coda probability
-						double codaProb = coda.probability;
-						if (i == 0)
-							codaProb *= p.simpleCodaProbability;
-						else
-							codaProb *= p.codaClusterLengthProbabilities[i - 1];
+						double codaProb = coda.probability * p.codas.getLengthProbability(i);
 						
-						for (int j = 0; j < coda.lastPhoneme().interludes.length; j++)
-							for (Follower onset : coda.lastPhoneme().interludes[j])
+						for (int j = 1; j <= coda.lastPhoneme().followers.maxLength(); j++)
+							for (Constituent onset : coda.lastPhoneme().followers.getMembersOfLength(j))
 							{
 								// Multiplied by onset probability
-								double interludeProb = onset.c.probability;
-								if (j == 0)
-									interludeProb *= p.simpleOnsetProbability;
-								else
-								{
-									interludeProb *= (1 - p.simpleOnsetProbability);
-									interludeProb *= p.onsetClusterLengthProbabilities[j - 1];
-								}
+								double interludeProb = onset.probability * coda.lastPhoneme().followers.getLengthProbability(j);
 								compoundInterludeH += scaledInfo(codaProb * interludeProb); 
 							}
 					}

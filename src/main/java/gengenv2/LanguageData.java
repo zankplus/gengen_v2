@@ -39,24 +39,24 @@ public class LanguageData
 	{
 		// Determine syllable structure
 		medialSyllableStructure = "C";
-		if (p.maxOnsetLength > 1)
+		if (p.medialOnsets.maxLength() > 1)
 		{
-			for (int i = 1; i < p.maxOnsetLength; i++)
+			for (int i = 1; i < p.medialOnsets.maxLength(); i++)
 				medialSyllableStructure += "(C";
-			for (int i = 1; i < p.maxOnsetLength; i++)
+			for (int i = 1; i < p.medialOnsets.maxLength(); i++)
 				medialSyllableStructure += ")";
 		}
 		medialSyllableStructure += "V";
-		if (p.maxNucleusLength == 2)
+		if (p.nuclei.maxLength() == 2)
 			medialSyllableStructure += "(V)";
 		
 		terminalSyllableStructure = medialSyllableStructure;
-		if (p.maxCodaLength > 0)
+		if (p.codas.maxLength() > 0)
 		{
 			String coda = "";
-			for (int i = 0; i < p.maxCodaLength; i++)
+			for (int i = 0; i < p.codas.maxLength(); i++)
 				medialSyllableStructure += "(C";
-			for (int i = 0; i < p.maxCodaLength; i++)
+			for (int i = 0; i < p.codas.maxLength(); i++)
 				medialSyllableStructure += ")";
 			
 			if (p.baseMedialCodaChance > 0)

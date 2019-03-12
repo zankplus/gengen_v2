@@ -37,9 +37,18 @@ public class App
 	 * @since	1.0
 	 */
     public static void main(String[] args)
-    {    	
-		Phonology p = new Phonology();
-    	
+    {   
+    	// Revisit this
+		Phonology p = new Phonology(5936407455772460342L);
+//		System.out.println("MEDIAL");
+//    	for (int i = 1; i <= p.medialOnsets.maxLength(); i++)
+//    		p.printInventory(p.medialOnsets.getMembersOfLength(i));
+//    	System.out.println("INITIAL");
+//    	for (int i = 1; i <= p.initialOnsets.maxLength(); i++)
+//    		p.printInventory(p.initialOnsets.getMembersOfLength(i));
+		
+//    	p.compareOnsets();
+		
 		List<Name> names = p.makeNames(60);
 		Collections.sort(names, new Comparator<Name>() {
 			public int compare(Name a, Name b)
