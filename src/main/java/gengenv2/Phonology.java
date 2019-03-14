@@ -74,21 +74,27 @@ public class Phonology
 	 *  The "lead" and "follow" prominences represent a phoneme's tendency to precede or follow other sounds within
 	 *  a consonant cluster, diphthong, or interlude, and are used to determine how commonplace each such cluster is.
 	 */
-	double[] baseProminences;	// Prominence of each consonantal phonetic property in the Phonology, as applied to 
-								// syllable onsets. This is the the basic value from which other consonantal prominences
-								// are derived by disturbance.
-	double[] codaProminences;	// Prominence of each consonantal property, as applied to syllable codas
-	double[] vowelProminences;	// Prominence of each vocalic phonetic property
 	
-	double[] wordInitialProminences;
-	double[] onsetClusterLeadProminences;
-	double[] onsetClusterFollowProminences;
-	double[] diphthongLeadProminences;
-	double[] diphthongFollowProminences;
-	double[] codaClusterLeadProminences;
-	double[] codaClusterFollowProminences;
-	double[] interludeLeadProminences;
-	double[] interludeFollowProminences;
+	boolean[] consonantPropertiesRepresented;
+	boolean[] vowelPropertiesRepresented;
+	
+	PhoneticRatings baseConsonantRatings;	// Prominence of each consonantal phonetic property in the Phonology, as applied to 
+											// syllable onsets. This is the the basic value from which other consonantal prominences
+											// are derived by disturbance.
+	PhoneticRatings baseCodaRatings;	// Prominence of each consonantal property, as applied to syllable codas
+	PhoneticRatings baseVowelRatings;	// Prominence of each vocalic phonetic property
+	
+	PhoneticRatings wordInitialRatings;
+	PhoneticRatings onsetClusterLeadRatings;
+	PhoneticRatings onsetClusterFollowRatings;
+	PhoneticRatings diphthongLeadRatings;
+	PhoneticRatings diphthongFollowRatings;
+	PhoneticRatings codaClusterLeadRatings;
+	PhoneticRatings codaClusterFollowRatings;
+	PhoneticRatings hiatusLeadRatings;
+	PhoneticRatings hiatusFollowRatings;
+	PhoneticRatings interludeLeadRatings;
+	PhoneticRatings interludeFollowRatings;
 	
 	/*
 	 * Phoneme inventories
@@ -112,7 +118,8 @@ public class Phonology
 	protected ConstituentLibrary medialOnsets;
 	protected ConstituentLibrary initialOnsets;
 	protected ConstituentLibrary nuclei;
-	protected ConstituentLibrary codas;	
+	protected ConstituentLibrary medialCodas;	
+	protected ConstituentLibrary terminalCodas;
 	
 	/*
 	 * Syllable segment length limits
@@ -134,7 +141,7 @@ public class Phonology
 	 * the coda prominence values, AS A PERCENTAGE of the prominenceStdev. At 0, coda values are undisturbed 
 	 * compared to the base values; at 1, they have essentially been rerolled from scratch.
 	 */
-	private double codaProminenceOffset;
+	private double codaRatingOffset;
 	private double codaDisturbance;
 	
 	/*
@@ -216,16 +223,25 @@ public class Phonology
 	static double basicProminenceStdev				= 0.60;
 	static double basicProminenceMean				= 0.90;
 	static double vowelProminenceStdev 				= 0.50;
+	static double vowelProminenceMean				= 1.00;
 	static double wordInitialStdev					= 0.25;
-	static double wordInitialMean					= 0;
+	static double wordInitialMean					= 0.25;
 	static double emptyInitialOnsetProminenceMean   = 0.3;
 	static double emptyInitialOnsetProminenceStdev  = 0.15;
 	static double onsetClusterProminenceMean	 	= 0.1;
 	static double onsetClusterProminenceStdev 		= 0.05;
 	static double clusterLeadStdev    				= 0.50;
+	static double clusterLeadMean					= 1.00;
 	static double clusterFollowStdev  				= 0.50;
-	static double nucleusLeadStdev  				= 0.50;
-	static double nucleusFollowStdev 				= 0.50;
+	static double clusterFollowMean					= 1.00;
+	static double diphthongLeadStdev  				= 0.50;
+	static double diphthongLeadMean					= 1.00;
+	static double diphthongFollowStdev 				= 0.50;
+	static double diphthongFollowMean				= 1.00;
+	static double hiatusLeadStdev  					= 0.50;
+	static double hiatusLeadMean  					= 1.00;
+	static double hiatusFollowStdev					= 0.50;
+	static double hiatusFollowMean					= 1.00;
 
 	// Bounding values
 	static double minimumOnsetClusterProminence		= 0.01; 
@@ -407,11 +423,10 @@ public class Phonology
 	}
 
 	/**
-	 * Determine which phonetic properties will be present in this language. Present languages receive 
-	 * a random "prominence" value; absent values receive a value of 0. Any segment all of whose properties
-	 * are present may feature in the language. This segment can be said to possess a combined prominence value 
-	 * equal to the sum of its properties' prominence values' means; this represents, for now, the relative
-	 * chance of it appearing at the start of an onset (consonants only).
+	 * Determine which phonetic Properties will be present in this language, how prominent they will be,
+	 * and in what contexts. A Phoneme can be said to possess its own prominence rating equal to the sum of
+	 * its Properties' prominence ratings' means. These ratings are used to determine the probability of
+	 * its child syllable Constituents appearing in different contexts. 
 	 * 
 	 * Related clusterLeadProminence and clusterFollowProminence help determine how frequently a consonant will
 	 * appear in a cluster preceeding or following (respectively) other phonemes.
@@ -419,24 +434,31 @@ public class Phonology
 	 */ 
 	private void determineProminence()
 	{
-		baseProminences = new double[ConsonantProperty.values().length];		// likelihood to appear at start of syllable
-		wordInitialProminences = new double[ConsonantProperty.values().length];		// " to appear at start of word
-		vowelProminences = new double[VowelProperty.values().length];			// syllable-initial prominence
-		codaProminences = new double[ConsonantProperty.values().length];
+		// Determine which properties are represented
+		consonantPropertiesRepresented = new boolean[ConsonantProperty.values().length];
+		vowelPropertiesRepresented = new boolean[VowelProperty.values().length];
 		
-		// Set onset prominence values for consonant properties
 		for (int i = 0; i < ConsonantProperty.values().length; i++)
-			if (rng.nextDouble() < ConsonantProperty.values()[i].probability)	// properties failing this check receive 0 prominence
-			{
-				baseProminences[i] = Math.max(rng.nextGaussian() * basicProminenceStdev + basicProminenceMean, 0.001);
-				wordInitialProminences[i] = Math.pow(Math.max(rng.nextGaussian() * wordInitialStdev 
-											 + baseProminences[i] + 0.2, 0.001), 2);
-			}
+			if (rng.nextDouble() < ConsonantProperty.values()[i].getProbability())
+				consonantPropertiesRepresented[i] = true;
 		
-		// Set prominence values for vowel properties
 		for (int i = 0; i < VowelProperty.values().length; i++)
-			if (rng.nextDouble() < VowelProperty.values()[i].probability)	// properties failing this check receive 0 prominence
-				vowelProminences[i] = Math.max(rng.nextGaussian() * vowelProminenceStdev + 1, 0.001);
+			if (rng.nextDouble() < VowelProperty.values()[i].getProbability())
+				vowelPropertiesRepresented[i] = true;
+		
+		// Set onset prominence ratings for consonant properties
+		
+		// Medial onsets
+		baseConsonantRatings = new PhoneticRatings(true, basicProminenceStdev, basicProminenceMean);
+		
+		// Initial onsets
+		wordInitialRatings = new PhoneticRatings(baseConsonantRatings);
+		wordInitialRatings.disturb(0.5);
+		
+		// Medial nuclei
+		baseVowelRatings = new PhoneticRatings(false, vowelProminenceStdev, vowelProminenceMean);
+		 
+
 		
 		/*
 		 * Set coda prominence values for consonant properties. 
@@ -447,79 +469,48 @@ public class Phonology
 		 */
 		if (maxCodaLength > 0)
 		{
+			// Medial codas
+			baseCodaRatings = new PhoneticRatings(baseConsonantRatings);
+			
 			// Coda disturbance is the square of a uniformly distributed random number between 0 and 1
 			codaDisturbance = Math.pow(rng.nextDouble(), 2);
 			
 			// Coda inhibitor is a gaussian random number; the mean and stdev are engine parameters.
-			codaProminenceOffset = rng.nextGaussian() * codaOffsetStdev + codaOffsetMean;
-			codaProminenceOffset = Math.max(0, codaProminenceOffset);
+			codaRatingOffset = rng.nextGaussian() * codaOffsetStdev + codaOffsetMean;
+			codaRatingOffset = -Math.max(0, codaRatingOffset);
 			
-			for (int i = 0; i < baseProminences.length; i++)
-				if (baseProminences[i] > 0)
-				{
-					// Take the onset (general) prominence value as a base
-					codaProminences[i] = baseProminences[i];
-					
-					// Disturb prominence
-					codaProminences[i] += rng.nextGaussian() * basicProminenceStdev * codaDisturbance;
-					
-					// Offset prominence
-					codaProminences[i] -= codaProminenceOffset;
-				}
+			baseCodaRatings.disturb(basicProminenceStdev * codaDisturbance);
+			baseCodaRatings.offset(codaRatingOffset);
 		}
 		
 		// Set onset cluster lead/follow prominences
 		if (maxOnsetLength > 1)
 		{
-			onsetClusterLeadProminences   = new double[ConsonantProperty.values().length];
-			onsetClusterFollowProminences = new double[ConsonantProperty.values().length];
-			
-			for (int i = 0; i < ConsonantProperty.values().length; i++)
-				if (baseProminences[i] > 0)
-				{
-					onsetClusterLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
-					onsetClusterFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
-				}
+			onsetClusterLeadRatings   = new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
+			onsetClusterFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
 		}
 
 		// Set diphthong (nucleus cluster) lead/follow prominences
 		if (maxNucleusLength > 1)
 		{
-			diphthongLeadProminences   = new double[VowelProperty.values().length];
-			diphthongFollowProminences = new double[VowelProperty.values().length];
-			
-			for (int i = 0; i < VowelProperty.values().length; i++)
-				if (vowelProminences[i] > 0)
-				{
-					diphthongLeadProminences[i]   = rng.nextGaussian() * nucleusLeadStdev   + 1;
-					diphthongFollowProminences[i] = rng.nextGaussian() * nucleusFollowStdev + 1;
-				}
+			diphthongLeadRatings   = new PhoneticRatings(false, diphthongLeadStdev, diphthongLeadMean);
+			diphthongFollowRatings = new PhoneticRatings(false, diphthongFollowStdev, diphthongFollowMean);
 		}
 		
 		// Set coda lead/follow prominences
 		if (maxCodaLength > 1)
 		{
-			codaClusterLeadProminences   = new double[ConsonantProperty.values().length];
-			codaClusterFollowProminences = new double[ConsonantProperty.values().length];
-			
-			for (int i = 0; i < ConsonantProperty.values().length; i++)
-				if (baseProminences[i] > 0)
-				{
-					codaClusterLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
-					codaClusterFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
-				}
+			codaClusterLeadRatings   = new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
+			codaClusterFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
 		}
+
+		// Set hiatus ratings
+		hiatusLeadRatings =   new PhoneticRatings(true, hiatusLeadStdev, hiatusLeadMean);
+		hiatusFollowRatings = new PhoneticRatings(true, hiatusFollowStdev, hiatusFollowMean);
 		
 		// Set interlude lead/follow prominences
-		interludeLeadProminences =   new double[ConsonantProperty.values().length];
-		interludeFollowProminences = new double[ConsonantProperty.values().length];
-		
-		for (int i = 0; i < ConsonantProperty.values().length; i++)
-			if (baseProminences[i] > 0)
-			{
-				interludeLeadProminences[i]   = rng.nextGaussian() * clusterLeadStdev   + 1;
-				interludeFollowProminences[i] = rng.nextGaussian() * clusterFollowStdev + 1;
-			}
+		interludeLeadRatings =   new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
+		interludeFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
 		
 		// Set miscellaneous phonotactic offsets
 		onsetNgOffset   	  = Math.max(rng.nextGaussian() * onsetNgOffsetStdev + onsetNgOffsetMean, 0);
@@ -552,7 +543,7 @@ public class Phonology
 			boolean add = true;
 			
 			for (int j = 0; j < consonants[i].properties.length; j++) 
-				if (baseProminences[((ConsonantProperty) consonants[i].properties[j]).ordinal()] == 0)
+				if (baseConsonantRatings.getRating(((ConsonantProperty) consonants[i].properties[j]).ordinal()) == 0)
 				{
 					add = false;
 					j = consonants[i].properties.length;
@@ -573,7 +564,7 @@ public class Phonology
 		if (consonantInventory.length == 0)
 		{
 			for (int i = 0; i < Consonant.segments[0].properties.length; i++)
-				baseProminences[Consonant.segments[0].properties[i].ordinal()] = 1;
+				baseConsonantRatings.setRating(Consonant.segments[0].properties[i].ordinal(), 1);
 			
 			consonantInventory = new ConsonantPhoneme[] { new ConsonantPhoneme(Consonant.segments[0]) };
 		}
@@ -594,7 +585,7 @@ public class Phonology
 			boolean add = true;
 			
 			for (int j = 0; j < vowels[i].properties.length; j++)
-				if (vowelProminences[((VowelProperty) vowels[i].properties[j]).ordinal()] == 0)
+				if (baseVowelRatings.getRating(((VowelProperty) vowels[i].properties[j]).ordinal()) == 0)
 				{
 					add = false;
 					j = vowels[i].properties.length;
@@ -609,7 +600,7 @@ public class Phonology
 		// If this language has no vowels, add 'A' to the inventory
 		if (vowelInventory.length == 0)
 		{
-			vowelProminences[VowelProperty.OPEN.ordinal()] = 1;
+			baseVowelRatings.setRating(VowelProperty.OPEN.ordinal(), 1);
 			vowelInventory = new VowelPhoneme[] { new VowelPhoneme(Vowel.segments[1]) };
 		}
 		
@@ -676,6 +667,7 @@ public class Phonology
 		generateOnsets(ProminenceType.WORD_INITIAL, initialOnsets);
 		initialOnsets.removeUnusedMembers();
 		initialOnsets.normalizeAll();
+		initialOnsets.exaggerate(2);
 		initialOnsets.sortAll();
 		initialOnsets.setLengthProbabilities(baseOnsetClusterChance);
 	}
@@ -767,18 +759,18 @@ public class Phonology
 					}
 	
 		// Initialize coda library
-		codas = new ConstituentLibrary(this, maxCodaLength);
+		medialCodas = new ConstituentLibrary(this, maxCodaLength);
 		
 		// Populate coda list
 		generateMedialCodas();
 
 		// Remove unused codas
-		codas.removeUnusedMembers();
+		medialCodas.removeUnusedMembers();
 		
 		// Note that unlike makeOnsets and makeNuclei, in makeCodas We delay the normalization of coda values until after
 		// makeInterludes, as that method makes use of codas (in particular, that may be cut from the master list.
 		
-		if (codas.maxLength() > 0)
+		if (medialCodas.maxLength() > 0)
 			makeInterludes();
 	}
 	
@@ -863,9 +855,9 @@ public class Phonology
 			followProbability[i] = rng.nextDouble();
 		
 		// Generate lists of interlude transitions for phonemes
-		for (int i = 0; i < codas.countMembersOfLength(1); i++)
+		for (int i = 0; i < medialCodas.countMembersOfLength(1); i++)
 		{
-			Phoneme p1 = codas.getMembersOfLength(1).get(i).content[0];
+			Phoneme p1 = medialCodas.getMembersOfLength(1).get(i).content[0];
 			for (int j = 0; j < medialOnsets.getMembersOfLength(1).size(); j++)
 			{
 				Phoneme p2 = medialOnsets.getMembersOfLength(1).get(j).content[0];
@@ -891,12 +883,12 @@ public class Phonology
 		// TODO: Temporary feature: remove codas with no interludes.
 		// In the future, we may want to include these phonemes in the terminal coda, but those will be
 		// handled by a separate inventory.
-		codas.pruneMembersWithoutFollowers();
+		medialCodas.pruneMembersWithoutFollowers();
 		
-		codas.scaleProbabilityByFollowerCount();
-		codas.normalizeAll();
-		codas.sortAll();
-		codas.setLengthProbabilities(baseCodaClusterChance);
+		medialCodas.scaleProbabilityByFollowerCount();
+		medialCodas.normalizeAll();
+		medialCodas.sortAll();
+		medialCodas.setLengthProbabilities(baseCodaClusterChance);
 	}
 		
 	/**
@@ -935,14 +927,15 @@ public class Phonology
 		}
 		
 		// Count all simple and complex codas, and compound interludes
-		if (codas != null)
-			for (int i = 1; i < codas.maxLength(); i++)
+		if (medialCodas != null)
+			for (int i = 1; i <= medialCodas.maxLength(); i++)
 			{
 				if (i == 1)
-					results[SIMPLE_CODAS] += codas.countMembersOfLength(i);
+					results[SIMPLE_CODAS] += medialCodas.countMembersOfLength(i);
 				else
-					results[COMPLEX_CODAS] += codas.countMembersOfLength(i);
-				for (Constituent c : codas.getMembersOfLength(i))
+					results[COMPLEX_CODAS] += medialCodas.countMembersOfLength(i);
+				
+				for (Constituent c : medialCodas.getMembersOfLength(i))
 				{
 					Phoneme last = c.content[c.content.length - 1];
 					results[COMPOUND_INTERLUDES] += last.followers.size();
@@ -1282,7 +1275,7 @@ public class Phonology
 		
 		// Add the current coda to the appropriate coda inventory
 		Constituent c = new Constituent(ConstituentType.CODA, coda.toArray(new Phoneme[coda.size()]), prominence);
-		codas.add(c);
+		medialCodas.add(c);
 		
 		// If you've reached the largest cluster size, return immediately and do not examine large clusters
 		if (coda.size() >= maxCodaLength)
@@ -1457,7 +1450,7 @@ public class Phonology
 		for (int i = 1; i <= maxOnsetLength; i++)
 			printInventory(medialOnsets.getMembersOfLength(i));
 		for (int i = 1; i <= maxCodaLength; i++)
-			printInventory(codas.getMembersOfLength(i));
+			printInventory(medialCodas.getMembersOfLength(i));
 		for (int i = 1; i <= maxNucleusLength; i++)
 			printInventory(nuclei.getMembersOfLength(i));
 
@@ -1522,13 +1515,12 @@ public class Phonology
 			};
 			
 			// Make combined set
-			if (medialOnsets.maxLength() >= i)
-				for (Constituent c : medialOnsets.getMembersOfLength(i))
-					list.add(c);
+			ConstituentLibrary[] libs = new ConstituentLibrary[] { medialOnsets, initialOnsets, medialCodas };
 			
-			if (initialOnsets.maxLength() >= i)
-				for (Constituent c : initialOnsets.getMembersOfLength(i))
-					list.add(c);
+			for (ConstituentLibrary lib : libs)
+				if (lib != null && lib.maxLength() >= i)
+					for (Constituent c : lib.getMembersOfLength(i))
+						list.add(c);
 			
 			// Print set
 			for (Constituent c : list)
@@ -1537,12 +1529,12 @@ public class Phonology
 				
 				System.out.print(result);
 				
-				ConstituentLibrary[] libs = new ConstituentLibrary[] { medialOnsets, initialOnsets };
+				
 				
 				for (ConstituentLibrary lib : libs)
 				{
 					double prob = 0;
-					if (i <= lib.maxLength())
+					if (lib != null && i <= lib.maxLength())
 						for (Constituent onset : lib.getMembersOfLength(i))
 							if (onset.sameSequence(c))
 							{
@@ -1612,7 +1604,6 @@ public class Phonology
 			// If interludeLeadProminence <= 0, this phoneme does not lead in interludes/hiatus
 			if (interludeLeadProminence <= 0)
 				return;
-			
 			// Calculate interlude's probability.
 			// Base probability equals sum of following segment's interludeFollow and onsetInitial prominences
 			double probability = c.content[0].interludeFollowProminence;
@@ -1624,7 +1615,9 @@ public class Phonology
 			
 			// If probability is positive, add this interlude
 			if (probability > 0)
+			{
 				followers.add(new Constituent(c, probability));
+			}
 			
 			// Add any possible clusters, too. Examine onset clusters if this is a consonantal interlude ...
 			if (segment.isConsonant())
@@ -1665,6 +1658,11 @@ public class Phonology
 //			Print interlude statistics
 //			System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
 		}
+		
+		public String toString()
+		{
+			return "[" + segment.expression + "]";
+		}
 	}
 	
 	class ConsonantPhoneme extends Phoneme
@@ -1681,7 +1679,9 @@ public class Phonology
 			
 			// Assign default prominence values
 			basicInitialProminence       = 1;
+			wordInitialProminence		 = 1;
 			codaInitialProminence		 = 1;
+			
 			onsetClusterLeadProminence   = 1;
 			onsetClusterFollowProminence = 1;
 			codaClusterLeadProminence    = 1;
@@ -1714,17 +1714,17 @@ public class Phonology
 			for (ConsonantProperty s : ((Consonant) segment).properties)
 			{
 				// Initial properties
-				double deviance = baseProminences[s.ordinal()] - 1;
+				double deviance = baseConsonantRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
 				basicInitialProminence += deviance;
 				
-				deviance = wordInitialProminences[s.ordinal()] - 1;
+				deviance = wordInitialRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
 				wordInitialProminence += deviance;
 				
 				if (maxCodaLength > 0)
 				{
-					deviance = codaProminences[s.ordinal()] - 1;
+					deviance = baseCodaRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					codaInitialProminence += deviance;
 				}
@@ -1732,11 +1732,11 @@ public class Phonology
 				// Onset cluster properties
 				if (maxOnsetLength > 1)
 				{
-					deviance = onsetClusterLeadProminences[s.ordinal()] - 1;
+					deviance = onsetClusterLeadRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					onsetClusterLeadProminence += deviance;
 					
-					deviance = onsetClusterFollowProminences[s.ordinal()] - 1;
+					deviance = onsetClusterFollowRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					onsetClusterFollowProminence += deviance;
 				}
@@ -1744,19 +1744,19 @@ public class Phonology
 				// Coda cluster properties
 				if (maxCodaLength > 1)
 				{
-					deviance = codaClusterLeadProminences[s.ordinal()] - 1;
+					deviance = codaClusterLeadRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					codaClusterLeadProminence += deviance;
 					
-					deviance = codaClusterFollowProminences[s.ordinal()] - 1;
+					deviance = codaClusterFollowRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					codaClusterFollowProminence += deviance;
 					
-					deviance = interludeLeadProminences[s.ordinal()] - 1;
+					deviance = interludeLeadRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					interludeLeadProminence += deviance;
 					
-					deviance = interludeFollowProminences[s.ordinal()] - 1;
+					deviance = interludeFollowRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					interludeFollowProminence += deviance;
 				}
@@ -1794,25 +1794,25 @@ public class Phonology
 			// Calculate prominence values
 			for (VowelProperty s : ((Vowel) segment).properties)
 			{
-				double deviance = vowelProminences[s.ordinal()] - 1;
+				double deviance = baseVowelRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
 				basicInitialProminence += deviance;
 
-				deviance = interludeLeadProminences[s.ordinal()] - 1;
+				deviance = hiatusLeadRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
 				interludeLeadProminence += deviance;
 				
-				deviance = interludeFollowProminences[s.ordinal()] - 1;
+				deviance = hiatusFollowRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
 				interludeFollowProminence += deviance;
 				
 				if (maxNucleusLength > 1)
 				{
-					deviance = diphthongLeadProminences[s.ordinal()] - 1;
+					deviance = diphthongLeadRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					nucleusLeadProminence += deviance;
 					
-					deviance = diphthongFollowProminences[s.ordinal()] - 1;
+					deviance = diphthongFollowRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					nucleusFollowProminence += deviance;	
 				}
@@ -1956,6 +1956,89 @@ public class Phonology
 	public long getSeed()
 	{
 		return seed;
+	}
+	
+	class PhoneticRatings
+	{
+		private double[] ratings;
+		boolean[] propertiesRepresented;
+		SegmentProperty[] properties;
+		
+		public PhoneticRatings(boolean consonant, double stdev, double mean)
+		{
+			if (consonant)
+			{
+				properties = ConsonantProperty.values();
+				propertiesRepresented = consonantPropertiesRepresented;
+			}
+			else
+			{
+				properties = VowelProperty.values();
+				propertiesRepresented = vowelPropertiesRepresented;
+			}
+			
+			ratings = new double[properties.length];
+			
+			for (int i = 0; i < ratings.length; i++)
+				if (propertiesRepresented[i])
+					ratings[i] = rng.nextGaussian() * stdev + mean;
+		}
+		
+		/**
+		 * Copy constructor
+		 * @param other	The PhoneticRatings to be copied
+		 */
+		public PhoneticRatings(PhoneticRatings other)
+		{
+			ratings = new double[other.properties.length];
+			for (int i = 0; i < ratings.length; i++)
+				ratings[i] = other.getRating(i);
+			
+			this.properties = other.properties;
+			this.propertiesRepresented = other.propertiesRepresented;
+		}
+		
+		public void disturb(double stdev)
+		{
+			for (int i = 0; i < ratings.length; i++)
+				ratings[i] = rng.nextGaussian() * stdev + ratings[i];
+		}
+		
+		public void offset(double offset)
+		{
+			for (int i = 0; i < ratings.length; i++)
+				ratings[i] = ratings[i] + offset;
+		}
+		
+		public void offset(double[] offsets)
+		{
+			if (offsets.length != ratings.length)
+				return;
+			
+			for (int i = 0; i < ratings.length; i++)
+				ratings[i] = ratings[i] + offsets[i];
+		}
+		
+		public void exaggerate(double power)
+		{
+			for (int i = 0; i < ratings.length; i++)
+				ratings[i] = Math.pow(ratings[i], power);
+		}
+		
+		public double getRating(int index)
+		{
+			return ratings[index];
+		}
+		
+		public void setRating(int index, double value)
+		{
+			ratings[index] = value;
+		}
+		
+		public int size()
+		{
+			return ratings.length;
+		}
 	}
 }
 

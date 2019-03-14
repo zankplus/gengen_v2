@@ -99,6 +99,7 @@ public class ConstituentLibrary
 				if (list.get(i).probability < 0)
 				{
 					list.remove(i);
+					memberCount--;
 					i--;
 				}
 		
@@ -170,10 +171,21 @@ public class ConstituentLibrary
 		}
 	}
 	
+	public void exaggerate(double power)
+	{
+		for (int i = 1; i <= maxLength; i++)
+		{
+			for (int j = 0; j < countMembersOfLength(i); j++)
+				getMembersOfLength(i).get(j).probability = Math.pow(getMembersOfLength(i).get(j).probability, power);
+		}
+		
+		normalizeAll();
+	}
+	
 	public void add(Constituent c)
 	{
 		library[c.content.length - 1].add(c);
-		count++;
+		memberCount++;
 	}
 	
 	public Constituent pick()
@@ -213,8 +225,6 @@ public class ConstituentLibrary
 				break;
 			}
 		}
-		for (Double d : lengthProbabilities)
-			System.out.println(d);
 		
 		return pickConstituent(length);
 	}
@@ -267,6 +277,7 @@ public class ConstituentLibrary
 				if (list.get(i).lastPhoneme().followers.getMembersOfLength(1).size() == 0)
 				{
 					list.remove(i);
+					memberCount--;
 					i--;
 				}
 		}

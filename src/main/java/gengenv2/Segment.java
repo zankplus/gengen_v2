@@ -238,7 +238,7 @@ enum ConsonantProperty implements SegmentProperty
 	PALATAL_APPROX(.838), LABIOVELAR_APPROX(.741),	// x | approximant & glide 
 	LATERAL_APPROX(.754), ALVEOLAR_TRILL(.661);		// x | approximant & liquid;
 	
-	double probability;
+	private double probability;
 	
 	ConsonantProperty (double probability)
 	{
@@ -264,7 +264,7 @@ enum VowelProperty implements SegmentProperty
 	FRONT(.991), CENTER(.159), BACK(.991),
 	LONG(.250);	// this one is extremely fudged
 	
-	double probability;
+	private double probability;
 	
 	VowelProperty (double probability)
 	{

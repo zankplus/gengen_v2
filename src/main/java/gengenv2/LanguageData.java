@@ -51,12 +51,12 @@ public class LanguageData
 			medialSyllableStructure += "(V)";
 		
 		terminalSyllableStructure = medialSyllableStructure;
-		if (p.codas.maxLength() > 0)
+		if (p.medialCodas.maxLength() > 0)
 		{
 			String coda = "";
-			for (int i = 0; i < p.codas.maxLength(); i++)
+			for (int i = 0; i < p.medialCodas.maxLength(); i++)
 				medialSyllableStructure += "(C";
-			for (int i = 0; i < p.codas.maxLength(); i++)
+			for (int i = 0; i < p.medialCodas.maxLength(); i++)
 				medialSyllableStructure += ")";
 			
 			if (p.baseMedialCodaChance > 0)

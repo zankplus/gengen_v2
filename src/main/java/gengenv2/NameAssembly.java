@@ -190,7 +190,7 @@ class NameAssembly
 			// Option 2: Simple onset
 			else if (rand < emptyOnsetChance + simpleOnsetChance)
 			{
-				Constituent c = p.medialOnsets.pickSimple();
+				Constituent c = p.initialOnsets.pickSimple();
 				pName *= simpleOnsetChance;
 				pName *= c.probability;
 				addConstituent(c);
@@ -200,10 +200,10 @@ class NameAssembly
 			// Option 3: Complex onset
 			else
 			{
-				Constituent c = p.medialOnsets.pickComplex();
+				Constituent c = p.initialOnsets.pickComplex();
 				pName *= complexOnsetChance;
 				pName *= c.probability;
-				pName *= p.medialOnsets.getLengthProbability(c.content.length);
+				pName *= p.initialOnsets.getLengthProbability(c.content.length);
 				addConstituent(c);
 				return slNode;
 			}
@@ -686,13 +686,13 @@ class NameAssembly
 			{
 				// Add compound interlude: Add any coda, then any onset from that coda's interlude list
 				// Add coda
-				Constituent next = p.codas.pick();
+				Constituent next = p.medialCodas.pick();
 				Constituent nextOnset = next.lastPhoneme().followers.pick();
 				
 				pName *= compoundInterludeChance / sum;
 				
 				pName *= next.probability;
-				pName *= p.codas.getLengthProbability(next.size());
+				pName *= p.medialCodas.getLengthProbability(next.size());
 				
 				pName *= nextOnset.probability;
 				if (nextOnset.content.length == 1)
@@ -979,7 +979,7 @@ class NameAssembly
 			// Select next node
 			if (next.content.length == 1)
 			{
-				addConstituent(p.codas.pickComplex());
+				addConstituent(p.medialCodas.pickComplex());
 				return null;
 			}
 			else
@@ -1022,9 +1022,9 @@ class NameAssembly
 			}
 			else
 			{
-				Constituent next = p.codas.pickComplex();
+				Constituent next = p.medialCodas.pickComplex();
 				pName *= heavyCodaChance;
-				pName *= next.probability * p.codas.getLengthProbability(next.size());
+				pName *= next.probability * p.medialCodas.getLengthProbability(next.size());
 				addConstituent(next);
 				return null;
 			}
@@ -1056,7 +1056,7 @@ class NameAssembly
 			double sum = simpleCodaChance + emptyCodaChance;
 			if (rng.nextDouble() * sum < simpleCodaChance)
 			{
-				Constituent next = p.codas.pickSimple();
+				Constituent next = p.medialCodas.pickSimple();
 				pName *= simpleCodaChance;
 				pName *= next.probability;
 				addConstituent(next);
@@ -1120,23 +1120,23 @@ class NameAssembly
 				for (int i = 0; i < p.nuclei.countMembersOfLength(2); i++)
 					complexNucleusH += scaledInfo(p.nuclei.getMembersOfLength(2).get(i).probability);
 			
-			if (p.codas != null)
+			if (p.medialCodas != null)
 			{
-				for (int i = 1; i <= p.codas.maxLength(); i++)
-					for (Constituent c : p.codas.getMembersOfLength(i))
+				for (int i = 1; i <= p.medialCodas.maxLength(); i++)
+					for (Constituent c : p.medialCodas.getMembersOfLength(i))
 					{
-						double e = scaledInfo(c.probability * p.codas.getLengthProbability(i));
+						double e = scaledInfo(c.probability * p.medialCodas.getLengthProbability(i));
 						if (i == 1)
 							simpleCodaH += e;	// Simple coda
 						else
 							complexCodaH += e;	// Complex coda
 					}
 				
-				for (int i = 1; i <= p.codas.maxLength(); i++)
-					for (Constituent coda : p.codas.getMembersOfLength(i))
+				for (int i = 1; i <= p.medialCodas.maxLength(); i++)
+					for (Constituent coda : p.medialCodas.getMembersOfLength(i))
 					{
 						// Coda probability
-						double codaProb = coda.probability * p.codas.getLengthProbability(i);
+						double codaProb = coda.probability * p.medialCodas.getLengthProbability(i);
 						
 						for (int j = 1; j <= coda.lastPhoneme().followers.maxLength(); j++)
 							for (Constituent onset : coda.lastPhoneme().followers.getMembersOfLength(j))

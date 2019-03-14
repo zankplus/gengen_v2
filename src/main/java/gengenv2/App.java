@@ -39,7 +39,10 @@ public class App
     public static void main(String[] args)
     {   
     	// Revisit this
-		Phonology p = new Phonology(5936407455772460342L);
+    	Phonology p = new Phonology();
+    	
+//    	p.printInventory(p.initialOnsets.getMembersOfLength(2));
+    	
 //		System.out.println("MEDIAL");
 //    	for (int i = 1; i <= p.medialOnsets.maxLength(); i++)
 //    		p.printInventory(p.medialOnsets.getMembersOfLength(i));
@@ -47,7 +50,7 @@ public class App
 //    	for (int i = 1; i <= p.initialOnsets.maxLength(); i++)
 //    		p.printInventory(p.initialOnsets.getMembersOfLength(i));
 		
-//    	p.compareOnsets();
+    	p.compareOnsets();
 		
 		List<Name> names = p.makeNames(60);
 		Collections.sort(names, new Comparator<Name>() {
