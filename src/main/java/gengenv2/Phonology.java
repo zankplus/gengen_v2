@@ -57,8 +57,9 @@ public class Phonology
 	 * nameAssembly creates words using phonology's rules for syllable structure. stressRules represents the 
 	 * Phonology's rules for stress and rhythm, and is used to assign stress to words NameAssembly has made.
 	 */
-	NameAssembly nameAssembly;
+	NameAssembly assembly;
 	StressRules stressRules;
+	SuffixLibrary suffixes;
 	
 	/* Prominence values
 	 * 
@@ -81,10 +82,15 @@ public class Phonology
 	PhoneticRatings baseConsonantRatings;	// Prominence of each consonantal phonetic property in the Phonology, as applied to 
 											// syllable onsets. This is the the basic value from which other consonantal prominences
 											// are derived by disturbance.
-	PhoneticRatings baseCodaRatings;	// Prominence of each consonantal property, as applied to syllable codas
-	PhoneticRatings baseVowelRatings;	// Prominence of each vocalic phonetic property
-	
+	PhoneticRatings baseCodaRatings;		// Prominence of each consonantal property, as applied to syllable codas
 	PhoneticRatings wordInitialRatings;
+	PhoneticRatings terminalCodaRatings;
+	
+	PhoneticRatings baseVowelRatings;			// Prominence of each vocalic phonetic property
+	PhoneticRatings	initialNucleusRatings;		// Prominence of 
+	PhoneticRatings	terminalNucleusRatings;
+	PhoneticRatings rootNucleusRatings;
+	
 	PhoneticRatings onsetClusterLeadRatings;
 	PhoneticRatings onsetClusterFollowRatings;
 	PhoneticRatings diphthongLeadRatings;
@@ -103,8 +109,8 @@ public class Phonology
 	 * vowel inventories. Note that a phoneme appearing in one of these inventories may still be absent from the
 	 * language in practice if its prominence is 0 in every context.
 	 */
-	Phoneme[] consonantInventory;	// List of CONSONANTS represented in this Phonology
-	Phoneme[] vowelInventory;		// List of VOWELS represented in this Phonology
+	ConsonantPhoneme[] consonantInventory;	// List of CONSONANTS represented in this Phonology
+	VowelPhoneme[] vowelInventory;		// List of VOWELS represented in this Phonology
 	
 	/*
 	 * Syllable segment inventories
@@ -117,7 +123,10 @@ public class Phonology
 	 */
 	protected ConstituentLibrary medialOnsets;
 	protected ConstituentLibrary initialOnsets;
-	protected ConstituentLibrary nuclei;
+	protected ConstituentLibrary medialNuclei;
+	protected ConstituentLibrary initialNuclei;
+	protected ConstituentLibrary terminalNuclei;
+	protected ConstituentLibrary rootNuclei;
 	protected ConstituentLibrary medialCodas;	
 	protected ConstituentLibrary terminalCodas;
 	
@@ -201,14 +210,11 @@ public class Phonology
 	protected double baseCodaClusterChance;
 	protected double baseDiphthongChance;
 	
-	protected double strongHeavyRimeChance;
-	protected double strongLightRimeChance;
-	protected double weakHeavyRimeChance;
-	protected double weakLightRimeChance;
 	protected double baseEmptyInitialOnsetChance;
 	protected double baseMedialOnsetChance;
 	protected double baseMedialCodaChance;
 	protected double baseTerminalCodaChance;
+	protected double baseSuffixOnsetChance;
 	
 
 	/*
@@ -221,7 +227,9 @@ public class Phonology
 	
 	// Prominence means/stdevs
 	static double basicProminenceStdev				= 0.60;
-	static double basicProminenceMean				= 0.90;
+	static double basicProminenceMean				= 0.85;
+	static double basicCodaStdev					= 0.60;
+	static double basicCodaMean						= 0.90;
 	static double vowelProminenceStdev 				= 0.50;
 	static double vowelProminenceMean				= 1.00;
 	static double wordInitialStdev					= 0.25;
@@ -255,8 +263,8 @@ public class Phonology
 	static double onsetNgOffsetStdev				= 1;
 	static double onsetTlDlOffsetMean				= 1;
 	static double onsetTlDlOffsetStdev				= 0.5;
-	static double codaGlottalStopOffsetMean			= 2;
-	static double codaGlottalStopOffsetStdev			= 1;
+	static double codaGlottalStopOffsetMean			= 5;
+	static double codaGlottalStopOffsetStdev		= 1;
 	static double nasalDissonanceOffsetMean			= 2;
 	static double nasalDissonanceOffsetStdev		= 1;
 	static double unequalVoicingOffsetMean			= 1.25;
@@ -350,14 +358,13 @@ public class Phonology
 			makeCodas();
 		}
 		
-		// Gather statistical data 
-		counts = gatherStatistics();
-		
 		// Set base chances for use in the flowchart
 		setBaseChances();		
 		
 		// Create flowchart
-		nameAssembly = new NameAssembly(this);
+		assembly = new SimpleAssembly(this);
+		
+		makeSuffixes();
 		
 		// Create stress rules
 		stressRules = new StressRules();
@@ -457,7 +464,19 @@ public class Phonology
 		
 		// Medial nuclei
 		baseVowelRatings = new PhoneticRatings(false, vowelProminenceStdev, vowelProminenceMean);
-		 
+ 
+		initialNucleusRatings = new PhoneticRatings(baseVowelRatings);
+		initialNucleusRatings.disturb(0.5);
+		initialNucleusRatings.offset(-0.10);
+		
+		terminalNucleusRatings = new PhoneticRatings(baseVowelRatings);
+		terminalNucleusRatings.disturb(0.5);
+		terminalNucleusRatings.offset(-0.25);
+		
+		rootNucleusRatings = new PhoneticRatings(baseVowelRatings);
+		rootNucleusRatings.disturb(0.5);
+		rootNucleusRatings.offset(-0.25);
+		
 
 		
 		/*
@@ -470,17 +489,19 @@ public class Phonology
 		if (maxCodaLength > 0)
 		{
 			// Medial codas
-			baseCodaRatings = new PhoneticRatings(baseConsonantRatings);
+			baseCodaRatings = new PhoneticRatings(true, basicCodaStdev, basicCodaMean);
 			
 			// Coda disturbance is the square of a uniformly distributed random number between 0 and 1
 			codaDisturbance = Math.pow(rng.nextDouble(), 2);
 			
-			// Coda inhibitor is a gaussian random number; the mean and stdev are engine parameters.
 			codaRatingOffset = rng.nextGaussian() * codaOffsetStdev + codaOffsetMean;
 			codaRatingOffset = -Math.max(0, codaRatingOffset);
 			
 			baseCodaRatings.disturb(basicProminenceStdev * codaDisturbance);
 			baseCodaRatings.offset(codaRatingOffset);
+			
+			terminalCodaRatings = new PhoneticRatings(baseCodaRatings);
+			terminalCodaRatings.disturb(0.5);
 		}
 		
 		// Set onset cluster lead/follow prominences
@@ -653,9 +674,10 @@ public class Phonology
 					}
 	
 		// Add lists of constituents to library object
-		medialOnsets = new ConstituentLibrary(this, maxOnsetLength);
+		medialOnsets = new ConstituentLibrary(this, maxOnsetLength, ConstituentType.ONSET, 
+												ConstituentLocation.MEDIAL);
 		
-		generateOnsets(ProminenceType.BASIC, medialOnsets);
+		generateOnsets(medialOnsets);
 		
 		medialOnsets.removeUnusedMembers();
 		medialOnsets.normalizeAll();
@@ -663,11 +685,12 @@ public class Phonology
 		medialOnsets.setLengthProbabilities(baseOnsetClusterChance);
 		
 		
-		initialOnsets = new ConstituentLibrary(this, maxOnsetLength);
-		generateOnsets(ProminenceType.WORD_INITIAL, initialOnsets);
+		initialOnsets = new ConstituentLibrary(this, maxOnsetLength, ConstituentType.ONSET, 
+												ConstituentLocation.INITIAL);
+		generateOnsets(initialOnsets);
 		initialOnsets.removeUnusedMembers();
+//		initialOnsets.exaggerate(2);
 		initialOnsets.normalizeAll();
-		initialOnsets.exaggerate(2);
 		initialOnsets.sortAll();
 		initialOnsets.setLengthProbabilities(baseOnsetClusterChance);
 	}
@@ -710,16 +733,43 @@ public class Phonology
 					}
 		}
 		
-		// Initialize nucleus library
-		nuclei = new ConstituentLibrary(this, maxNucleusLength);
+		// Populate medial nucleus library
+		medialNuclei = new ConstituentLibrary(this, maxNucleusLength, ConstituentType.NUCLEUS,
+												ConstituentLocation.MEDIAL);
+		generateNuclei(medialNuclei);
+		medialNuclei.removeUnusedMembers();
+		medialNuclei.normalizeAll();
+		medialNuclei.sortAll();
+		medialNuclei.setLengthProbabilities(baseDiphthongChance);
 		
-		generateMedialNuclei();
+		// Populate initial nucleus library
+		initialNuclei = new ConstituentLibrary(this, maxNucleusLength, ConstituentType.NUCLEUS,
+												ConstituentLocation.INITIAL);
+		generateNuclei(initialNuclei);
+		initialNuclei.removeUnusedMembers();
+		medialNuclei.exaggerate(2);
+		initialNuclei.normalizeAll();
+		initialNuclei.sortAll();
+		initialNuclei.setLengthProbabilities(baseDiphthongChance);
 		
-		nuclei.removeUnusedMembers();
-		nuclei.normalizeAll();
-		nuclei.sortAll();
-		nuclei.setLengthProbabilities(baseDiphthongChance);
-		
+		// Populate initial nucleus library
+		terminalNuclei = new ConstituentLibrary(this, maxNucleusLength, ConstituentType.NUCLEUS,
+												ConstituentLocation.TERMINAL);
+		generateNuclei(terminalNuclei);
+		terminalNuclei.removeUnusedMembers();
+		terminalNuclei.exaggerate(2);
+		terminalNuclei.normalizeAll();
+		terminalNuclei.sortAll();
+		terminalNuclei.setLengthProbabilities(baseDiphthongChance);
+
+		// Populate initial nucleus library
+		rootNuclei = new ConstituentLibrary(this, maxNucleusLength, ConstituentType.NUCLEUS,
+											ConstituentLocation.ROOT);
+		generateNuclei(rootNuclei);
+		rootNuclei.removeUnusedMembers();
+		rootNuclei.normalizeAll();
+		rootNuclei.sortAll();
+		rootNuclei.setLengthProbabilities(baseDiphthongChance);
 	}
 
 	/**
@@ -759,10 +809,11 @@ public class Phonology
 					}
 	
 		// Initialize coda library
-		medialCodas = new ConstituentLibrary(this, maxCodaLength);
+		medialCodas = new ConstituentLibrary(this, maxCodaLength, ConstituentType.CODA,
+												ConstituentLocation.MEDIAL);
 		
 		// Populate coda list
-		generateMedialCodas();
+		generateCodas(medialCodas);
 
 		// Remove unused codas
 		medialCodas.removeUnusedMembers();
@@ -772,6 +823,15 @@ public class Phonology
 		
 		if (medialCodas.maxLength() > 0)
 			makeInterludes();
+		
+		terminalCodas = new ConstituentLibrary(this, maxCodaLength, ConstituentType.CODA, 
+												ConstituentLocation.TERMINAL);
+		generateCodas(terminalCodas);
+		terminalCodas.removeUnusedMembers();
+		terminalCodas.exaggerate(2);
+		terminalCodas.normalizeAll();
+		terminalCodas.sortAll();
+		terminalCodas.setLengthProbabilities(baseDiphthongChance);
 	}
 	
 	/**
@@ -785,10 +845,14 @@ public class Phonology
 	private void makeHiatus()
 	{
 		// Create follower lists for all vowels in inventory
-		for (Phoneme vp : vowelInventory)
+		for (VowelPhoneme vp : vowelInventory)
 		{
-			vp.followers = new ConstituentLibrary(this, nuclei.maxLength(), null, baseDiphthongChance);
-			vp.followers.createEmptyLibrary();
+			vp.followers = new ConstituentLibrary(this, medialNuclei.maxLength(), ConstituentType.NUCLEUS,
+													ConstituentLocation.MEDIAL);
+			vp.terminalFollowers = new ConstituentLibrary(this, terminalNuclei.maxLength(),
+															ConstituentType.NUCLEUS, ConstituentLocation.TERMINAL);
+			vp.rootFollowers = new ConstituentLibrary(this, rootNuclei.maxLength(), ConstituentType.NUCLEUS,
+														ConstituentLocation.ROOT);
 		}
 		
 		hiatusOffset = rng.nextGaussian() * hiatusOffsetStdev;
@@ -797,31 +861,52 @@ public class Phonology
 
 		// Roll lead and follow probabilities.
 		// -1 to count ignores the 'lengthener' segment
-		double[] leadProbability = new double[Vowel.count - 1], followProbability = new double[Vowel.count - 1];
-		for (int i = 0; i < leadProbability.length; i++)
-			leadProbability[i] = rng.nextDouble();
-		for (int i = 0; i < followProbability.length; i++)
-			followProbability[i] = rng.nextDouble();
-		
-		for (int i = 0; i < nuclei.countMembersOfLength(1); i++)
+		double[] leadProbabilities = new double[Vowel.count - 1], followProbabilities = new double[Vowel.count - 1];
+		for (int i = 0; i < leadProbabilities.length; i++)
 		{
-			Phoneme p1 = nuclei.getMembersOfLength(1).get(i).content[0];
-			for (int j = 0; j < nuclei.countMembersOfLength(1); j++)
-			{
-				Phoneme p2 = nuclei.getMembersOfLength(1).get(j).content[0];
-				
-				// Chance of representation ~= f(.3 x 4^(commonness - 3))
-				// 3 -> .446, 2 -> .155, 1 -> .050
-				double probability = 0.3 * Math.pow(4, transProb[p1.segment.id][p2.segment.id] - 3) + hiatusOffset;
-				
-				if (leadProbability[p1.segment.id] * followProbability[p2.segment.id] < probability)
-					p1.addInterlude(nuclei.getMembersOfLength(1).get(j));
-			}
+			leadProbabilities[i] = rng.nextDouble();
+			followProbabilities[i] = rng.nextDouble();
+		}
+		
+		// Medial hiatus
+		for (VowelPhoneme v1 : vowelInventory)
+		{
+			makeHiatusForVowel(v1, medialNuclei, leadProbabilities, followProbabilities);
+			makeHiatusForVowel(v1, terminalNuclei, leadProbabilities, followProbabilities);
+			makeHiatusForVowel(v1, rootNuclei, leadProbabilities, followProbabilities);
 			
 			// Normalize probabilities and sort the current vowel's interludes according to them
-			p1.followers.normalizeAll();
-			p1.followers.sortAll();
-			p1.followers.setLengthProbabilities(baseDiphthongChance);
+			v1.rootFollowers.normalizeAll();
+			v1.rootFollowers.sortAll();
+			v1.rootFollowers.setLengthProbabilities(baseDiphthongChance);
+			
+			v1.followers.normalizeAll();
+			v1.followers.sortAll();
+			v1.followers.setLengthProbabilities(baseDiphthongChance);
+			
+			v1.terminalFollowers.normalizeAll();
+			v1.terminalFollowers.sortAll();
+			v1.terminalFollowers.setLengthProbabilities(baseDiphthongChance);
+		}
+	}
+	
+	private void makeHiatusForVowel(VowelPhoneme v1, ConstituentLibrary lib, double[] leadProbabilities,
+										double[] followProbabilities)
+	{
+		for (int j = 0; j < lib.countMembersOfLength(1); j++)
+		{
+			Phoneme v2 = lib.getMembersOfLength(1).get(j).content[0];
+			if (!v1.segment.expression.equals(":"))
+			{
+				// Chance of representation ~= f(.3 x 4^(commonness - 3))
+				// 3 -> .446, 2 -> .155, 1 -> .050
+				double probability = 0.3 * Math.pow(4, Phonotactics.hiatusTransitions[v1.segment.id][v2.segment.id]
+													- 3) + hiatusOffset;
+				if (leadProbabilities[v1.segment.id] * followProbabilities[v2.segment.id] < probability)
+				{
+					v1.addInterlude(lib.getMembersOfLength(1).get(j), lib.getLocation());
+				}
+			}
 		}
 	}
 	
@@ -838,8 +923,8 @@ public class Phonology
 		// Create follower lists for all consonants in inventory
 		for (Phoneme phoneme : consonantInventory)
 		{
-			phoneme.followers = new ConstituentLibrary(this, medialOnsets.maxLength(), null, baseOnsetClusterChance);
-			phoneme.followers.createEmptyLibrary();
+			phoneme.followers = new ConstituentLibrary(this, medialOnsets.maxLength(), ConstituentType.ONSET,
+														ConstituentLocation.MEDIAL);
 		}
 		
 		interludeOffset = rng.nextGaussian() * interludeOffsetStdev;
@@ -892,71 +977,6 @@ public class Phonology
 	}
 		
 	/**
-	 * Counts a number of linguistic features. This information is useful later for constructing the NameAssembly:
-	 * nodes with more possibilities should be given greater weight, and in order to count those possibilities, we
-	 * need to know the prevalence of different features in this Phonology. The types of features counted (as of
-	 * 1.0) are simple and complex onsets, simple and complex nuclei, simple and complex codas, simple and complex
-	 * nuclei with available hiatus transitions, compound interludes, and light and heavy rimes.
-	 * 
-	 * @return 	int[]	An array holding the tally for each feature counted in the current Phonology
-	 * @since	1.0
-	 */
-	private int[] gatherStatistics()
-	{
-		int[] results = new int[11];
-		
-		// Count all simple and complex onsets
-		results[SIMPLE_ONSETS] += medialOnsets.countMembersOfLength(1);
-		for (int i = 2; i <= medialOnsets.maxLength(); i++)
-			results[COMPLEX_ONSETS] += medialOnsets.countMembersOfLength(i);
-		
-		// Count all simple and complex nuclei, and separately count those with hiatus
-		for (int i = 1; i <= nuclei.maxLength(); i++)
-		{
-			if (i == 1)
-				results[SIMPLE_NUCLEI] += nuclei.countMembersOfLength(1);
-			else
-				results[COMPLEX_NUCLEI] += nuclei.countMembersOfLength(i);
-		
-			for (Constituent c : nuclei.getMembersOfLength(i))
-				if (!c.content[c.content.length - 1].followers.getMembersOfLength(1).isEmpty())
-					if (i == 1)
-						results[SIMPLE_NUCLEI_WITH_HIATUS]++;
-					else
-						results[COMPLEX_NUCLEI_WITH_HIATUS]++;
-		}
-		
-		// Count all simple and complex codas, and compound interludes
-		if (medialCodas != null)
-			for (int i = 1; i <= medialCodas.maxLength(); i++)
-			{
-				if (i == 1)
-					results[SIMPLE_CODAS] += medialCodas.countMembersOfLength(i);
-				else
-					results[COMPLEX_CODAS] += medialCodas.countMembersOfLength(i);
-				
-				for (Constituent c : medialCodas.getMembersOfLength(i))
-				{
-					Phoneme last = c.content[c.content.length - 1];
-					results[COMPOUND_INTERLUDES] += last.followers.size();
-				}
-			}
-		
-		// Count light and heavy rimes
-		results[LIGHT_RIMES]  = results[SIMPLE_NUCLEI] * results[SIMPLE_ONSETS]
-							  +	results[SIMPLE_NUCLEI_WITH_HIATUS];
-		
-		results[HEAVY_RIMES]  = results[SIMPLE_NUCLEI] * results[COMPLEX_ONSETS] 
-							  + results[SIMPLE_NUCLEI] * (results[SIMPLE_CODAS] + results[COMPLEX_CODAS])
-							  + results[COMPLEX_NUCLEI_WITH_HIATUS]
-							  + results[COMPLEX_NUCLEI] * results[SIMPLE_ONSETS]
-							  + results[COMPLEX_NUCLEI] * results[COMPLEX_ONSETS]
-							  + results[COMPLEX_NUCLEI] * (results[SIMPLE_CODAS] + results[COMPLEX_CODAS]);
-		
-		return results;
-	}
-
-	/**
 	 * Sets base chances for heavy/light rimes, medial onsets, and medial/terminal codas. These values are used
 	 * in NameAssembly to determine the weights of transitions between nodes.
 	 * 
@@ -971,45 +991,6 @@ public class Phonology
 		// Chance of a name starting with a vowel
 		baseEmptyInitialOnsetChance = Math.max(rng.nextGaussian() * emptyInitialOnsetProminenceStdev + emptyInitialOnsetProminenceMean, 0);
 		
-		// Determine the chances of finding light or heavy rimes in weak or strong syllables.
-		// If the Phonology has no heavy rimes, then it must have light ones in all positions.
-		if (counts[HEAVY_RIMES] == 0)
-		{
-			weakLightRimeChance = 1;
-			strongLightRimeChance = 1;
-			weakHeavyRimeChance = 0;
-			strongHeavyRimeChance = 0;
-		}
-		else
-		{
-			// Strong syllables 
-			strongHeavyRimeChance = rng.nextGaussian() * strongHeavyRimeChanceStdev + strongHeavyRimeChanceMean;
-			strongHeavyRimeChance = Math.max(Math.min(strongHeavyRimeChance, 1), 0);
-			strongLightRimeChance = (1 - strongHeavyRimeChance);
-			
-			double total = strongHeavyRimeChance + strongLightRimeChance;
-			strongHeavyRimeChance /= total;
-			strongLightRimeChance /= total;
-			
-			// 
-			weakHeavyRimeChance = rng.nextGaussian() * weakHeavyRimeChanceStdev + weakHeavyRimeChanceMean;
-			weakHeavyRimeChance = Math.max(Math.min(weakHeavyRimeChance, 1), 0);
-			weakLightRimeChance = (1 - weakHeavyRimeChance);
-			
-			total = weakHeavyRimeChance + weakLightRimeChance;
-			weakHeavyRimeChance /= total;
-			weakLightRimeChance /= total;
-		}
-		
-		// Add a tiny amount to each chance.
-		// This corrects situations in NameAssembly's SyllableWeightNodes where the chances of light and heavy rimes are both 0.
-		weakLightRimeChance   += 0.000001;
-		strongLightRimeChance += 0.000001;
-		weakHeavyRimeChance   += 0.000001;
-		strongHeavyRimeChance += 0.000001;
-		
-		
-		
 		double baseCodaChance, codaLocationBalance;
 		LogNormalDistribution logNormal;
 		
@@ -1020,7 +1001,7 @@ public class Phonology
 		if (counts[SIMPLE_NUCLEI_WITH_HIATUS] > 0)
 			baseMedialOnsetChance = 1 - (logNormal.sample() - baseOnsetChanceOffset);
 		else
-			baseMedialOnsetChance = 1;
+			baseMedialOnsetChance = 0.5f;
 		
 		baseMedialOnsetChance = Math.max(Math.min(baseMedialOnsetChance, 1), 0);
 		
@@ -1047,26 +1028,66 @@ public class Phonology
 		if (maxOnsetLength < 2)	baseOnsetClusterChance = 0;
 		if (maxNucleusLength < 2)	baseDiphthongChance = 0;
 		if (maxCodaLength < 2)		baseCodaClusterChance = 0;
+		
+//		baseSuffixOnsetChance = Math.min(Math.max(rng.nextDouble() * 2 - 0.5, 0), 1);
+		baseSuffixOnsetChance = 0;
 	}
 	
 	
 	
+	private void makeSuffixes()
+	{
+		suffixes = new SuffixLibrary();
+		
+		Name[] names = new Name[10];
+		double[] probs = new double[10];
+		
+		for(int i = 0; i < 10; i++)
+    		names[i] = ((SimpleAssembly)assembly).makeSuffix();
+		for(int i = 0; i < 10; i++)
+			suffixes.addName(names[i], rng.nextDouble());
+		
+		double exaggerationFactor = 2;
+		suffixes.exaggerate(exaggerationFactor);
+		suffixes.sort();
+		suffixes.normalize();
+	}
+
 	/**
 	 * Generates onset inventories by calling the recursive function generateMedialOnsets for each
 	 * phoneme on the consonant inventory.
 	 * @since	1.2
 	 */
-	private void generateOnsets(ProminenceType type, ConstituentLibrary lib)
+	private void generateOnsets(ConstituentLibrary lib)
 	{
 		for (Phoneme p : consonantInventory)
 		{
 			ArrayList<Phoneme> onset = new ArrayList<Phoneme>();
 			onset.add(p);
-			generateOnsets(onset, type, lib);
+			generateOnsets(onset, lib);
 		}
 	}
 	
-	enum ProminenceType { BASIC, WORD_INITIAL };
+	private void generateNuclei(ConstituentLibrary lib)
+	{
+		for (Phoneme p : vowelInventory)
+		{
+			ArrayList<Phoneme> nucleus = new ArrayList<Phoneme>();
+			nucleus.add(p);
+			generateNuclei(nucleus, lib);
+		}
+	}
+	
+	
+	private void generateCodas(ConstituentLibrary lib)
+	{
+		for (Phoneme p : consonantInventory)
+		{
+			ArrayList<Phoneme> coda = new ArrayList<Phoneme>();
+			coda.add(p);
+			generateCodas(coda, lib, Phonotactics.codaTransitions.length - 1);
+		}
+	}
 	
 	/**
 	 * Discovers every available onset beginning with the given phoneme sequence. This method starts by adding 
@@ -1075,7 +1096,7 @@ public class Phonology
 	 * @param	onset	An onset of arbitrary length
 	 * @since	1.2
 	 */
-	private void generateOnsets(ArrayList<Phoneme> onset, ProminenceType type, ConstituentLibrary lib)
+	private void generateOnsets(ArrayList<Phoneme> onset, ConstituentLibrary lib)
 	{
 		double prominence;
 		
@@ -1083,11 +1104,18 @@ public class Phonology
 		// To do this, its prominence (unnormalized probability) must be calculated.
 		// For simple onsets, the prominence is merely equal to its sole phoneme's onset initial prominence.
 		
-		if (type == ProminenceType.BASIC)
-			prominence = ((ConsonantPhoneme) onset.get(0)).basicInitialProminence;
-		else
-			prominence = ((ConsonantPhoneme) onset.get(0)).wordInitialProminence;
-
+		switch(lib.getLocation())
+		{
+			case MEDIAL: 
+				prominence = ((ConsonantPhoneme) onset.get(0)).medialProminence;
+				break;
+			case INITIAL:
+				prominence = ((ConsonantPhoneme) onset.get(0)).wordInitialProminence;
+				break;
+			default:
+				return;
+		}
+	
 		// For complex onsets, the initial onset prominence of the first phoneme is combined with the
 		// onset cluster lead/follow prominences for every consecutive pair of phonemes by adding their
 		// deviations from their common mean. The onsetClusterOffset is also applied for each pair.
@@ -1135,40 +1163,14 @@ public class Phonology
 								copy.add(p);
 							copy.add(consonantInventory[j]);
 							
-							generateOnsets(copy, type, lib);
+							generateOnsets(copy, lib);
 							j = consonantInventory.length;	// Segment found; stop searching
 						}
 				}
 			}
 	}
-	
-	/**
-	 * Generates the nucleus inventories by calling the recursive function generateMedialNuclei on each
-	 * phoneme in the vowel inventory.
-	 * @since	1.2
-	 */
-	private void generateMedialNuclei()
-	{
-		ArrayList<Constituent>[] nuclei = new ArrayList[maxNucleusLength];
-		for (int i = 0; i < nuclei.length; i++)
-			nuclei[i] = new ArrayList<Constituent>();
-		
-		for (Phoneme p : vowelInventory)
-		{
-			ArrayList<Phoneme> nucleus = new ArrayList<Phoneme>();
-			nucleus.add(p);
-			generateMedialNuclei(nucleus);
-		}
-	}
-	
-	/**
-	 * Discovers every available nucleus beginning with the given phoneme sequence. This method starts by adding 
-	 * the current phoneme, then recurses on every nucleus that might be formed by adding one more phoneme to the 
-	 * current one.
-	 * @param	nucleus		A nucleus of arbitrary length
-	 * @since	1.2
-	 */
-	private void generateMedialNuclei(ArrayList<Phoneme> nucleus)
+
+	private void generateNuclei(ArrayList<Phoneme> nucleus, ConstituentLibrary lib)
 	{
 		// Do not allow nuclei beginning with a vowel lengthener
 		if (nucleus.get(0).segment.expression.equals(":"))
@@ -1178,7 +1180,24 @@ public class Phonology
 		// To do this, its prominence (unnormalized probability) must be calculated.
 		// For simple nuclei, the prominence is merely equal to its sole phoneme's onset initial prominence (we're talking
 		// about nuclei here, but the variable does double duty).
-		double prominence = ((VowelPhoneme) nucleus.get(0)).basicInitialProminence;
+		double prominence;
+		switch (lib.getLocation())
+		{
+			case INITIAL:
+				prominence = ((VowelPhoneme) nucleus.get(0)).wordInitialProminence;
+				break;
+			case MEDIAL:
+				prominence = ((VowelPhoneme) nucleus.get(0)).medialProminence;
+				break;
+			case TERMINAL:
+				prominence = ((VowelPhoneme) nucleus.get(0)).terminalProminence;
+				break;
+			case ROOT:
+				prominence = ((VowelPhoneme) nucleus.get(0)).rootProminence;
+				break;
+			default:
+				return;
+		}
 		
 		// For complex nuclei, the maximum length of which is 2, the initial onset prominence of the first phoneme is
 		// combined with the diphtong lead and follow prominences for pair by adding their deviations from their common mean.
@@ -1191,7 +1210,7 @@ public class Phonology
 		
 		// Add this nucleus to the appropriate nucleus inventory
 		Constituent c = new Constituent(ConstituentType.NUCLEUS, nucleus.toArray(new Phoneme[nucleus.size()]), prominence);
-		nuclei.add(c);
+		lib.add(c);
 		
 		// If you've reached the largest nucleus length, return without examining any longer diphthongs
 		if (nucleus.size() >= maxNucleusLength)
@@ -1217,28 +1236,13 @@ public class Phonology
 								copy.add(p);
 							copy.add(vowelInventory[j]);
 							
-							generateMedialNuclei(copy);
+							generateNuclei(copy, lib);
 							j = vowelInventory.length;	// Segment found; stop searching
 						}
 				}
 			}
 	}
-	
-	/**
-	 * Generates coda inventories by calling the recursive function generateMedialCodas for each
-	 * phoneme in the consonant inventory.
-	 * @since	1.2
-	 */
-	private void generateMedialCodas()
-	{
-		for (Phoneme p : consonantInventory)
-		{
-			ArrayList<Phoneme> coda = new ArrayList<Phoneme>();
-			coda.add(p);
-			generateMedialCodas(coda, Phonotactics.codaTransitions.length - 1);
-		}
-	}
-	
+
 	/**
 	 * Discovers every available coda beginning with the given phoneme sequence. This method starts by adding
 	 * the current phoneme, then recurses on every coda that might be formed by adding one more phoneme to 
@@ -1247,7 +1251,7 @@ public class Phonology
 	 * @param	start	Index of the phonotactic category to start searching at
 	 * @since	1.2
 	 */
-	private void generateMedialCodas(ArrayList<Phoneme> coda, int start)
+	private void generateCodas(ArrayList<Phoneme> coda, ConstituentLibrary lib, int start)
 	{
 		// Do not allow codas beginning with a glide (this feature is covered by diphthongs)
 		if (coda.get(0).segment.properties[0].equals(ConsonantProperty.GLIDE))
@@ -1256,7 +1260,19 @@ public class Phonology
 		// Start by adding the current phoneme.
 		// To do this, its prominence (unnormalized probability) must be calculated.
 		// For simple codas, the prominence is merely equal to its sole phoneme's codaInitialProminence.
-		double prominence = ((ConsonantPhoneme) coda.get(0)).codaInitialProminence;
+		double prominence;
+		
+		switch(lib.getLocation())
+		{
+			case MEDIAL: 
+				prominence = ((ConsonantPhoneme) coda.get(0)).medialCodaProminence;
+				break;
+			case TERMINAL:
+				prominence = ((ConsonantPhoneme) coda.get(0)).terminalCodaProminence;
+				break;
+			default:
+				return;	
+		}
 		
 		// For complex codas, the initial coda prominence of the first phoneme is combined with the
 		// coda cluster lead/follow prominences for every consecutive pair of phonemes by adding their
@@ -1275,7 +1291,7 @@ public class Phonology
 		
 		// Add the current coda to the appropriate coda inventory
 		Constituent c = new Constituent(ConstituentType.CODA, coda.toArray(new Phoneme[coda.size()]), prominence);
-		medialCodas.add(c);
+		lib.add(c);
 		
 		// If you've reached the largest cluster size, return immediately and do not examine large clusters
 		if (coda.size() >= maxCodaLength)
@@ -1301,7 +1317,7 @@ public class Phonology
 								copy.add(p);
 							copy.add(consonantInventory[j]);
 							
-							generateMedialCodas(copy, start);
+							generateCodas(copy, lib, start);
 							j = consonantInventory.length;	// Segment found; stop searching		
 						}
 				}
@@ -1411,7 +1427,7 @@ public class Phonology
 	 */
 	public Name makeName()
 	{
-		return nameAssembly.makeName();
+		return assembly.makeName();
 	}
 	
 	/**
@@ -1427,7 +1443,7 @@ public class Phonology
 		
 		for (int i = 0; i < number; i++)
 		{
-			Name name = nameAssembly.makeName();
+			Name name = assembly.makeName();
 			names.add(name);
 		}
 			
@@ -1452,13 +1468,7 @@ public class Phonology
 		for (int i = 1; i <= maxCodaLength; i++)
 			printInventory(medialCodas.getMembersOfLength(i));
 		for (int i = 1; i <= maxNucleusLength; i++)
-			printInventory(nuclei.getMembersOfLength(i));
-
-		// Print assorted base chances
-		System.out.printf("strong:\tHeavy %.3f\n", strongHeavyRimeChance);
-		System.out.printf("\t\tLight %.3f\n",  strongLightRimeChance);
-		System.out.printf("weak:\tHeavy %.3f\n", weakHeavyRimeChance);
-		System.out.printf("\t\tLight %.3f\n",  weakLightRimeChance);
+			printInventory(medialNuclei.getMembersOfLength(i));
 	}
 	
 	/**
@@ -1476,6 +1486,27 @@ public class Phonology
 			System.out.printf("%s\t%.3f\n", c, (c.probability / 1));
 		
 		System.out.println();
+	}
+	
+	public void printHiatus()
+	{
+		for (VowelPhoneme p : vowelInventory)
+		{
+			System.out.println(p.segment.expression + ":");
+			ConstituentLibrary[] libs = new ConstituentLibrary[] { p.followers, p.terminalFollowers, 
+					p.rootFollowers };
+			
+			for (int j = 0; j < libs.length; j++)
+			{
+				System.out.print(libs[j].getLocation() + "  \t");
+				for (int i = 1; i <= libs[j].maxLength(); i++)
+				{
+					for (Constituent c : libs[j].getMembersOfLength(i))
+						System.out.printf("%s %.2f\t", c, c.probability * libs[j].getLengthProbability(c.size()));
+				}
+				System.out.println();
+			}
+		}
 	}
 	
 	/**
@@ -1496,7 +1527,7 @@ public class Phonology
 	
 	public void compareOnsets()
 	{
-		for (int i = 1; i <= maxOnsetLength; i++)
+		for (int i = 1; i <= Math.max(maxOnsetLength, maxCodaLength); i++)
 		{
 			ArrayList<Constituent> list = new ArrayList<Constituent>()
 			{	
@@ -1515,7 +1546,8 @@ public class Phonology
 			};
 			
 			// Make combined set
-			ConstituentLibrary[] libs = new ConstituentLibrary[] { medialOnsets, initialOnsets, medialCodas };
+			ConstituentLibrary[] libs = new ConstituentLibrary[] { medialOnsets, initialOnsets, medialCodas,
+																	terminalCodas };
 			
 			for (ConstituentLibrary lib : libs)
 				if (lib != null && lib.maxLength() >= i)
@@ -1554,7 +1586,69 @@ public class Phonology
 		}
 		
 	}
-
+	
+	public void compareNuclei()
+	{
+		for (int i = 1; i <= maxNucleusLength; i++)
+		{
+			ArrayList<Constituent> list = new ArrayList<Constituent>()
+			{	
+				public boolean add(Constituent c)
+				{
+					Iterator itr = this.iterator();
+					while (itr.hasNext())
+					{
+						Constituent next = (Constituent) itr.next();
+						if (c.sameSequence(next))
+							return false;
+					}
+					super.add(c);
+					return true;
+				}
+			};
+			
+			// Make combined set
+			ConstituentLibrary[] libs = new ConstituentLibrary[] { medialNuclei, initialNuclei, terminalNuclei,
+																	rootNuclei };
+			
+			for (ConstituentLibrary lib : libs)
+				if (lib != null && lib.maxLength() >= i)
+					for (Constituent c : lib.getMembersOfLength(i))
+						list.add(c);
+			
+			// Print set
+			for (Constituent c : list)
+			{
+				String result = c.toString() + "\t";
+				
+				System.out.print(result);
+				
+				
+				
+				for (ConstituentLibrary lib : libs)
+				{
+					double prob = 0;
+					if (lib != null && i <= lib.maxLength())
+						for (Constituent onset : lib.getMembersOfLength(i))
+							if (onset.sameSequence(c))
+							{
+								prob = onset.probability;
+								break;
+							}
+					
+					if (prob == 0)
+						System.out.print("    0\t");
+					else
+						System.out.printf("%.3f\t", prob);
+				}
+				
+				System.out.println();
+			}
+			System.out.println();
+		}
+		
+	}
+	
 	/**
 	 * A phoneme, or basic unit of sound. A Phoneme is an instance of a Segment specific to a given Phonology;
 	 * the Segment determines what sound it makes, but the Phoneme includes its own rules for how that sound
@@ -1571,7 +1665,7 @@ public class Phonology
 		ConstituentLibrary followers;
 		
 		// Prominences
-		double basicInitialProminence;
+		double medialProminence;
 		double wordInitialProminence;
 		double interludeLeadProminence;		
 		double interludeFollowProminence;
@@ -1604,10 +1698,11 @@ public class Phonology
 			// If interludeLeadProminence <= 0, this phoneme does not lead in interludes/hiatus
 			if (interludeLeadProminence <= 0)
 				return;
+			
 			// Calculate interlude's probability.
 			// Base probability equals sum of following segment's interludeFollow and onsetInitial prominences
 			double probability = c.content[0].interludeFollowProminence;
-			probability += c.content[0].basicInitialProminence - 1;
+			probability += c.content[0].medialProminence - 1;
 			
 			// Apply nasal dissonance inhibitor, if relevant
 			if (segment.isConsonant() && isDissonantNasalCluster(this, c.content[0]))
@@ -1642,9 +1737,9 @@ public class Phonology
 						}
 				}
 			// ... or, if this is a hiatus, look at diphthongs
-			else if (nuclei.maxLength() == 2)
+			else if (medialNuclei.maxLength() == 2)
 			{
-				for (Constituent diphthong : nuclei.getMembersOfLength(2))
+				for (Constituent diphthong : medialNuclei.getMembersOfLength(2))
 					if (diphthong.content[0] == c.content[0])
 					{
 						// Set base probability equal to the next segment's prominence
@@ -1669,7 +1764,8 @@ public class Phonology
 	{
 		double onsetClusterLeadProminence;
 		double onsetClusterFollowProminence;
-		double codaInitialProminence;
+		double medialCodaProminence;
+		double terminalCodaProminence;
 		double codaClusterLeadProminence;
 		double codaClusterFollowProminence;
 		
@@ -1678,9 +1774,10 @@ public class Phonology
 			super(segment);
 			
 			// Assign default prominence values
-			basicInitialProminence       = 1;
-			wordInitialProminence		 = 1;
-			codaInitialProminence		 = 1;
+			medialProminence			 = 1;
+			wordInitialProminence	 	 = 1;
+			medialCodaProminence		 = 1;
+			terminalCodaProminence		 = 1;
 			
 			onsetClusterLeadProminence   = 1;
 			onsetClusterFollowProminence = 1;
@@ -1692,13 +1789,13 @@ public class Phonology
 			// Apply offsets
 			if (segment.expression.equals("ng"))
 			{
-				basicInitialProminence    -= onsetNgOffset;
+				medialProminence    -= onsetNgOffset;
 				wordInitialProminence	  -= onsetNgOffset;
 				interludeFollowProminence -= onsetNgOffset;
 			}
 			else if (segment.expression.equals("'"))
 			{
-				codaInitialProminence		-= codaGlottalStopOffset;
+				medialCodaProminence		-= codaGlottalStopOffset;
 				codaClusterLeadProminence	-= codaGlottalStopOffset;
 				codaClusterFollowProminence -= codaGlottalStopOffset;
 			}
@@ -1716,7 +1813,7 @@ public class Phonology
 				// Initial properties
 				double deviance = baseConsonantRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
-				basicInitialProminence += deviance;
+				medialProminence += deviance;
 				
 				deviance = wordInitialRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
@@ -1726,7 +1823,11 @@ public class Phonology
 				{
 					deviance = baseCodaRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
-					codaInitialProminence += deviance;
+					medialCodaProminence += deviance;
+					
+					deviance = terminalCodaRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(segment.properties.length);
+					terminalCodaProminence += deviance;
 				}
 				
 				// Onset cluster properties
@@ -1773,22 +1874,40 @@ public class Phonology
 	{
 		double nucleusLeadProminence;
 		double nucleusFollowProminence;
+		double terminalProminence;
+		double rootProminence;
+		
+		double hiatusMedialSyllableEntropy;	// entropy for a medial syllable starting with a vowel
+		double hiatusConsonantTerminationEntropy;
+		double hiatusVowelTerminationEntropy;
+		double hiatusRootSyllableEntropy;
+		
+		ConstituentLibrary terminalFollowers;
+		ConstituentLibrary rootFollowers;
 		
 		public VowelPhoneme(Segment segment)
 		{
 			super(segment);
 			
 			// Assign initial prominence values
-			basicInitialProminence	= 1;	// this functions as the nucleus initial prominence here
+			medialProminence			= 1;	// this functions as the nucleus initial prominence here
+			wordInitialProminence		= 1;
+			terminalProminence			= 1;
+			rootProminence				= 1;
 			nucleusLeadProminence 		= 1;
 			nucleusFollowProminence 	= 1;
 			interludeLeadProminence  	= 1;
 			interludeFollowProminence 	= 1;
 			
+			double hiatusMedialSyllableEntropy			= 0;
+			double hiatusConsonantTerminationEntropy	= 0;
+			double hiatusVowelTerminationEntropy		= 0;
+			double hiatusRootSyllableEntropy			= 0;
+			
 			// Apply offsets
 			if (segment.expression.equals(":"))
 			{
-				basicInitialProminence = Integer.MIN_VALUE;
+				medialProminence = Integer.MIN_VALUE;
 			}
 			
 			// Calculate prominence values
@@ -1796,8 +1915,20 @@ public class Phonology
 			{
 				double deviance = baseVowelRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
-				basicInitialProminence += deviance;
-
+				medialProminence += deviance;
+				
+				deviance = initialNucleusRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(segment.properties.length);
+				wordInitialProminence += deviance;
+				
+				deviance = terminalNucleusRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(segment.properties.length);
+				terminalProminence += deviance;
+				
+				deviance = rootNucleusRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(segment.properties.length);
+				rootProminence += deviance;
+				
 				deviance = hiatusLeadRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
 				interludeLeadProminence += deviance;
@@ -1829,6 +1960,68 @@ public class Phonology
 		public boolean isConsonant()
 		{
 			return false;
+		}
+		
+		protected void addInterlude(Constituent c, ConstituentLocation location)
+		{
+			// If interludeLeadProminence <= 0, this phoneme does not lead in interludes/hiatus
+			if (interludeLeadProminence <= 0)
+			{
+				System.out.println("Rejecting " + c + " from " + location + " " + this);
+				return;
+			}
+			
+			// Calculate interlude's probability.
+			// Base probability equals sum of following segment's interludeFollow and onsetInitial prominences
+			double probability = c.content[0].interludeFollowProminence;
+			
+			
+			ConstituentLibrary sourceLibrary, targetLibrary;
+			
+			switch(location)
+			{
+				case MEDIAL:
+					sourceLibrary = medialNuclei;
+					targetLibrary = followers;
+					probability += c.content[0].medialProminence - 1;
+					break;
+				case TERMINAL:
+					sourceLibrary = terminalNuclei;
+					targetLibrary = terminalFollowers;
+					probability += ((VowelPhoneme) c.content[0]).terminalProminence - 1;
+					break;
+				case ROOT:
+					sourceLibrary = rootNuclei;
+					targetLibrary = rootFollowers;
+					probability += ((VowelPhoneme) c.content[0]).rootProminence - 1;
+					break;
+				default:
+					return;
+			}
+			
+			// If probability is positive, add this interlude
+			if (probability > 0)
+			{
+				targetLibrary.add(new Constituent(c, probability));
+			}
+			
+			
+			// Consider adding diphthongs
+			if (sourceLibrary.maxLength() == 2)
+			{
+				for (Constituent diphthong : sourceLibrary.getMembersOfLength(2))
+					if (diphthong.content[0] == c.content[0])
+					{
+						// Set base probability equal to the next segment's prominence
+						probability = diphthong.probability;
+						
+						// If probability is positive, add this interlude
+						if (probability > 0)
+							targetLibrary.add(new Constituent(diphthong, probability));
+					}
+			}
+//			Print interlude statistics
+//			System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
 		}
 	}
 
@@ -1892,14 +2085,22 @@ public class Phonology
 		}
 		
 		/**
-		 * Returns the last Phoneme in the syllable segment.
 		 * @return	The last Phoneme in this segment's sequence of Phonemes.
 		 * @since	1.0
 		 */
 		public Phoneme lastPhoneme()
 		{
-			return content[content.length - 1];
+			if (content[content.length - 1].segment.expression.equals(":"))
+				return content[content.length - 2];
+			else
+				return content[content.length - 1];
 		}
+		
+		public ConstituentLibrary followers()
+		{
+			return lastPhoneme().followers;
+		}
+		
 		
 		/**
 		 * Returns a string containing the segment's constituent Phonemes in sequence.
@@ -2047,3 +2248,4 @@ public class Phonology
  * @since	1.0
  */
 enum ConstituentType { ONSET, NUCLEUS, CODA; }
+enum ConstituentLocation { MEDIAL, INITIAL, TERMINAL, ROOT }

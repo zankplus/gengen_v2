@@ -37,46 +37,46 @@ public class LanguageData
 	 */
 	public LanguageData(Phonology p)
 	{
-		// Determine syllable structure
-		medialSyllableStructure = "C";
-		if (p.medialOnsets.maxLength() > 1)
-		{
-			for (int i = 1; i < p.medialOnsets.maxLength(); i++)
-				medialSyllableStructure += "(C";
-			for (int i = 1; i < p.medialOnsets.maxLength(); i++)
-				medialSyllableStructure += ")";
-		}
-		medialSyllableStructure += "V";
-		if (p.nuclei.maxLength() == 2)
-			medialSyllableStructure += "(V)";
-		
-		terminalSyllableStructure = medialSyllableStructure;
-		if (p.medialCodas.maxLength() > 0)
-		{
-			String coda = "";
-			for (int i = 0; i < p.medialCodas.maxLength(); i++)
-				medialSyllableStructure += "(C";
-			for (int i = 0; i < p.medialCodas.maxLength(); i++)
-				medialSyllableStructure += ")";
-			
-			if (p.baseMedialCodaChance > 0)
-				medialSyllableStructure += coda;
-			if (p.baseTerminalCodaChance > 0)
-				if (p.nameAssembly.getEmptyCodaChance() == 0)
-					terminalSyllableStructure += coda.substring(1, coda.length() - 1);
-				else
-					terminalSyllableStructure += coda;
-		}
-		
-		// Summarize consonant inventory
-		consonants = new String[p.consonantInventory.length];
-		for (int i = 0; i < p.consonantInventory.length; i++)
-			consonants[i] = p.consonantInventory[i].segment.expression;
-		
-		// Summarize vowel inventory
-		vowels = new String[p.vowelInventory.length];
-		for (int i = 0; i < p.vowelInventory.length; i++){
-			vowels[i] = p.vowelInventory[i].segment.expression;
-		}
+//		// Determine syllable structure
+//		medialSyllableStructure = "C";
+//		if (p.medialOnsets.maxLength() > 1)
+//		{
+//			for (int i = 1; i < p.medialOnsets.maxLength(); i++)
+//				medialSyllableStructure += "(C";
+//			for (int i = 1; i < p.medialOnsets.maxLength(); i++)
+//				medialSyllableStructure += ")";
+//		}
+//		medialSyllableStructure += "V";
+//		if (p.nuclei.maxLength() == 2)
+//			medialSyllableStructure += "(V)";
+//		
+//		terminalSyllableStructure = medialSyllableStructure;
+//		if (p.medialCodas.maxLength() > 0)
+//		{
+//			String coda = "";
+//			for (int i = 0; i < p.medialCodas.maxLength(); i++)
+//				medialSyllableStructure += "(C";
+//			for (int i = 0; i < p.medialCodas.maxLength(); i++)
+//				medialSyllableStructure += ")";
+//			
+//			if (p.baseMedialCodaChance > 0)
+//				medialSyllableStructure += coda;
+//			if (p.baseTerminalCodaChance > 0)
+////				if (p.assembly.getEmptyCodaChance() == 0)
+////					terminalSyllableStructure += coda.substring(1, coda.length() - 1);
+////				else
+//					terminalSyllableStructure += coda;
+//		}
+//		
+//		// Summarize consonant inventory
+//		consonants = new String[p.consonantInventory.length];
+//		for (int i = 0; i < p.consonantInventory.length; i++)
+//			consonants[i] = p.consonantInventory[i].segment.expression;
+//		
+//		// Summarize vowel inventory
+//		vowels = new String[p.vowelInventory.length];
+//		for (int i = 0; i < p.vowelInventory.length; i++){
+//			vowels[i] = p.vowelInventory[i].segment.expression;
+//		}
 	}
 }

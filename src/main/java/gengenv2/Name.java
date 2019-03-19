@@ -38,6 +38,7 @@ public class Name
 	private String plain;					// Representation of the Name free of diacritics and symbols (except ')
 	private String ipa;						// IPA representation of Name for unambiguous pronunciation
 	private double informationContent;		// Information content, roughly representing the complexity of this Name
+	private RootStrength rootStrength;		// Governs whether and how this words combines with new suffixes
 	
 	/**
 	 * Creates a new Name with an empty list of Syllables and a reference to the parent language.
@@ -47,6 +48,7 @@ public class Name
 	{
 		Phonology language = p;
 		this.syllables = new ArrayList<Syllable>();
+		rootStrength = RootStrength.WEAK;
 	}
 	
 	/**
@@ -204,14 +206,8 @@ public class Name
 					{
 						curr = c.content[k].segment;
 				
-						// 1. Omit initial glottal stops
-						if (sb.length() == 0 && curr.expression.equals("'"))
-						{
-							
-						}
-						
-						// 2. Initial uppercase letter
-						else if (sb.length() == 0)
+						// 1. Initial uppercase letter
+						if (sb.length() == 0)
 						{
 							sb.append(curr.expression.substring(0,1).toUpperCase() + curr.expression.substring(1));
 						}
@@ -336,6 +332,16 @@ public class Name
 		this.informationContent = ic;
 	}
 
+	public void setRootStrength(RootStrength rootStrength)
+	{
+		this.rootStrength = rootStrength;
+	}
+	
+	public RootStrength getRootStrength()
+	{
+		return rootStrength;
+	}
+	
 	/**
 	 * @return	The default representation of the Name
 	 * @since	1.1
@@ -343,6 +349,11 @@ public class Name
 	public String toString()
 	{
 		return getDefault();
+	}
+	
+	public boolean equals(Name other)
+	{
+		return this.getIPA().equals(other.getIPA()); 
 	}
 	
 	/**
@@ -419,3 +430,9 @@ public class Name
  * @since	1.1
  */
 enum Stress { WEAK, STRONG, PRIMARY }
+
+/**
+ * A measure of  
+ * @since	1.2
+ */
+enum RootStrength { CLOSED, WEAK, STRONG }

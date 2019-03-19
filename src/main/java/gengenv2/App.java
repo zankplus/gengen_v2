@@ -40,6 +40,7 @@ public class App
     {   
     	// Revisit this
     	Phonology p = new Phonology();
+//    	Phonology p = new Phonology(-4686731362303332792L);	// ecko!!!!
     	
 //    	p.printInventory(p.initialOnsets.getMembersOfLength(2));
     	
@@ -51,8 +52,22 @@ public class App
 //    		p.printInventory(p.initialOnsets.getMembersOfLength(i));
 		
     	p.compareOnsets();
+    	System.out.println();
+    	p.compareNuclei();
+    	p.printHiatus();
+    	
+    	for (NameEntry ne : p.suffixes.getLibrary())
+    	{
+    		System.out.printf("%s%.3f\n", padString(ne.getName().getPlain().toLowerCase(), 16), ne.getProbability());
+    	}
+    	
 		
-		List<Name> names = p.makeNames(60);
+//		testNames(p);
+    }
+    
+    public static void testNames(Phonology p)
+    {
+    	List<Name> names = p.makeNames(60);
 		Collections.sort(names, new Comparator<Name>() {
 			public int compare(Name a, Name b)
 			{

@@ -17,43 +17,25 @@ public class ConstituentLibrary
 	private ArrayList<Constituent>[] library;
 	private double[] lengthProbabilities;
 	
+	private ConstituentType type;
+	private ConstituentLocation location;
+	private double entropy;
+	
 	private int id;
 	private static int count = 0;
 	
-	public ConstituentLibrary (Phonology parent, int maxLength, ArrayList<Constituent>[] library,
-			double clusterProbability)
+	public ConstituentLibrary (Phonology parent, int maxLength, ConstituentType type, ConstituentLocation location)
 	{
 		this.parent = parent;
-		if (rng == null)
-			rng = parent.rng;
 		this.maxLength = maxLength;
-		
-		this.library = library;
+		this.location = location;
+		this.type = type;
 		id = count++;
 		
-		if (library != null)
-		{
-			// Count members
-			for (ArrayList<Constituent> list : library)
-				memberCount += list.size();
-			
-			setLengthProbabilities(clusterProbability);
-			
-			normalizeAll();
-			sortAll();
-		}
-	}
-	
-	public ConstituentLibrary (Phonology parent, int maxLength)
-	{
-		this.parent = parent;
 		if (rng == null)
 			rng = parent.rng;
-		this.maxLength = maxLength;
 		
 		createEmptyLibrary();
-		
-		id = count++;
 	}
 	
 	public void createEmptyLibrary()
@@ -62,6 +44,7 @@ public class ConstituentLibrary
 		for (int i = 0; i < maxLength; i++)
 			library[i] = new ArrayList<Constituent>();
 		memberCount = 0;
+		entropy = -1;
 	}
 	
 	public void setLengthProbabilities(double prob)
@@ -94,15 +77,35 @@ public class ConstituentLibrary
 	
 	public void removeUnusedMembers()
 	{
-		for (ArrayList<Constituent> list : library)
-			for (int i = 0; i < list.size(); i++)
-				if (list.get(i).probability < 0)
-				{
-					list.remove(i);
-					memberCount--;
-					i--;
-				}
+		if (memberCount == 0)
+			return;
 		
+		for (int j = 0; j < maxLength; j++)
+		{
+			ArrayList<Constituent> list = library[j];
+			if (list.size() > 0)
+			{
+				Constituent max = list.get(0);
+				for (int i = 0; i < list.size(); i++)
+					if (list.get(i).probability < 0)
+					{
+						if (list.get(i).probability > max.probability)
+							max = list.get(i);
+						
+						list.remove(i);
+						memberCount--;
+						i--;
+					}
+				
+				// Never leave a library totally empty - always keep 1 in the first list
+				if (j == 0 && list.size() == 0)
+				{
+					max.probability = 1;
+					list.add(max);
+				}
+			}
+		}
+		entropy = -1;
 		shrinkMaxToFit();
 	}
 	
@@ -274,13 +277,14 @@ public class ConstituentLibrary
 		{
 			ArrayList<Constituent> list = library[j];
 			for (int i = 0; i < list.size(); i++)
-				if (list.get(i).lastPhoneme().followers.getMembersOfLength(1).size() == 0)
+				if (list.get(i).followers().getMembersOfLength(1).size() == 0)
 				{
 					list.remove(i);
 					memberCount--;
 					i--;
 				}
 		}
+		entropy = -1;
 	}
 	
 	public void scaleProbabilityByFollowerCount()
@@ -289,7 +293,7 @@ public class ConstituentLibrary
 		{
 			ArrayList<Constituent> list = library[j];
 			for (int i = 0; i < list.size(); i++)
-				list.get(i).probability *= Math.log(list.get(i).lastPhoneme().followers.countMembersOfLength(1) + 1);
+				list.get(i).probability *= Math.log(list.get(i).followers().countMembersOfLength(1) + 1);
 		}
 	}
 	
@@ -298,8 +302,61 @@ public class ConstituentLibrary
 		return memberCount;
 	}
 	
+	public int getCompoundSize()
+	{
+		int result = 0;
+		for (int i = 1; i <= maxLength; i++)
+			for (Constituent curr : getMembersOfLength(i))
+				result += curr.followers().size();
+		return result;
+	}
+	
 	public int maxLength()
 	{
 		return maxLength;
+	}
+	
+	private double getEntropy(boolean compoundEntropy)
+	{
+		if (entropy != -1)
+			return entropy;
+		
+		entropy = 0;
+		for (int i = 1; i <= maxLength; i++)
+			for (Constituent c : getMembersOfLength(i))
+			{
+				double pCurr = c.probability * getLengthProbability(i);
+				double p = pCurr;
+				if (compoundEntropy)
+				{
+					for (int j = 1; j < c.followers().maxLength; j++)
+						for (Constituent d : c.followers().getMembersOfLength(j))
+						{
+							double pNext = d.probability * c.followers().getLengthProbability(j);
+							p = pCurr * pNext;
+							if (p != 0)
+								entropy += -p * Math.log(p);
+						}
+				}
+				
+				if (p != 0)
+					entropy += -p * Math.log(p);
+			}
+		return entropy;
+	}
+	
+	public double getEntropy()
+	{
+		return getEntropy(false);
+	}
+	
+	public double getCompoundEntropy()
+	{
+		return getEntropy(true);
+	}
+	
+	public ConstituentLocation getLocation()
+	{
+		return location;
 	}
 }
