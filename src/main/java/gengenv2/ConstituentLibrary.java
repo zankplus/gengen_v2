@@ -1,45 +1,74 @@
+/** Copyright 2018, 2019 Clayton Cooper
+ *	
+ *	This file is part of gengen2.
+ *
+ *	gengen2 is free software: you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation, either version 3 of the License, or
+ *	(at your option) any later version.
+ *
+ *	gengen2 is distributed in the hope that it will be useful,
+ *	but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *	GNU General Public License for more details.
+ *
+ *	You should have received a copy of the GNU General Public License
+ *	along with gengen2.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+
 package gengenv2;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
-import gengenv2.Phonology.Constituent;
-import gengenv2.Phonology.Phoneme;
-
+/**
+ * A compilation of all the syllable Constituents that might occur in a certain context, grouped according to
+ * length and intended be drawn from at random. 
+ * 
+ * @author 	Clayton Cooper
+ * @version	1.2
+ * @since	1.2
+ */
 public class ConstituentLibrary
 {
+	// General variables
 	private Phonology parent;
 	private static Random rng = null;
 	
-	private int maxLength;
-	private int memberCount = 0;
+	// Library information
 	private ArrayList<Constituent>[] library;
 	private double[] lengthProbabilities;
-	
-	private ConstituentType type;
-	private ConstituentLocation location;
+	private int maxLength;
+	private int memberCount = 0;
 	private double entropy;
 	
-	private int id;
+	// Context variables
+	private ConstituentType type;
+	private ConstituentLocation location;
+	
+	// Static variables
 	private static int count = 0;
 	
+	/**
+	 * Constructor sets parent/RNG, default max length, and context variables, and initializes the library
+	 * array list and information variables.
+	 * @param parent		Reference to the Phonology to which this library belongs 
+	 * @param maxLength		Length of longest cluster in library
+	 * @param type			Type of Constituent housed in this library (onset/nucleus/coda)
+	 * @param location		Location in which this library is invoked (initial/medial/final/root)
+	 */
 	public ConstituentLibrary (Phonology parent, int maxLength, ConstituentType type, ConstituentLocation location)
 	{
 		this.parent = parent;
 		this.maxLength = maxLength;
 		this.location = location;
 		this.type = type;
-		id = count++;
 		
 		if (rng == null)
 			rng = parent.rng;
 		
-		createEmptyLibrary();
-	}
-	
-	public void createEmptyLibrary()
-	{
 		library = new ArrayList[maxLength];
 		for (int i = 0; i < maxLength; i++)
 			library[i] = new ArrayList<Constituent>();
@@ -47,20 +76,26 @@ public class ConstituentLibrary
 		entropy = -1;
 	}
 	
-	public void setLengthProbabilities(double prob)
+	/**
+	 * Calculates the selection probability for each length of Constituent (i.e., the chance of choosing a length-1
+	 * Constituent, of choosing a length-2 one, etc.) in this library. Probability is based on the number of
+	 * members of a given length, and a factor reducing probability geometrically as length increases.
+	 * @param coefficient	Length scaling factor
+	 */
+	public void setLengthProbabilities(double coefficient)
 	{
 		// Set length probabilities.
 		lengthProbabilities = new double[maxLength];
 		double sum = 0;
 		for (int i = 0; i < maxLength - 1; i++)
 		{
-			lengthProbabilities[i] = (1 - prob) * Math.pow(prob, i) * 
+			lengthProbabilities[i] = (1 - coefficient) * Math.pow(coefficient, i) * 
 										Math.log(countMembersOfLength(i + 1) + 1);
 			sum += lengthProbabilities[i];
 		}
 		if (maxLength > 0)
 		{
-			lengthProbabilities[maxLength - 1] = Math.pow(prob, maxLength - 1) * 
+			lengthProbabilities[maxLength - 1] = Math.pow(coefficient, maxLength - 1) * 
 													Math.log(countMembersOfLength(maxLength) + 1);
 			sum += lengthProbabilities[maxLength - 1];
 		}
@@ -75,6 +110,11 @@ public class ConstituentLibrary
 //		System.out.println();
 	}
 	
+	/**
+	 * Removes any members with negative probability values. If all members have negative probability, the
+	 * member with the highest probability is retained.
+	 * @since	1.2 
+	 */
 	public void removeUnusedMembers()
 	{
 		if (memberCount == 0)
@@ -109,6 +149,12 @@ public class ConstituentLibrary
 		shrinkMaxToFit();
 	}
 	
+	/**
+	 * Reduces the maxLength to the length of the longest Constituent(s) available in the library.
+	 * This prevents other classes from accidentally accessing empty arrays in library and lets us keep
+	 * more accurate information about the content of a library.
+	 * @since	1.2
+	 */
 	private void shrinkMaxToFit()
 	{
 		if (maxLength > 0)
@@ -116,6 +162,10 @@ public class ConstituentLibrary
 				library[maxLength - 1] = null;
 	}
 	
+	/**
+	 * Normalizes the probabilities of all library members of each length up to maxLength.
+	 * @since	1.2
+	 */
 	public void normalizeAll()
 	{
 		for (int i = 0; i < maxLength; i++)
@@ -128,6 +178,10 @@ public class ConstituentLibrary
 		}
 	}
 	
+	/**
+	 * Sorts library members of each length from highest probability to lowest.
+	 * @since	1.2 
+	 */
 	public void sortAll()
 	{
 		for (int i = 0; i < maxLength; i++)
@@ -137,43 +191,43 @@ public class ConstituentLibrary
 		}
 	}
 	
+	/**
+	 * @param length	Length of Constituents desired
+	 * @return			An ArrayList of all Constituents of the given length
+	 * @since			1.2
+	 */
 	public ArrayList<Constituent> getMembersOfLength(int length)
 	{
-		try
-		{
-			return library[length - 1];
-		} 
-		catch (ArrayIndexOutOfBoundsException e)
-		{
-			System.err.println("Tried to access syllable constituents of length " + length + " in library " +
-								id + " (max length " + maxLength+ ")");
-			e.printStackTrace();
-			System.exit(0);
-			return null;
-		}
+		return library[length - 1];
 	}
 	
+	/**
+	 * @param length	Length of Constituents queried
+	 * @return			The count of all Constituents of the given length
+	 * @since			1.2
+	 */
 	public int countMembersOfLength(int length)
 	{
 		return getMembersOfLength(length).size();
 	}
 	
+	/**
+	 * Returns the probability of picking a Constituent of the given length from a random call to pick().
+	 * @param 	length	Length of Constituent queried
+	 * @return	The chance of picking a Constituent of the given length 
+	 * @since	1.2
+	 */
 	public double getLengthProbability(int length)
 	{
-		try
-		{
-			return lengthProbabilities[length - 1];
-		} 
-		catch (ArrayIndexOutOfBoundsException e)
-		{
-			System.err.println("Tried to access cluster probability of length " + length + " in library " +
-								id + " (max length " + maxLength + ")");
-			e.printStackTrace();
-			System.exit(0);
-			return -1;
-		}
+		return lengthProbabilities[length - 1];
 	}
 	
+	/**
+	 * Exaggerates the differences between probabilities by raising the probability of every Constituent to the
+	 * specified power. Automatically normalizes probabilities afterward.
+	 * @param 	power		The degree of exaggeration, i.e., the power to which to raise all probabilities
+	 * @since	1.2
+	 */
 	public void exaggerate(double power)
 	{
 		for (int i = 1; i <= maxLength; i++)
@@ -185,12 +239,43 @@ public class ConstituentLibrary
 		normalizeAll();
 	}
 	
+	/**
+	 * Searches for a Constituent with the same sequence as a given Constituent and returns it if found.
+	 * @param	other	The Constituent to be matched
+	 * @return	The matching Constituent if found, otherwise null
+	 * @since	1.2 
+	 */
+	public Constituent getMatchingConstituent(Constituent other)
+	{
+		for (Constituent c : getMembersOfLength(other.size()))
+			if (c.sameSequence(other))
+				return c;
+		return null;
+	}
+	
+	/**
+	 * Returns true if the given Constituent is present in this library
+	 * @param	other	The Constituent to be found
+	 * @return	True if the Constituent is somewhere in this library, otherwise false
+	 * @since	1.2 
+	 */
+	
+	/**
+	 * Adds a Constituent to the library and places it in the arraylist corresponding to its length.
+	 * @param 	c	The Constituent to be added
+	 * @since	1.2
+	 */
 	public void add(Constituent c)
 	{
 		library[c.content.length - 1].add(c);
 		memberCount++;
 	}
 	
+	/**
+	 * Returns a random Constituent from the library.
+	 * @return	A random Constituent from the library
+	 * @since	1.2
+	 */
 	public Constituent pick()
 	{
 		double rand = rng.nextDouble();
@@ -209,11 +294,21 @@ public class ConstituentLibrary
 		return pickConstituent(length);
 	}
 	
+	/**
+	 * Returns a random Constituent of length 1 from the library.
+	 * @return	A Constituent of length 1 from the library
+	 * @since	1.2
+	 */
 	public Constituent pickSimple()
 	{
 		return pickConstituent(0);
 	}
 	
+	/**
+	 * Returns	a random Constituent of length 2 or more from the library.
+	 * @return	A Constituent of length 2 or more from the library
+	 * @since	1.2
+	 */
 	public Constituent pickComplex()
 	{
 		double rand = rng.nextDouble() * (1 - lengthProbabilities[0]);
@@ -271,6 +366,11 @@ public class ConstituentLibrary
 		return null;
 	}
 	
+	/**
+	 * Removes any Constituents from the library whose own follower libraries are empty.
+	 * TODO: Should this remove members with null follower libraries too?
+	 * @since	1.2
+	 */
 	public void pruneMembersWithoutFollowers()
 	{
 		for (int j = 0; j < maxLength; j++)
@@ -287,6 +387,11 @@ public class ConstituentLibrary
 		entropy = -1;
 	}
 	
+	/**
+	 * Multiplies the probability of each Constituent in the library by the log of its follower account, making
+	 * members with more followers more prevalent. Automatically normalizes probabilities after.
+	 * @since	1.2
+	 */
 	public void scaleProbabilityByFollowerCount()
 	{
 		for (int j = 0; j < maxLength; j++)
@@ -295,13 +400,24 @@ public class ConstituentLibrary
 			for (int i = 0; i < list.size(); i++)
 				list.get(i).probability *= Math.log(list.get(i).followers().countMembersOfLength(1) + 1);
 		}
+		
+		normalizeAll();
 	}
 	
+	/**
+	 * @return	The number of Constituents in this library
+	 * @since	1.2
+	 */
 	public int size()
 	{
 		return memberCount;
 	}
 	
+	/**
+	 * Returns the sum of the number of followers for each member of the library 
+	 * @return	The number of compounds that can be made between libraries and their followers
+	 * @since	1.2
+	 */
 	public int getCompoundSize()
 	{
 		int result = 0;
@@ -311,14 +427,28 @@ public class ConstituentLibrary
 		return result;
 	}
 	
+	/**
+	 * @return	The maximum length of any Constituent in this library
+	 * @since	1.2
+	 */
 	public int maxLength()
 	{
 		return maxLength;
 	}
 	
+	/**
+	 * Calculates the first-order entropy for this library's pick() function. Optionally, it can instead calculate
+	 * the second-order entropy, i.e., the entropy of picking a random Constituent from this library and then 
+	 * picking one of its followers. The value is saved after first calculation, so future calls simply return the 
+	 * stored entropy measurement.
+	 * 
+	 * @param 	compoundEntropy	Determines whether to return first- or second-order entropy
+	 * @return	The specified entropy measurement
+	 * @since	1.2
+	 */
 	private double getEntropy(boolean compoundEntropy)
 	{
-		if (entropy != -1)
+		if (entropy != -1 && !compoundEntropy)
 			return entropy;
 		
 		entropy = 0;
@@ -345,16 +475,28 @@ public class ConstituentLibrary
 		return entropy;
 	}
 	
+	/**
+	 * @return	The first-order entropy measurement for this library
+	 * @since	1.2
+	 */
 	public double getEntropy()
 	{
 		return getEntropy(false);
 	}
 	
+	/**
+	 * @return	The second-order entropy measurement for this library
+	 * @since	1.2
+	 */
 	public double getCompoundEntropy()
 	{
 		return getEntropy(true);
 	}
 	
+	/**
+	 * @return	The context in which this Constituent library is meant to be invoked (initial, medial, etc.)
+	 * @since	1.2
+	 */
 	public ConstituentLocation getLocation()
 	{
 		return location;

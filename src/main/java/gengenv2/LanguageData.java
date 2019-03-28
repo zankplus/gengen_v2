@@ -21,6 +21,7 @@ package gengenv2;
 
 /**
  * Contains a summary of linguistic data about a Phonology.
+ * @version	1.2
  * @since	1.1.2
  */
 public class LanguageData

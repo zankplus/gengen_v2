@@ -19,14 +19,10 @@
 
 package gengenv2;
 
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 
 import org.apache.commons.math3.distribution.LogNormalDistribution;
 
@@ -50,8 +46,7 @@ public class Phonology
 	private long seed;
 	private Phonology thisPhonology;
 	
-	/*
-	 * Auxiliary systems
+	/* Auxiliary systems
 	 * 
 	 * These are other special systems used by the Phonology to aid in name-making, defined in their own classes.
 	 * nameAssembly creates words using phonology's rules for syllable structure. stressRules represents the 
@@ -60,47 +55,66 @@ public class Phonology
 	NameAssembly assembly;
 	StressRules stressRules;
 	SuffixLibrary suffixes;
+	CombinationRules combinationRules;
 	
-	/* Prominence values
+	/* 
+	 * Feature references
+	 */
+	
+	VowelPhoneme longVowel;
+	
+	/* Syllable Constituent libraries
 	 * 
-	 *  Through repeated use in variable names, "prominence" has become, for me, something of a technical term, denoting
-	 *  a raw measure of how common a phonological unit (a phoneme, a phonetic property, a syllable segment) is.
-	 *  The value of a prominence variable doesn't have any meaning on its own, but often the prominences of every
-	 *  member in a class of segments are summed to determine the probability of that segment appearing.
-	 *  
-	 *  The first three arrays of prominences below are a little different: they are never used directly, but are rather 
-	 *  combined to determine prominence values for segments. They represent the prevalence of different properties in 
-	 *  the Phonology's phonemic inventory.
+	 * Libraries containing every onset, nucleus, and coda available to the language in different contexts.
+	 */
+	
+	protected ConstituentLibrary medialOnsets;
+	protected ConstituentLibrary medialCodas;
+	protected ConstituentLibrary medialNuclei;
+	protected ConstituentLibrary initialOnsets;
+	protected ConstituentLibrary initialNuclei;
+	protected ConstituentLibrary terminalCodas;
+	protected ConstituentLibrary terminalNuclei;
+	protected ConstituentLibrary rootNuclei;
+	
+	/* Prominence ratings
+	 * 
+	 *  Through repeated use in variable names, "prominence" has become, for me, something of a technical term, 
+	 *  denoting a raw measure of how common a phonological unit (a Phoneme, a phonetic Property, a syllable 
+	 *  Constituent) is. The value of a prominence rating doesn't have any meaning on its own, but are frequently
+	 *  manipulated and normalized to produce probabilities for different outcomes.
 	 *  
 	 *  The "lead" and "follow" prominences represent a phoneme's tendency to precede or follow other sounds within
 	 *  a consonant cluster, diphthong, or interlude, and are used to determine how commonplace each such cluster is.
 	 */
 	
-	boolean[] consonantPropertiesRepresented;
-	boolean[] vowelPropertiesRepresented;
+	private	boolean[] consonantPropertiesRepresented;	// Records of which phonetic properties this language
+	private boolean[] vowelPropertiesRepresented;		// recognizes. Used in the Phoneme selection process
 	
-	PhoneticRatings baseConsonantRatings;	// Prominence of each consonantal phonetic property in the Phonology, as applied to 
-											// syllable onsets. This is the the basic value from which other consonantal prominences
-											// are derived by disturbance.
-	PhoneticRatings baseCodaRatings;		// Prominence of each consonantal property, as applied to syllable codas
-	PhoneticRatings wordInitialRatings;
-	PhoneticRatings terminalCodaRatings;
+	// Basic ratings
+	PhoneticRatings baseConsonantRatings;	// Basic ratings for consonant sounds. Other consonant ratings are
+											// derived from this. Also represents prominence for medial onsets.
+	PhoneticRatings baseVowelRatings;		// As above, for vowels. Also represents prominence for medial nuclei.
 	
-	PhoneticRatings baseVowelRatings;			// Prominence of each vocalic phonetic property
-	PhoneticRatings	initialNucleusRatings;		// Prominence of 
-	PhoneticRatings	terminalNucleusRatings;
-	PhoneticRatings rootNucleusRatings;
+	// Derived ratings
+	PhoneticRatings baseCodaRatings;		// Basic ratings for codas. Other coda ratings are derived form this 
+	PhoneticRatings initialOnsetRatings;	// Governs prevalence of consonant sounds in word-initial onsets
+	PhoneticRatings terminalCodaRatings;	// Governs prevalence of consonant sounds in word-final codas
+	PhoneticRatings	initialNucleusRatings;	// Governs prevalence of vowel sounds in word-initial nuclei
+	PhoneticRatings	terminalNucleusRatings;	// Governs prevalence of vowel sounds in word-final nuclei
+	PhoneticRatings rootNucleusRatings;		// Governs prevalence of vowel sounds in root endings
 	
-	PhoneticRatings onsetClusterLeadRatings;
+	// Lead and follow ratings
+	PhoneticRatings onsetClusterLeadRatings;		// Consonant clusters in onsets
 	PhoneticRatings onsetClusterFollowRatings;
-	PhoneticRatings diphthongLeadRatings;
-	PhoneticRatings diphthongFollowRatings;
-	PhoneticRatings codaClusterLeadRatings;
+	PhoneticRatings codaClusterLeadRatings;			// Consonant clusters in codas
 	PhoneticRatings codaClusterFollowRatings;
-	PhoneticRatings hiatusLeadRatings;
-	PhoneticRatings hiatusFollowRatings;
-	PhoneticRatings interludeLeadRatings;
+	PhoneticRatings interludeLeadRatings;			// Consonant clusters across syllable boundaries
 	PhoneticRatings interludeFollowRatings;
+	PhoneticRatings diphthongLeadRatings;			// Vowel clusters (diphthongs) in nuclei
+	PhoneticRatings diphthongFollowRatings;
+	PhoneticRatings hiatusLeadRatings;				// Vowel sequences across syllable boundaries
+	PhoneticRatings hiatusFollowRatings;
 	
 	/*
 	 * Phoneme inventories
@@ -110,33 +124,18 @@ public class Phonology
 	 * language in practice if its prominence is 0 in every context.
 	 */
 	ConsonantPhoneme[] consonantInventory;	// List of CONSONANTS represented in this Phonology
-	VowelPhoneme[] vowelInventory;		// List of VOWELS represented in this Phonology
+	VowelPhoneme[] vowelInventory;			// List of VOWELS represented in this Phonology
 	
 	/*
-	 * Syllable segment inventories
-	 * 
-	 * Lists of arrays enumerating every onset, nucleus, and coda available in the language. Each array contains
-	 * all possible syllable segments of a certain length according to the array's index: the 0th array contains
-	 * single phonemes ('simple' segments), the 1th array contains complex segments formed of 2 phonemes, the
-	 * 2nd of 3, and so forth. Syllable segments with non-positive prominence are pruned can never appear and so
-	 * are pruned from these lists.
-	 */
-	protected ConstituentLibrary medialOnsets;
-	protected ConstituentLibrary initialOnsets;
-	protected ConstituentLibrary medialNuclei;
-	protected ConstituentLibrary initialNuclei;
-	protected ConstituentLibrary terminalNuclei;
-	protected ConstituentLibrary rootNuclei;
-	protected ConstituentLibrary medialCodas;	
-	protected ConstituentLibrary terminalCodas;
-	
-	/*
-	 * Syllable segment length limits
+	 * Constituent length limits
 	 * 
 	 *  Determine the maximum length a consonant cluster or diphthong may take. These values are generated in
 	 *  makeBasicSyllableStructure() but may be reduced during generation if no clusters of sufficient length
 	 *  are present in that language. This keeps methods from trying to pick a syllable segment from an empty
-	 *  list if, say, a Phonology technically allows onset clusters of length 3 but doesn't actually have any. 
+	 *  list if, say, a Phonology technically allows onset clusters of length 3 but doesn't actually have any.
+	 *  
+	 *  As of v1.2, these variables no longer tell the story, but are still used throughout this class as
+	 *  general upper limits.
 	 */
 	private int maxOnsetLength;
 	private int maxNucleusLength;
@@ -145,9 +144,9 @@ public class Phonology
 	/*
 	 * Coda prominence variables
 	 * 
-	 * codaProminenceOffset is a flat value subtracted from every coda prominence value to manage the richness
+	 * codaRatingOffset is a flat value subtracted from every coda prominence rating to manage the richness
 	 * of the coda inventory. codaDisturbance governs how greatly the base prominences are disturbed to produce
-	 * the coda prominence values, AS A PERCENTAGE of the prominenceStdev. At 0, coda values are undisturbed 
+	 * the coda prominence values, AS A PERCENTAGE of the codaRatingStdev. At 0, coda values are undisturbed 
 	 * compared to the base values; at 1, they have essentially been rerolled from scratch.
 	 */
 	private double codaRatingOffset;
@@ -156,20 +155,20 @@ public class Phonology
 	/*
 	 * General cluster offsets
 	 * 
-	 * Offset values are added to or subtracted from the prominence of consonant clusters or diphthongs to
+	 * Offset values are added to or subtracted from the prominence rating of consonant clusters or diphthongs to
 	 * manage the diversity of such features in a Phonology. 
 	 */
 	private double onsetClusterOffset;
-	private double diphthongOffset;
 	private double codaClusterOffset;
-	private double hiatusOffset;
 	private double interludeOffset;
-
+	private double diphthongOffset;
+	private double hiatusOffset;
+	
 	/*
 	 * Specific cluster offsets
 	 * 
-	 * These values are added to or subtracted from particular cluster prominences in specific circumstances to
-	 * help restrict their prominence to (the author's personal sense of) a more natural pattern.
+	 * These values are added to or subtracted from particular cluster prominence ratings in specific circumstances 
+	 * to restrict their prominence to (the author's personal sense of) a more natural pattern.
 	 */
 	double onsetNgOffset;			// reduces the chance of a onset 'ng'
 	double onsetTlDlOffset; 		// reduces the chances of an onset 'tl' or 'dl'
@@ -180,11 +179,11 @@ public class Phonology
 	/*
 	 * Phonotactic properties
 	 * 
-	 * These values are used in the determining where in a syllable certain sounds may appear, which is the task
-	 * of the various make____() methods. the ___CategoriesRepresented arrays track which phonetic categories
-	 * are present in a language (this can't be done just by consulting their prominences as categories with 
-	 * negative prominence may still be present), while the valid___Transitions arrays dictate the phonotactic
-	 * categories of which different phonemes might follow each other within clusters.
+	 * Values used in the determining where in a syllable certain sounds may appear. The ___CategoriesRepresented 
+	 * arrays track which phonetic categories are present in a language (this can't be done just by consulting 
+	 * their prominence ratings as categories with negative ratings may still be present), while the 
+	 * valid___Transitions arrays dictate the phonotactic categories of which different phonemes might follow each 
+	 * other within clusters.
 	 */
 	private boolean[] consonantCategoriesRepresented;
 	private boolean[] vowelCategoriesRepresented;
@@ -194,17 +193,15 @@ public class Phonology
 	private boolean[][] validCodaTransitions;
 
 	/*
-	 * Base occurrence chances
+	 * Occurrence coefficients
 	 * 
-	 * These represent the base chances of various features of syllables occurring, before scaling by the number
-	 * of entries available to that class of features. These are used in the Flowchart class to determine the
-	 * probability of transitioning between nodes. 
+	 * These are coefficients affecting the chances of certain features of syllables occurring. These are used in 
+	 * the NameAssembly class to determine the frequency of certain events occurring, usually by multiplying
+	 * a log count of a certain feature to obtain an (unnormalized) probability value.
 	 * 
-	 * Cluster chances represent the chance of a marginally more complex syllable segment occurring. In places
-	 * where either a simple or complex segment may occur, these represent the chance of a cluster appearing at
-	 * all (as usual, before scaling). Within onset/coda clusters, these affect the chance of a more complex
-	 * cluster appearing, and so are factored into the calculation of the ___ClusterLengthProbabilities and 
-	 * simple___Probability variables in the setClusterChances() method.
+	 * Cluster chances represent the chance of a marginally more complex syllable Constituent occurring. The
+	 * likelihood of a certain length of Constituent occurring in a given position is proportionate its
+	 * cluster coefficient raised to the power of that length (minus one). 
 	 */
 	protected double baseOnsetClusterChance;
 	protected double baseCodaClusterChance;
@@ -215,7 +212,6 @@ public class Phonology
 	protected double baseMedialCodaChance;
 	protected double baseTerminalCodaChance;
 	protected double baseSuffixOnsetChance;
-	
 
 	/*
 	 * Generator properties
@@ -288,27 +284,6 @@ public class Phonology
 	// Name assembly properties
 	static double heavyRimeSuppressionFactor		= 1.5;
 	
-	/*
-	 * Statistical data
-	 * 
-	 * Assorted information about the prevalence of different syllabic features in the current Phonology.
-	 * The items named in the final ints are stored in the respective indices in counts[].
-	 */
-	public int[] counts = new int[11];
-
-	// Indices of counts 
-	static final int SIMPLE_ONSETS				=  0;
-	static final int COMPLEX_ONSETS				=  1;
-	static final int SIMPLE_NUCLEI				=  2;
-	static final int COMPLEX_NUCLEI				=  3;
-	static final int SIMPLE_CODAS				=  4;
-	static final int COMPLEX_CODAS				=  5;
-	static final int SIMPLE_NUCLEI_WITH_HIATUS	=  6;
-	static final int COMPLEX_NUCLEI_WITH_HIATUS	=  7;
-	static final int COMPOUND_INTERLUDES		=  8;
-	static final int LIGHT_RIMES				=  9;
-	static final int HEAVY_RIMES				= 10;
-	
 	/**
 	 * Sets the rng to a specified seed before calling constructPhonology to set up the Phonology.
 	 * @param	seed	The seed to be used for the random number generator
@@ -354,15 +329,16 @@ public class Phonology
 		makeHiatus();
 		
 		if (maxCodaLength > 0)
-		{
 			makeCodas();
-		}
+		
+		// Set root strengths
+		setRootStrengthChances();
 		
 		// Set base chances for use in the flowchart
 		setBaseChances();		
 		
 		// Create flowchart
-		assembly = new SimpleAssembly(this);
+		assembly = new NameAssembly(this);
 		
 		makeSuffixes();
 		
@@ -459,8 +435,8 @@ public class Phonology
 		baseConsonantRatings = new PhoneticRatings(true, basicProminenceStdev, basicProminenceMean);
 		
 		// Initial onsets
-		wordInitialRatings = new PhoneticRatings(baseConsonantRatings);
-		wordInitialRatings.disturb(0.5);
+		initialOnsetRatings = new PhoneticRatings(baseConsonantRatings);
+		initialOnsetRatings.disturb(0.5);
 		
 		// Medial nuclei
 		baseVowelRatings = new PhoneticRatings(false, vowelProminenceStdev, vowelProminenceMean);
@@ -613,7 +589,11 @@ public class Phonology
 				}
 			
 			if (add)
+			{
 				inv.add(new VowelPhoneme(vowels[i]));
+				if (vowels[i].expression.equals(":"))
+					longVowel = (VowelPhoneme) inv.get(inv.size() - 1);
+			}
 		}
 		
 		vowelInventory = inv.toArray(new VowelPhoneme[inv.size()]);
@@ -856,8 +836,6 @@ public class Phonology
 		}
 		
 		hiatusOffset = rng.nextGaussian() * hiatusOffsetStdev;
-		
-		int[][] transProb = Phonotactics.hiatusTransitions;
 
 		// Roll lead and follow probabilities.
 		// -1 to count ignores the 'lengthener' segment
@@ -903,9 +881,7 @@ public class Phonology
 				double probability = 0.3 * Math.pow(4, Phonotactics.hiatusTransitions[v1.segment.id][v2.segment.id]
 													- 3) + hiatusOffset;
 				if (leadProbabilities[v1.segment.id] * followProbabilities[v2.segment.id] < probability)
-				{
 					v1.addInterlude(lib.getMembersOfLength(1).get(j), lib.getLocation());
-				}
 			}
 		}
 	}
@@ -971,18 +947,31 @@ public class Phonology
 		medialCodas.pruneMembersWithoutFollowers();
 		
 		medialCodas.scaleProbabilityByFollowerCount();
-		medialCodas.normalizeAll();
 		medialCodas.sortAll();
 		medialCodas.setLengthProbabilities(baseCodaClusterChance);
 	}
 		
+	private void setRootStrengthChances()
+	{
+		double rootEndBasePosition = rng.nextDouble() * 3 - 1.5;
+		double suffixStartBasePosition = rng.nextDouble() * 4 - 2;
+		
+		for (VowelPhoneme v : vowelInventory)
+			if (!v.segment.expression.equals(":"))
+			{
+				double rand = rng.nextDouble() * 2 - 1;
+				v.strongRootEndChance = rootEndBasePosition + rand;
+				v.strongRootEndChance = Math.min(Math.max(v.strongRootEndChance, 0), 1);
+				
+				rand = rng.nextDouble() * 2 - 1;
+				v.strongSuffixStartChance = suffixStartBasePosition + rand;
+				v.strongSuffixStartChance = Math.min(Math.max(v.strongSuffixStartChance, 0), 1);
+			}
+	}
+	
 	/**
-	 * Sets base chances for heavy/light rimes, medial onsets, and medial/terminal codas. These values are used
+	 * Sets base chances for medial onsets and medial/terminal codas. These values are used
 	 * in NameAssembly to determine the weights of transitions between nodes.
-	 * 
-	 * Note that some liberty is taken with the use of 'rime' in this program; here, rime is the series of syllable
-	 * segments that determines syllable weight and it therefore, because weight determination is based on Latin rules,
-	 * includes the onset of the following syllable.
 	 * 
 	 * @since	1.0
 	 */
@@ -998,10 +987,11 @@ public class Phonology
 		logNormal = new LogNormalDistribution(baseOnsetChanceMean, baseOnsetChanceStdev);
 		logNormal.reseedRandomGenerator(rng.nextLong());
 		
-		if (counts[SIMPLE_NUCLEI_WITH_HIATUS] > 0)
+		// C
+		if (hasHiatus())
 			baseMedialOnsetChance = 1 - (logNormal.sample() - baseOnsetChanceOffset);
 		else
-			baseMedialOnsetChance = 0.5f;
+			baseMedialOnsetChance = 1;
 		
 		baseMedialOnsetChance = Math.max(Math.min(baseMedialOnsetChance, 1), 0);
 		
@@ -1015,14 +1005,8 @@ public class Phonology
 		else
 			baseCodaChance = 0;
 		
-		codaLocationBalance = rng.nextGaussian() * codaLocationBalanceStdev + codaLocationBalanceMean;
-		codaLocationBalance = Math.max(Math.min(codaLocationBalance, 1), 0);
-		
-		baseMedialCodaChance =   Math.max(Math.min(baseCodaChance * codaLocationBalance, 1), 0);
-		baseTerminalCodaChance = Math.max(Math.min(baseCodaChance * (1 - codaLocationBalance), 1), 0);
-		
-		if (baseMedialCodaChance == 0)
-			counts[Phonology.COMPOUND_INTERLUDES] = 0;
+		baseMedialCodaChance =   Math.max(rng.nextGaussian() * 0.05 + 0.20, 0);
+		baseTerminalCodaChance = Math.max(Math.min(rng.nextGaussian() * 0.3 + 0.5, 1), 0);
 		
 		// Correct cluster chances
 		if (maxOnsetLength < 2)	baseOnsetClusterChance = 0;
@@ -1037,20 +1021,27 @@ public class Phonology
 	
 	private void makeSuffixes()
 	{
-		suffixes = new SuffixLibrary();
+		suffixes = new SuffixLibrary(this);
 		
-		Name[] names = new Name[10];
-		double[] probs = new double[10];
+		do
+		{
+			int size = (int) Math.pow((rng.nextDouble() * 6), 2) + 1;
+			Name[] names = new Name[size];
+			
+			for(int i = 0; i < names.length; i++)
+	    		names[i] = assembly.makeSuffix();
+			for(int i = 0; i < names.length; i++)
+				suffixes.addName(names[i], rng.nextDouble());
+		} while (suffixes.size() < 1);
 		
-		for(int i = 0; i < 10; i++)
-    		names[i] = ((SimpleAssembly)assembly).makeSuffix();
-		for(int i = 0; i < 10; i++)
-			suffixes.addName(names[i], rng.nextDouble());
 		
-		double exaggerationFactor = 2;
-		suffixes.exaggerate(exaggerationFactor);
+		System.out.println("Exaggeration factor: " + Math.sqrt(suffixes.size()));
+//		suffixes.exaggerate(Math.sqrt(suffixes.size()));
 		suffixes.sort();
+		suffixes.zipfScale();
 		suffixes.normalize();
+		
+		combinationRules = new CombinationRules(this);
 	}
 
 	/**
@@ -1325,54 +1316,6 @@ public class Phonology
 	}
 	
 	/**
-	 * Generates a sample of Phonologies and compiles statistics on them. The function prints the average
-	 * time taken to generate a phonology, as well as the average value for each feature tracked by gatherStatistics(). 
-	 * @param	count	The number of Phonologies to generate for the sample 
-	 * @since	1.0
-	 */
-	static protected void massGatherStats(int count)
-	{
-		// Initialize counts
-		int[] persistentCounts = new int[11];
-
-		// Start timer
-		long startTime = System.nanoTime();
-		
-		// Suppress output by having System print to a dummy OutputStream
-		PrintStream original = System.out;
-		PrintStream dummy = new PrintStream(new OutputStream() { public void write(int b) {} });
-		System.setOut(dummy);
-		
-		// Generate the given number of Phonologies and record their feature counts
-		for (int i = 0; i < count; i++)
-		{
-			Phonology p = new Phonology();
-			for (int j = 0; j < persistentCounts.length; j++)
-				persistentCounts[j] += p.counts[j]; 
-		}
-		
-		// Reset System.out to its original value
-		System.setOut(original);
-		
-		// End timer
-		long endTime = System.nanoTime();
-		double time = (endTime - startTime) / (count * 1000000);
-		
-		// Print findings
-		System.out.println("AVERAGE\tSIMPLE\tCOMPLEX");
-		System.out.println("ONSETS\t" + (persistentCounts[SIMPLE_ONSETS] / count) + "\t" + (persistentCounts[COMPLEX_ONSETS] / count));
-		System.out.println("NUCLEI\t" + (persistentCounts[SIMPLE_NUCLEI] / count) + "\t" + (persistentCounts[COMPLEX_NUCLEI] / count));
-		System.out.println("CODAS \t" + (persistentCounts[SIMPLE_CODAS]  / count) + "\t" + (persistentCounts[COMPLEX_CODAS]  / count));
-		System.out.println("HIATUS\t" + (persistentCounts[SIMPLE_NUCLEI_WITH_HIATUS]  / count) + "\t" 
-									  + (persistentCounts[COMPLEX_NUCLEI_WITH_HIATUS]  / count));
-		System.out.println("COMPOUND INTERLUDES\t" + persistentCounts[COMPOUND_INTERLUDES] / count);
-		System.out.println("LIGHT RIMES\t" + persistentCounts[LIGHT_RIMES] / count);
-		System.out.println("HEAVY RIMES\t" + persistentCounts[HEAVY_RIMES] / count);
-		
-		System.out.println("Average time per language: " + time + "ms");
-	}
-	
-	/**
 	 * Returns true if a nasal cluster has unharmonious voicing, i.e.,
 	 * 1.  the first segment is a NASAL, and either
 	 * 2a. the second segment is a plosive and its place of articulation differs from the first, OR
@@ -1533,10 +1476,10 @@ public class Phonology
 			{	
 				public boolean add(Constituent c)
 				{
-					Iterator itr = this.iterator();
+					Iterator<Constituent> itr = this.iterator();
 					while (itr.hasNext())
 					{
-						Constituent next = (Constituent) itr.next();
+						Constituent next = itr.next();
 						if (c.sameSequence(next))
 							return false;
 					}
@@ -1595,10 +1538,10 @@ public class Phonology
 			{	
 				public boolean add(Constituent c)
 				{
-					Iterator itr = this.iterator();
+					Iterator<Constituent> itr = this.iterator();
 					while (itr.hasNext())
 					{
-						Constituent next = (Constituent) itr.next();
+						Constituent next = itr.next();
 						if (c.sameSequence(next))
 							return false;
 					}
@@ -1647,6 +1590,11 @@ public class Phonology
 			System.out.println();
 		}
 		
+	}
+	
+	public boolean hasHiatus()
+	{
+		return true;
 	}
 	
 	/**
@@ -1789,13 +1737,14 @@ public class Phonology
 			// Apply offsets
 			if (segment.expression.equals("ng"))
 			{
-				medialProminence    -= onsetNgOffset;
+				medialProminence   		 -= onsetNgOffset;
 				wordInitialProminence	  -= onsetNgOffset;
 				interludeFollowProminence -= onsetNgOffset;
 			}
 			else if (segment.expression.equals("'"))
 			{
 				medialCodaProminence		-= codaGlottalStopOffset;
+				terminalCodaProminence		-= codaGlottalStopOffset;
 				codaClusterLeadProminence	-= codaGlottalStopOffset;
 				codaClusterFollowProminence -= codaGlottalStopOffset;
 			}
@@ -1815,7 +1764,7 @@ public class Phonology
 				deviance /= Math.sqrt(segment.properties.length);
 				medialProminence += deviance;
 				
-				deviance = wordInitialRatings.getRating(s.ordinal()) - 1;
+				deviance = initialOnsetRatings.getRating(s.ordinal()) - 1;
 				deviance /= Math.sqrt(segment.properties.length);
 				wordInitialProminence += deviance;
 				
@@ -1877,10 +1826,13 @@ public class Phonology
 		double terminalProminence;
 		double rootProminence;
 		
+		double strongRootEndChance;			// Chance a root ending in this vowel will be strong
+		double strongSuffixStartChance;		// Chance a suffix starting with this vowel will be strong
+		
 		double hiatusMedialSyllableEntropy;	// entropy for a medial syllable starting with a vowel
-		double hiatusConsonantTerminationEntropy;
-		double hiatusVowelTerminationEntropy;
+		double hiatusTerminalSyllableEntropy;
 		double hiatusRootSyllableEntropy;
+		double hiatusTerminalCodaChance;
 		
 		ConstituentLibrary terminalFollowers;
 		ConstituentLibrary rootFollowers;
@@ -1900,8 +1852,7 @@ public class Phonology
 			interludeFollowProminence 	= 1;
 			
 			double hiatusMedialSyllableEntropy			= 0;
-			double hiatusConsonantTerminationEntropy	= 0;
-			double hiatusVowelTerminationEntropy		= 0;
+			double hiatusTerminalSyllableEntropy		= 0;
 			double hiatusRootSyllableEntropy			= 0;
 			
 			// Apply offsets
@@ -1964,20 +1915,12 @@ public class Phonology
 		
 		protected void addInterlude(Constituent c, ConstituentLocation location)
 		{
-			// If interludeLeadProminence <= 0, this phoneme does not lead in interludes/hiatus
-			if (interludeLeadProminence <= 0)
-			{
-				System.out.println("Rejecting " + c + " from " + location + " " + this);
-				return;
-			}
-			
 			// Calculate interlude's probability.
 			// Base probability equals sum of following segment's interludeFollow and onsetInitial prominences
 			double probability = c.content[0].interludeFollowProminence;
 			
-			
+			// Set source and target libraries and probability
 			ConstituentLibrary sourceLibrary, targetLibrary;
-			
 			switch(location)
 			{
 				case MEDIAL:
@@ -2025,122 +1968,6 @@ public class Phonology
 		}
 	}
 
-	/**
-	 * Represents a sequence of 1 or more consecutive Phonemes in a particular position in a word -
-	 * either an onset, a nucleus, or a coda.
-	 * @since	1.0
-	 */
-	class Constituent implements Comparable<Constituent>
-	{
-		ConstituentType type;
-		Phoneme[] content;
-		double probability;
-				
-		/**
-		 * Constructor sets the syllable segment's essential parameters.
-		 * @param	type		Syllable segment's type (onset, nucleus, coda)
-		 * @param	content		Sequence of Phonemes comprising the segment
-		 * @param	probability	Probability of this segment appearing out of all syllable segments of same type and length
-		 * @since	1.0
-		 */
-		public Constituent (ConstituentType type, Phoneme[] content, double probability)
-		{
-			this.type = type;
-			this.content = content;
-			this.probability = probability;
-		}
-		
-		/**
-		 * Creates a copy of the given Constituent with a new probability value
-		 * @param old
-		 * @param probability
-		 * @since 1.2
-		 */
-		public Constituent (Constituent old, double probability)
-		{
-			this.type = old.type;
-			this.content = old.content;
-			this.probability = probability;
-		}
-		
-		/**
-		 * Copy constructor.
-		 * @param	other	Syllable segment to be copied
-		 * @since	1.0
-		 */
-		public Constituent(Constituent other)
-		{
-			this.type = other.type;
-			this.content = other.content;
-			this.probability = other.probability;
-		}
-		
-		/**
-		 * @return	The number of Phonemes in this Constituent
-		 * @since	1.2
-		 */
-		public int size()
-		{
-			return content.length;
-		}
-		
-		/**
-		 * @return	The last Phoneme in this segment's sequence of Phonemes.
-		 * @since	1.0
-		 */
-		public Phoneme lastPhoneme()
-		{
-			if (content[content.length - 1].segment.expression.equals(":"))
-				return content[content.length - 2];
-			else
-				return content[content.length - 1];
-		}
-		
-		public ConstituentLibrary followers()
-		{
-			return lastPhoneme().followers;
-		}
-		
-		
-		/**
-		 * Returns a string containing the segment's constituent Phonemes in sequence.
-		 * @return	The content of the syllable segment, in string form
-		 * @since	1.0 
-		 */
-		public String toString()
-		{
-			String result = "";
-			for (Phoneme p : content)
-				result += p.segment.expression;
-			return result;
-		}
-		
-		public boolean sameSequence(Constituent other)
-		{
-			if (size() != other.size())
-				return false;
-			for (int i = 0 ; i < content.length; i++)
-				if (content[i] != other.content[i])
-					return false;
-			return true;
-		}
-
-		/**
-		 * Compares this segment's probability to another segment's; returns 1 if this segment's probability is higher,
-		 * -1 if it is lower, and 0 if they are equal.
-		 * @return	An int representing the relationship between this segment's probability and that of another segment
-		 * @since	1.0
-		 */
-		public int compareTo(Constituent c)
-		{
-			if (probability > c.probability)
-				return 1;
-			else if (probability < c.probability)
-				return -1;
-			return 0;
-		}
-	}
-	
 	/**
 	 * Sets the seed to the given value.
 	 * @param 	newSeed		the value to which to set the seed

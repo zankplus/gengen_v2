@@ -3,22 +3,29 @@ package gengenv2;
 import java.util.ArrayList;
 import java.util.Collections;
 
-import gengenv2.Phonology.Constituent;
-
 public class SuffixLibrary
 {
+	private Phonology p;
 	private ArrayList<NameEntry> library;
+	Constituent inserendum;
+	private int count;
 	private boolean normalized;
+	private double maxInformationContent = 9;
 	
-	public SuffixLibrary()
+	public SuffixLibrary(Phonology p)
 	{
+		this.p = p;
+		inserendum = p.medialOnsets.getMembersOfLength(1).get(0);
 		library = new ArrayList<NameEntry>();
 		normalized = false;
+		count = 0;
 	}
 	
 	public void addName(Name name, double probability)
 	{
 		NameEntry entry = new NameEntry(name, probability);
+		if (name.getInformationContent() > maxInformationContent)
+			return;
 		
 		boolean duplicate = false;
 		for (NameEntry s : library)
@@ -30,7 +37,10 @@ public class SuffixLibrary
 			}
 		
 		if (!duplicate)
+		{
 			library.add(entry);
+			count++;
+		}
 	}
 	
 	public void normalize()
@@ -56,9 +66,31 @@ public class SuffixLibrary
 		normalized = false;
 	}
 	
+	public void zipfScale()
+	{
+		for (int i = 0; i < library.size(); i++)
+		{
+			library.get(i).setProbability(library.get(i).getProbability() / (i + 1));
+		}
+	}
+	
+	public void pick()
+	{
+		if (!normalized)
+		{
+			normalize();
+			normalized = true;
+		}
+	}
+	
 	public ArrayList<NameEntry> getLibrary()
 	{
 		return library;
+	}
+	
+	public int size()
+	{
+		return count;
 	}
 }
 

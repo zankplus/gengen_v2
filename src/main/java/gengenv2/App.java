@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import gengenv2.Name.Syllable;
+
 /**
  * Maven's default program for demonstrating Gengen. Mostly used for testing.
  * @since	1.0
@@ -39,7 +41,7 @@ public class App
     public static void main(String[] args)
     {   
     	// Revisit this
-    	Phonology p = new Phonology();
+    	Phonology p = new Phonology(2956502808346677711L);
 //    	Phonology p = new Phonology(-4686731362303332792L);	// ecko!!!!
     	
 //    	p.printInventory(p.initialOnsets.getMembersOfLength(2));
@@ -51,18 +53,20 @@ public class App
 //    	for (int i = 1; i <= p.initialOnsets.maxLength(); i++)
 //    		p.printInventory(p.initialOnsets.getMembersOfLength(i));
 		
-    	p.compareOnsets();
-    	System.out.println();
-    	p.compareNuclei();
-    	p.printHiatus();
+//    	p.compareOnsets();
+//    	System.out.println();
+//    	p.compareNuclei();
+//    	p.printHiatus();
     	
     	for (NameEntry ne : p.suffixes.getLibrary())
     	{
-    		System.out.printf("%s%.3f\n", padString(ne.getName().getPlain().toLowerCase(), 16), ne.getProbability());
+    		System.out.printf("%s%.3f\t%s\t%.3f\n", padString(ne.getName().getPlain().toLowerCase(), 16), ne.getProbability(), ne.getName().strength, ne.getName().getInformationContent());
     	}
-    	
+    	System.out.println();
+		
 		
 //		testNames(p);
+    	showOffRoots(p);
     }
     
     public static void testNames(Phonology p)
@@ -124,4 +128,45 @@ public class App
 		
 		return result.toString();
     }
+
+	public static void showOffRoots(Phonology p)
+	{
+		List<Name> names = p.makeNames(15);
+		Collections.sort(names, new Comparator<Name>() {
+			public int compare(Name a, Name b)
+			{
+				// return toString().compareTo(other.toString());
+				if (a.getInformationContent() > b.getInformationContent())
+					return 1;
+				else if (a.getInformationContent() < b.getInformationContent())
+					return -1;
+				else
+					return 0; 
+			}
+		});
+		
+		Name[] suffixes = new Name[] { p.suffixes.getLibrary().get(1).getName(),
+										p.suffixes.getLibrary().get(8).getName(),
+										p.suffixes.getLibrary().get(4).getName(),
+										p.suffixes.getLibrary().get(5).getName() };
+		
+		// Suffix labels
+		System.out.print("\t\t");
+		for (Name suffix : suffixes)
+			System.out.print(padString(suffix.getPlain().toUpperCase(), 16));
+		System.out.println();
+		
+		Constituent inserendum = p.medialOnsets.pickSimple();
+		
+		for (Name name : names)
+		{
+			System.out.print(padString(name.getPlain().toUpperCase(), 16));
+			for (Name suffix : suffixes)
+			{
+				Name result = p.combinationRules.combine(name, suffix, true);
+				System.out.print(padString(result == null ? "" : result.getDefault(), 16));
+			}
+			System.out.println();
+		}
+	}
 }

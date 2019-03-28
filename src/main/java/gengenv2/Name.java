@@ -21,34 +21,59 @@ package gengenv2;
 
 import java.util.ArrayList;
 
-import gengenv2.Phonology.Constituent;
-
 /**
  * The underlying representation for a phonological word produced by a Phonology. In addition to containing
  * the string representation of a name, the Name class stores the sequence of Phonemes that constitutes the name,
  * as well as alternative string representations.
- * 
+ * @version	1.2
  * @since	1.1
  */
 public class Name
 {
-	private Phonology phonology;			// Reference to the Phonology whence this Name was generated
+//	private Phonology phonology;			// Reference to the Phonology whence this Name was generated
 	private ArrayList<Syllable> syllables;	// List of syllables (made of constituents) comprising this Name
 	private String defaultRep;				// Recommended representation with diacritics and symbols for clarity
 	private String plain;					// Representation of the Name free of diacritics and symbols (except ')
 	private String ipa;						// IPA representation of Name for unambiguous pronunciation
 	private double informationContent;		// Information content, roughly representing the complexity of this Name
-	private RootStrength rootStrength;		// Governs whether and how this words combines with new suffixes
+	private WordType type;					// 
+	RootStrength strength;
 	
 	/**
-	 * Creates a new Name with an empty list of Syllables and a reference to the parent language.
+	 * Creates a new Name with an empty list of Syllables and specifies whether or not it's a suffix.
 	 * @since	1.1
 	 */
-	public Name(Phonology p)
+	public Name(WordType type)
 	{
-		Phonology language = p;
 		this.syllables = new ArrayList<Syllable>();
-		rootStrength = RootStrength.WEAK;
+		this.type = type;
+		strength = RootStrength.WEAK;
+	}
+	
+	/**
+	 * Creates a new non-suffix name.
+	 * @since	1.2
+	 */
+	public Name()
+	{
+		this(WordType.SUFFIX);
+	}
+	
+	/**
+	 * Copy constructor
+	 * @since	1.2
+	 */
+	public Name(Name other)
+	{
+		// Copy syllables
+		this.syllables = new ArrayList<Syllable>();
+		for (Syllable s : other.getSyllables())
+			for (Constituent c : s.constituents)
+				add(c);
+		
+		this.type = other.type;
+		this.strength = other.strength;
+		this.informationContent = other.getInformationContent();
 	}
 	
 	/**
@@ -58,8 +83,11 @@ public class Name
 	 * @param	c		The syllable constituent to be appended to the Name
 	 * @since	1.1
 	 */
-	public void add(Constituent c)
+	public boolean add(Constituent c)
 	{
+		if (c == null)
+			return false;
+		
 		switch(c.type)
 		{
 			case ONSET:
@@ -68,7 +96,7 @@ public class Name
 				Syllable syl = new Syllable();
 				syl.constituents[0] = c;
 				syllables.add(syl);
-				break;
+				return true;
 			}
 				
 			case NUCLEUS:
@@ -82,24 +110,47 @@ public class Name
 					syllables.add(new Syllable());
 				
 				syllables.get(syllables.size() - 1).constituents[1] = c;
-				break;
+				return true;
 			}	
 			
 			case CODA:
 			{
 				// Codas never start a new syllable, so they can be safely added to the end of the current one
 				syllables.get(syllables.size() - 1).constituents[2] = c;
-				break;
+				return true;
 			}
 			
 			default:
 			{
 				System.err.println("Name.add(Constituent) received a Constituent with no type.");
-				break;
+				return false;
 			}
 		}
 	}
 
+	public Constituent deletePivotVowel()
+	{
+		Constituent result;
+		if (type == WordType.STEM)
+		{
+			result = syllables.get(syllables.size() - 1).constituents[1];
+			syllables.get(syllables.size() - 1).constituents[1] = null;
+		}
+		else if (type == WordType.SUFFIX)
+		{	
+			result = syllables.get(0).constituents[1];
+			syllables.get(syllables.size() - 1).constituents[1] = null;
+		}
+		else
+			return null;
+		
+		defaultRep = null;
+		plain = null;
+		ipa = null;
+		
+		return result;
+	}
+	
 	/**
 	 * Renders the Name with diacritics to mark stress and hiatus, and hyphens to disambiguate clusters, and
 	 * saves the result in a variable.
@@ -194,6 +245,10 @@ public class Name
 		Segment curr = null;
 		
 		StringBuilder sb = new StringBuilder();
+		
+		if (type == WordType.SUFFIX)
+			sb.append("-");
+		
 		for (int i = 0; i < syllables.size(); i++)
 		{
 			Syllable syl = syllables.get(i);
@@ -201,6 +256,11 @@ public class Name
 			for (int j = 0; j < 3; j++)
 			{
 				Constituent c = syl.constituents[j];
+				
+				if (j == 1 && (((type == WordType.SUFFIX && strength == RootStrength.WEAK && i == 0) ||
+						type == WordType.STEM && strength == RootStrength.WEAK && i == syllables.size() - 1)))
+					sb.append("(");
+				
 				if (c != null)
 					for (int k = 0; k < c.content.length; k++)
 					{
@@ -221,8 +281,15 @@ public class Name
 						else
 							sb.append(curr.expression);
 					}
+				if (j == 1 && (((type == WordType.SUFFIX && strength == RootStrength.WEAK && i == 0) ||
+						type == WordType.STEM && strength == RootStrength.WEAK && i == syllables.size() - 1)))
+					sb.append(")");
 			}	
 		}
+		
+		if (type == WordType.STEM)
+			sb.append("-");
+		
 		plain = sb.toString();
 	}
 
@@ -301,14 +368,6 @@ public class Name
 	}
 	
 	/**
-	 * @return	A reference to the Phonology that generated this Name
-	 */
-	public Phonology getPhonology()
-	{
-		return phonology;
-	}
-	
-	/**
 	 * @return	A reference to the list of Syllables comprising this Name
 	 */
 	public ArrayList<Syllable> getSyllables()
@@ -332,14 +391,44 @@ public class Name
 		this.informationContent = ic;
 	}
 
-	public void setRootStrength(RootStrength rootStrength)
+	public void setWordType(WordType type)
 	{
-		this.rootStrength = rootStrength;
+		this.type = type;
 	}
 	
-	public RootStrength getRootStrength()
+	public WordType getWordType()
 	{
-		return rootStrength;
+		return type;
+	}
+	
+	/**
+	 * @return The first Constituent in this Name
+	 */
+	public Constituent first()
+	{
+		for (int i = 0; i < 3; i++)
+			if (syllables.get(0).constituents[i] != null)
+				return syllables.get(0).constituents[i];
+		return null;
+	}
+	
+	/**
+	 * @return The last Constituent in this Name
+	 */
+	public Constituent last()
+	{
+		for (int i = 2; i >= 0; i--)
+			if (syllables.get(syllables.size() - 1).constituents[i] != null)
+				return syllables.get(syllables.size() - 1).constituents[i];
+		return null;
+	}
+	
+	/**
+	 * @return The number of Syllables in this Name
+	 */
+	public int sylCount()
+	{
+		return syllables.size();
 	}
 	
 	/**
@@ -351,6 +440,12 @@ public class Name
 		return getDefault();
 	}
 	
+	/**
+	 * Returns true if the given Name contains the same sequence of Phonemes as this one
+	 * @param 	The Name against which to be compared
+	 * @return	True if both names contain the same sequence of Phonemes, otherwise false
+	 * @since	1.2
+	 */
 	public boolean equals(Name other)
 	{
 		return this.getIPA().equals(other.getIPA()); 
@@ -432,7 +527,9 @@ public class Name
 enum Stress { WEAK, STRONG, PRIMARY }
 
 /**
- * A measure of  
- * @since	1.2
+ * TODO
+ *
  */
+enum WordType { COMPLETE, STEM, SUFFIX }
+
 enum RootStrength { CLOSED, WEAK, STRONG }
