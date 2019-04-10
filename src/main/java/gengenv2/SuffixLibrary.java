@@ -15,7 +15,7 @@ public class SuffixLibrary
 	public SuffixLibrary(Phonology p)
 	{
 		this.p = p;
-		inserendum = p.medialOnsets.getMembersOfLength(1).get(0);
+		inserendum = p.medialOnsets.pickSimple();
 		library = new ArrayList<NameEntry>();
 		normalized = false;
 		count = 0;

@@ -19,6 +19,7 @@
 
 package gengenv2;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -41,7 +42,8 @@ public class App
     public static void main(String[] args)
     {   
     	// Revisit this
-    	Phonology p = new Phonology(2956502808346677711L);
+    	Phonology p = new Phonology(6606978045922287062L);
+//    	Phonology p = new Phonology(2956502808346677711L);
 //    	Phonology p = new Phonology(-4686731362303332792L);	// ecko!!!!
     	
 //    	p.printInventory(p.initialOnsets.getMembersOfLength(2));
@@ -53,10 +55,10 @@ public class App
 //    	for (int i = 1; i <= p.initialOnsets.maxLength(); i++)
 //    		p.printInventory(p.initialOnsets.getMembersOfLength(i));
 		
-//    	p.compareOnsets();
+    	p.compareOnsets();
 //    	System.out.println();
 //    	p.compareNuclei();
-//    	p.printHiatus();
+    	p.printHiatus();
     	
     	for (NameEntry ne : p.suffixes.getLibrary())
     	{
@@ -131,7 +133,7 @@ public class App
 
 	public static void showOffRoots(Phonology p)
 	{
-		List<Name> names = p.makeNames(15);
+		List<Name> names = p.makeNames(60);
 		Collections.sort(names, new Comparator<Name>() {
 			public int compare(Name a, Name b)
 			{
@@ -145,25 +147,31 @@ public class App
 			}
 		});
 		
-		Name[] suffixes = new Name[] { p.suffixes.getLibrary().get(1).getName(),
-										p.suffixes.getLibrary().get(8).getName(),
-										p.suffixes.getLibrary().get(4).getName(),
-										p.suffixes.getLibrary().get(5).getName() };
+		ArrayList<NameEntry> suffixes = p.suffixes.getLibrary();
+		
+//		Name[] suffixes = new Name[] { p.suffixes.getLibrary().get(1).getName(),
+////										p.suffixes.getLibrary().get(8).getName(),
+////										p.suffixes.getLibrary().get(4).getName(),
+////										p.suffixes.getLibrary().get(5).getName() };
+//				p.suffixes.getLibrary().get(0).getName(),
+//				p.suffixes.getLibrary().get(2).getName(),
+//				p.suffixes.getLibrary().get(3).getName() };
 		
 		// Suffix labels
 		System.out.print("\t\t");
-		for (Name suffix : suffixes)
-			System.out.print(padString(suffix.getPlain().toUpperCase(), 16));
+		for (NameEntry suffix : suffixes)
+		{
+			String suffText = suffix.getName() == Name.NEW_SUFFIX ? "?????" : suffix.getName().getPlain(); 
+			System.out.print(padString(suffText.toUpperCase(), 16));
+		}
 		System.out.println();
-		
-		Constituent inserendum = p.medialOnsets.pickSimple();
 		
 		for (Name name : names)
 		{
 			System.out.print(padString(name.getPlain().toUpperCase(), 16));
-			for (Name suffix : suffixes)
+			for (NameEntry suffix : suffixes)
 			{
-				Name result = p.combinationRules.combine(name, suffix, true);
+				Name result = p.combinationRules.combine(name, suffix.getName(), true);
 				System.out.print(padString(result == null ? "" : result.getDefault(), 16));
 			}
 			System.out.println();

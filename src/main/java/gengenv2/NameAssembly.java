@@ -61,8 +61,8 @@ public class NameAssembly
 	Constituent prev;		// The most recent syllable constituent added to the name
 	
 	// Information content variables
-	double infoConMean = 9;				// Average value of target information content for names
-	double infoConStdev = 2;			// Standard deviation of target information content for names
+	double infoConMean = 8;				// Average value of target information content for names
+	double infoConStdev = 1.5;			// Standard deviation of target information content for names
 	double suffixInfoConMean = 0;		// Avg. value of target information content for suffixes
 	double suffixInfoConStdev = 5;		// Standard deviation of target information content for suffixes
 
@@ -110,6 +110,11 @@ public class NameAssembly
 		return makeName(rng.nextGaussian() * suffixInfoConStdev + suffixInfoConMean, WordType.SUFFIX);
 	}
 	
+	public Name makeSuffix(double mean, double stdev)
+	{
+		return makeName(rng.nextGaussian() * stdev + mean, WordType.SUFFIX);
+	}
+	
 	/**
 	 * Generates a name by first resetting the naming variables and then invoking a particular Node's nextNode()
 	 * method (InitialOnsetNode for complete names, NucleusLocationNode for suffixes). This initiates a decision 
@@ -152,6 +157,9 @@ public class NameAssembly
 		{
 			// Diphthongs are always strong
 			if (prev.size() > 1)
+				name.strength = RootStrength.STRONG;
+			// Monosyllabic roots are always strong
+			if (name.sylCount() == 1)
 				name.strength = RootStrength.STRONG;
 			else if (rng.nextDouble() < ((VowelPhoneme)prev.lastPhoneme()).strongRootEndChance)
 				name.strength = RootStrength.STRONG;
@@ -371,8 +379,9 @@ public class NameAssembly
 					v.hiatusTerminalSyllableEntropy = decisionEntropy(
 										new double[] { v.hiatusTerminalCodaChance, 1 - v.hiatusTerminalCodaChance },
 										new double[] { consonantTerminationEntropy, vowelTerminationEntropy });
-					
 					System.out.println("Entropies for hiatus on " + v + ":");
+					System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
+					System.out.println(v.hiatusTerminalCodaChance);
 					System.out.printf("\t%.3f Medial syllable\n", v.hiatusMedialSyllableEntropy);
 					System.out.printf("\t%.3f Terminal syllable\n", v.hiatusTerminalSyllableEntropy);
 					System.out.printf("\t%.3f Root syllable\n", v.hiatusRootSyllableEntropy);
@@ -404,14 +413,12 @@ public class NameAssembly
 					hTerminal = terminalSyllableEntropy;
 				}
 				
-				System.out.printf("Entropy: %.3f | %.3f\n", hMedial, hTerminal);
-				
 				double currentIC = -Math.log(pName);
 				double hMedialDiff = Math.abs(hMedial + currentIC - icTarget);
 				double hTerminalDiff = Math.abs(hTerminal + currentIC - icTarget);
 				
 				// Use entropy measurements to decide what kind of syllable will bring us closest to the target
-				return (hTerminal < hMedialDiff || currentIC > icTarget) ? tsNode : mnNode;
+				return (hTerminal < hMedialDiff || currentIC > icTarget || name.sylCount() > 0) ? tsNode : mnNode;
 			}
 			
 			// For in-progress names ending in roots
@@ -504,12 +511,14 @@ public class NameAssembly
 
 		private double getConsonantTerminationChance(ConstituentLibrary medialLib, ConstituentLibrary terminalLib)
 		{
-			if (p.terminalCodas == null)
+			if (p.terminalCodas == null || (medialLib.size() == 0 && terminalLib.size() == 0))
 				return 0;
 			double pConsonantTermination, pVowelTermination;
 			pConsonantTermination = Math.log(medialLib.size() * p.terminalCodas.size() + 1);
+			pConsonantTermination *= p.baseTerminalCodaChance;
 			pVowelTermination = Math.log(terminalLib.size() + 1);
 			pVowelTermination *= 1 - p.baseTerminalCodaChance;
+			System.out.println("!   " + medialLib.size() + " " + p.terminalCodas.size() + " " + terminalLib.size());
 			return pConsonantTermination / (pConsonantTermination + pVowelTermination);
 		}
 		

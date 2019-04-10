@@ -247,6 +247,9 @@ public class ConstituentLibrary
 	 */
 	public Constituent getMatchingConstituent(Constituent other)
 	{
+		if (other.size() > maxLength)
+			return null;
+		
 		for (Constituent c : getMembersOfLength(other.size()))
 			if (c.sameSequence(other))
 				return c;

@@ -953,18 +953,20 @@ public class Phonology
 		
 	private void setRootStrengthChances()
 	{
-		double rootEndBasePosition = rng.nextDouble() * 3 - 1.5;
-		double suffixStartBasePosition = rng.nextDouble() * 4 - 2;
+		double rootEndBasePosition = rng.nextGaussian() * 0.16 + 0.32;
+		double suffixStartBasePosition = rng.nextGaussian() * 0.16 + 0.32;
+		
+		
 		
 		for (VowelPhoneme v : vowelInventory)
 			if (!v.segment.expression.equals(":"))
 			{
-				double rand = rng.nextDouble() * 2 - 1;
-				v.strongRootEndChance = rootEndBasePosition + rand;
+				double rand = rng.nextGaussian() * 0.5 + 1;
+				v.strongRootEndChance = rootEndBasePosition * rand;
 				v.strongRootEndChance = Math.min(Math.max(v.strongRootEndChance, 0), 1);
 				
-				rand = rng.nextDouble() * 2 - 1;
-				v.strongSuffixStartChance = suffixStartBasePosition + rand;
+				rand = rng.nextGaussian() * 0.5 + 1;
+				v.strongSuffixStartChance = suffixStartBasePosition * rand;
 				v.strongSuffixStartChance = Math.min(Math.max(v.strongSuffixStartChance, 0), 1);
 			}
 	}
@@ -1023,17 +1025,16 @@ public class Phonology
 	{
 		suffixes = new SuffixLibrary(this);
 		
-		do
-		{
-			int size = (int) Math.pow((rng.nextDouble() * 6), 2) + 1;
-			Name[] names = new Name[size];
-			
-			for(int i = 0; i < names.length; i++)
-	    		names[i] = assembly.makeSuffix();
-			for(int i = 0; i < names.length; i++)
-				suffixes.addName(names[i], rng.nextDouble());
-		} while (suffixes.size() < 1);
 		
+		int size = (int) Math.pow((rng.nextDouble() * 6), 2) + 1;
+		Name[] names = new Name[size];
+		
+		for(int i = 0; i < names.length; i++)
+    		names[i] = assembly.makeSuffix();
+		for(int i = 0; i < names.length; i++)
+			suffixes.addName(names[i], rng.nextDouble());
+	
+		suffixes.addName(Name.NEW_SUFFIX, rng.nextDouble());
 		
 		System.out.println("Exaggeration factor: " + Math.sqrt(suffixes.size()));
 //		suffixes.exaggerate(Math.sqrt(suffixes.size()));

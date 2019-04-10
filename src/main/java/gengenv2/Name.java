@@ -39,6 +39,8 @@ public class Name
 	private WordType type;					// 
 	RootStrength strength;
 	
+	public static final Name NEW_SUFFIX = new Name(WordType.SPECIAL);
+	
 	/**
 	 * Creates a new Name with an empty list of Syllables and specifies whether or not it's a suffix.
 	 * @since	1.1
@@ -404,7 +406,7 @@ public class Name
 	/**
 	 * @return The first Constituent in this Name
 	 */
-	public Constituent first()
+	public Constituent firstConstituent()
 	{
 		for (int i = 0; i < 3; i++)
 			if (syllables.get(0).constituents[i] != null)
@@ -415,12 +417,22 @@ public class Name
 	/**
 	 * @return The last Constituent in this Name
 	 */
-	public Constituent last()
+	public Constituent lastConstituent()
 	{
 		for (int i = 2; i >= 0; i--)
 			if (syllables.get(syllables.size() - 1).constituents[i] != null)
 				return syllables.get(syllables.size() - 1).constituents[i];
 		return null;
+	}
+	
+	public Syllable firstSyllable()
+	{
+		return syllables.get(0);
+	}
+	
+	public Syllable lastSyllable()
+	{
+		return syllables.get(syllables.size() - 1);
 	}
 	
 	/**
@@ -437,6 +449,9 @@ public class Name
 	 */
 	public String toString()
 	{
+		if (sylCount() == 0)
+			return "null";
+		
 		return getDefault();
 	}
 	
@@ -517,6 +532,16 @@ public class Name
 		{
 			return isHeavy(false);
 		}
+		
+		public boolean hasOnset()
+		{
+			return constituents[0] != null;
+		}
+		
+		public boolean hasCoda()
+		{
+			return constituents[2] != null;
+		}
 	}
 }
 
@@ -530,6 +555,6 @@ enum Stress { WEAK, STRONG, PRIMARY }
  * TODO
  *
  */
-enum WordType { COMPLETE, STEM, SUFFIX }
+enum WordType { COMPLETE, STEM, SUFFIX, SPECIAL }
 
 enum RootStrength { CLOSED, WEAK, STRONG }

@@ -115,6 +115,33 @@ public class Combination
 		
 		return stem;
 	}
+	
+	public static Name doubleDeletion(Name stem, Name suffix)
+	{
+		if (stem.getWordType() != WordType.STEM || suffix.getWordType() != WordType.SUFFIX)
+			return null;
+		
+		// Delete root from stem
+		if (stem.deletePivotVowel() == null)
+			return null;
+		
+		// Add syllables from suffix to stem, omitting leftmost nucleus
+		if (suffix.getSyllables().get(0).constituents[0] == null)
+		{
+			// Add coda of first syllable
+			stem.add(suffix.getSyllables().get(0).constituents[2]);
+			
+			// Add syllables past the first
+			for (int i = 1; i < suffix.getSyllables().size(); i++)
+				for (Constituent c : suffix.getSyllables().get(i).constituents)
+					if (c != null)
+						stem.add(c);
+			
+			stem.setWordType(WordType.COMPLETE);
+		}
+		
+		return stem;
+	}
 }
 
 class CombinationRules
@@ -145,16 +172,21 @@ class CombinationRules
 	
 	public Name combine(Name stem, Name suffix, boolean copyStem)
 	{
+		if (suffix == Name.NEW_SUFFIX)
+			suffix = p.assembly.makeSuffix();
+		
 		Name left = copyStem ? new Name(stem) : stem;
 		if (left.getWordType() != WordType.STEM || suffix.getWordType() != WordType.SUFFIX)
 			return null;
 		
-		
+		if (isDoubleDeletionLegal(stem, suffix))
+			return Combination.doubleDeletion(stem, suffix);
 		
 		if (isHiationLegal(stem, suffix))
 			return Combination.hiation(left, suffix);
 		
-		
+		if (isLeftDeletionLegal(left, suffix))
+			return Combination.leftDeletion(left, suffix);
 		
 		if (isRightDeletionLegal(left, suffix))
 			return Combination.rightDeletion(left, suffix);
@@ -167,17 +199,13 @@ class CombinationRules
 			
 			Constituent rightInsertion = approximantInsertionCheck(left, suffix, true);
 			if (rightInsertion != null)
-				return Combination.insertion(left, suffix, leftInsertion);
+			{
+//				System.out.println("right insertion on " + left);
+				return Combination.insertion(left, suffix, rightInsertion);
+			}
 			else
 				return Combination.insertion(left, suffix, p.suffixes.inserendum);
 		}
-		
-		if (isLeftDeletionLegal(left, suffix))
-			return Combination.leftDeletion(left, suffix);
-		
-		Constituent diph = unificationCheck(left, suffix);
-		if (diph != null)
-			return Combination.unification(left, suffix, diph);
 		
 		return null;
 	}
@@ -196,6 +224,80 @@ class CombinationRules
 		return true;
 	}
 	
+	public boolean isDoubleDeletionLegal(Name stem, Name suffix)
+	{
+		if (stem.strength == RootStrength.STRONG || suffix.strength == RootStrength.STRONG)
+			return false;
+		
+		// Stem must end in a consonant OR be polysyllabic and end in a non-hiatual vowel
+		if (stem.lastConstituent().type == ConstituentType.NUCLEUS)
+		{
+			if (stem.sylCount() == 1)
+				return false;
+			if (!stem.lastSyllable().hasOnset())
+				return false;
+		}
+		
+		// First nucleus of suffix must be followed by a consonant
+		if (suffix.sylCount() == 1)
+		{
+			if (!suffix.firstSyllable().hasCoda())
+				return false;
+		}
+		else if (!suffix.getSyllables().get(1).hasOnset())
+		{
+			return false;
+		}
+		
+		if (stem.lastSyllable().constituents[0].size() == 1)
+		{
+			// Check last consonant of stem against first of root
+			Phoneme left, right;
+			left = stem.lastSyllable().constituents[0].content[0];
+			if (suffix.firstSyllable().hasCoda())
+				right = suffix.firstSyllable().constituents[2].content[0];
+			else
+				right = suffix.getSyllables().get(1).constituents[0].content[0];
+			
+			
+			Constituent c;
+			ConstituentLibrary lib;
+			if (suffix.sylCount() == 1)
+			{
+				lib = p.terminalCodas;
+				c = new Constituent(ConstituentType.CODA, new Phoneme[] { left, right }, 0);
+			}
+			else
+			{
+				lib = left.followers;
+				c = new Constituent(ConstituentType.CODA, new Phoneme[] { right }, 0);
+			}
+			
+			Constituent match = lib.getMatchingConstituent(c);
+			
+			if (match == null)
+				return false;
+			
+			// Check second-last consonant of stem against first of root, if necessary
+			if (stem.sylCount() > 1 && stem.getSyllables().get(stem.sylCount() - 2).hasCoda())
+			{
+				Phoneme[] sequence = new Phoneme[2];  
+				sequence[1] = left;
+				sequence[0] = stem.getSyllables().get(stem.sylCount() - 2).constituents[2].lastPhoneme();
+				c.content = sequence;
+				
+				if(suffix.sylCount() == 1)
+					lib = p.medialCodas;
+				match = lib.getMatchingConstituent(c);
+				if (match == null)
+					return false;
+			}
+			
+			return true;
+		}
+		return false;
+	}
+	
 	public boolean isHiationLegal(Name stem, Name suffix)
 	{
 		if (!p.hasHiatus())
@@ -207,13 +309,15 @@ class CombinationRules
 		// If the suffix is monosyllabic, check the stem's vowel's terminal followers list
 		if (suffix.sylCount() == 1)
 		{
-			if (((VowelPhoneme)stem.last().lastPhoneme()).terminalFollowers.getMatchingConstituent(suffix.first())
+			if (((VowelPhoneme)stem.lastConstituent().lastPhoneme()).terminalFollowers.getMatchingConstituent(suffix.firstConstituent())
 					!= null)
+			{
 				return true;
+			}
 		}
 		
 		// If the suffix is polysyllabic, check the stem's vowel's medial followers list
-		else if (stem.last().lastPhoneme().followers.getMatchingConstituent(suffix.first())
+		else if (stem.lastConstituent().lastPhoneme().followers.getMatchingConstituent(suffix.firstConstituent())
 				!= null)
 			return true;
 		
@@ -223,11 +327,11 @@ class CombinationRules
 	public Constituent unificationCheck(Name stem, Name suffix)
 	{
 		// unification only works on pairs of simple onsets
-		if (stem.last().size() > 1 || suffix.first().size() > 1)
+		if (stem.lastConstituent().size() > 1 || suffix.firstConstituent().size() > 1)
 			return null;
 		
-		VowelPhoneme v1 = ((VowelPhoneme)stem.last().lastPhoneme());
-		VowelPhoneme v2 = ((VowelPhoneme)suffix.first().content[0]);
+		VowelPhoneme v1 = ((VowelPhoneme)stem.lastConstituent().lastPhoneme());
+		VowelPhoneme v2 = ((VowelPhoneme)suffix.firstConstituent().content[0]);
 		
 		ConstituentLibrary lib;
 		
@@ -259,9 +363,9 @@ class CombinationRules
 	{
 		Phoneme ph;
 		if (rightSide)
-			ph = stem.getSyllables().get(0).constituents[1].content[0];
+			ph = suffix.getSyllables().get(0).constituents[1].content[0];
 		else
-			ph = stem.last().lastPhoneme();
+			ph = stem.lastConstituent().lastPhoneme();
 		
 		if (medialY != null &&	(ph.segment.expression.equals("i") || 
 								 ph.segment.expression.equals("e") ||
@@ -270,7 +374,9 @@ class CombinationRules
 		
 		else if (medialW != null && (ph.segment.expression.equals("u") || 
 									 ph.segment.expression.equals("o")))
+		{
 			return medialW;
+		}
 		
 		return null;
 	}
