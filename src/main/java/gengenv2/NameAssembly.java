@@ -169,11 +169,17 @@ public class NameAssembly
 			Constituent first = name.getSyllables().get(0).constituents[1];
 			
 			// Suffixes comprising only a single nucleus are always strong
-			if (name.getSyllables().size() == 1 && name.getSyllables().get(0).constituents[2] == null)
+			if (name.sylCount() == 1 && name.getSyllables().get(0).constituents[2] == null)
 				name.strength = RootStrength.STRONG;
+
+			// Pivot vowels in polysyllabic suffixes are always weak
+			else if (name.sylCount() > 1)
+				name.strength = RootStrength.WEAK;
+			
 			// Diphthongs are always strong
 			else if (first.size() > 1)
 				name.strength = RootStrength.STRONG;
+			
 			else if (rng.nextDouble() < ((VowelPhoneme)first.lastPhoneme()).strongSuffixStartChance)
 				name.strength = RootStrength.STRONG;
 		}

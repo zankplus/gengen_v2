@@ -260,25 +260,42 @@ class CombinationRules
 				right = suffix.getSyllables().get(1).constituents[0].content[0];
 			
 			
-			Constituent c;
-			ConstituentLibrary lib;
+			Constituent c = null;
+			Constituent match = null;
+			ConstituentLibrary lib = null;
 			if (suffix.sylCount() == 1)
 			{
-				lib = p.terminalCodas;
 				c = new Constituent(ConstituentType.CODA, new Phoneme[] { left, right }, 0);
+				lib = p.terminalCodas;
+				if (lib != null)
+					match = lib.getMatchingConstituent(c);
 			}
 			else
 			{
-				lib = left.followers;
-				c = new Constituent(ConstituentType.CODA, new Phoneme[] { right }, 0);
+				if (p.medialOnsets != null)
+				{
+					c = new Constituent(ConstituentType.ONSET, new Phoneme[] { left, right }, 0);
+					lib = p.medialOnsets;
+					if (lib != null)
+						match = lib.getMatchingConstituent(c);
+				}
+				
+				if (match == null && left.followers != null)
+				{
+					c = new Constituent(ConstituentType.ONSET, new Phoneme[] { right }, 0);
+					lib = left.followers;
+					if (lib != null)
+						match = lib.getMatchingConstituent(c);
+				}
 			}
 			
-			Constituent match = lib.getMatchingConstituent(c);
-			
-			if (match == null)
+			if (match == null || c == null)
 				return false;
 			
-			// Check second-last consonant of stem against first of root, if necessary
+			if (lib == p.medialOnsets)
+				return true;
+			
+			// If stem ends in a cluster, ensure it is an allowable coda cluster
 			if (stem.sylCount() > 1 && stem.getSyllables().get(stem.sylCount() - 2).hasCoda())
 			{
 				Phoneme[] sequence = new Phoneme[2];  

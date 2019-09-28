@@ -262,7 +262,7 @@ enum VowelProperty implements SegmentProperty
 {
 	NULL(/*.169*/ 0), OPEN(.984), MID(.920), CLOSE(.993),
 	FRONT(.991), CENTER(.159), BACK(.991),
-	LONG(.250);	// this one is extremely fudged
+	LONG(0);	
 	
 	private double probability;
 	

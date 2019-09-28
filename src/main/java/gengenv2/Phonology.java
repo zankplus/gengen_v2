@@ -46,12 +46,20 @@ public class Phonology
 	private long seed;
 	private Phonology thisPhonology;
 	
+	/*
+	 * High level features
+	 * 
+	 * 
+	 */
+	
+	
 	/* Auxiliary systems
 	 * 
 	 * These are other special systems used by the Phonology to aid in name-making, defined in their own classes.
 	 * nameAssembly creates words using phonology's rules for syllable structure. stressRules represents the 
 	 * Phonology's rules for stress and rhythm, and is used to assign stress to words NameAssembly has made.
 	 */
+	FeatureSet features;
 	NameAssembly assembly;
 	StressRules stressRules;
 	SuffixLibrary suffixes;
@@ -162,6 +170,7 @@ public class Phonology
 	private double codaClusterOffset;
 	private double interludeOffset;
 	private double diphthongOffset;
+	private double geminateVowelOffset;
 	private double hiatusOffset;
 	
 	/*
@@ -203,9 +212,9 @@ public class Phonology
 	 * likelihood of a certain length of Constituent occurring in a given position is proportionate its
 	 * cluster coefficient raised to the power of that length (minus one). 
 	 */
-	protected double baseOnsetClusterChance;
-	protected double baseCodaClusterChance;
-	protected double baseDiphthongChance;
+	protected double onsetClusterWeight;
+	protected double codaClusterWeight;
+	protected double nucleusClusterWeight;
 	
 	protected double baseEmptyInitialOnsetChance;
 	protected double baseMedialOnsetChance;
@@ -319,7 +328,8 @@ public class Phonology
 		System.out.println("Phonology Seed: " + seed);
 		
 		// Commence construction
-		makeBasicSyllableStructure();
+		selectFeatures();
+		determineClusterStatistics();
 		determineProminence();
 		selectSegments();
 		
@@ -347,60 +357,111 @@ public class Phonology
 	}
 	
 	/**
-	 * This method determines the maximum length for each syllable segment type: onset, nucleus, and coda. For each of
-	 * these it also initializes the corresponding arrays in preparation to store all the syllable segments of the
-	 * appropriate length, and also determines the base cluster/diphthong chances and offsets. 
-	 * @since	1.0
+	 * Selects the high-level features of the language, such as syllable structure (what syllable Constituents
+	 * are allowed, and where?), phonotactics (are clusters allowed? how long are they? is hiatus?), gemination
+	 * of consonants and vowels.
+	 * 
+	 * @since	1.2 (1.0 as makeBasicSyllableStructure)
 	 */
-	private void makeBasicSyllableStructure()
+	private void selectFeatures()
 	{
 		int roll;
 		
-		// Determine max length for each syllable segment type.
-		roll = rng.nextInt(12);
-		if (roll < 3)			
-			maxOnsetLength = 1;	// 3/12
-		else if (roll < 9)
-			maxOnsetLength = 2;	// 6/12
-		else if (roll < 11)
-			maxOnsetLength = 3;	// 2/12
-		else
-			maxOnsetLength = 4;	// 1/12
+		features = new FeatureSet();
 		
-		roll = rng.nextInt(4);
-		if (roll < 1)
-			maxNucleusLength = 1;
-		else
-			maxNucleusLength = 2;
-
+		// Feature: Initial onsets
+		if (rng.nextInt(20) < 1)
+			features.initialOnsets = Feature.REQUIRED;
+		
+		// Feature: Onset Clusters
+		if (rng.nextInt(2) < 1)
+			features.onsetClusters = Feature.YES;
+		
+		// Feature: Medial Codas
+		if (rng.nextInt(8) < 3)
+			features.medialCodas = Feature.YES;
+	
+		// Feature: Terminal codas
 		roll = rng.nextInt(8);
-		if (roll < 1)
-			maxCodaLength = maxOnsetLength + 1;	// 1/8
-		else if (roll < 4)
-			maxCodaLength = maxOnsetLength;		// 3/8
-		else if (roll < 7)
-			maxCodaLength = maxOnsetLength - 1;	// 3/8
-		else
-			maxCodaLength = maxOnsetLength - 2;	// 1/8
-		maxCodaLength = Math.max(maxCodaLength, 0);
+		if (roll == 0)
+			features.terminalCodas = Feature.REQUIRED;
+		else if (roll < 5)
+			features.terminalCodas = Feature.YES;
 		
-		// Determine cluster offsets
-		if (maxOnsetLength > 0)
+		// Feature: Coda clusters
+		if ((features.medialCodas != Feature.NO || features.terminalCodas != Feature.NO) && rng.nextInt(2) < 1)
+			features.codaClusters = Feature.YES;
+		
+		// Feature: Consonant gemination
+		if (rng.nextInt(3) < 1)
+			features.geminateConsonants = Feature.YES;
+		
+		// Feature: Vowel gemination
+		if (rng.nextInt(4) < 1)
+			features.geminateVowels = Feature.YES;
+		
+		// Feature: Diphthongs
+		if (rng.nextInt(4) < 3)
+			features.diphthongs = Feature.YES;
+		
+		// Feature: Hiatus
+		roll = rng.nextInt(5);
+		if (roll < 3)
+			features.hiatus = Feature.RESTRICTED;
+		else if (roll < 4)
+			features.hiatus = Feature.UNRESTRICTED;
+	}
+	
+	private void determineClusterStatistics()
+	{
+		// Determine max lengths
+		maxOnsetLength = maxNucleusLength = maxCodaLength = 1;
+		
+		// Onsets
+		if (features.onsetClusters == Feature.YES)
 		{
-			baseOnsetClusterChance = Math.max(rng.nextGaussian() * onsetClusterProminenceStdev + onsetClusterProminenceMean,
-											  minimumOnsetClusterProminence);
+			if (rng.nextInt(4) < 2)
+				maxOnsetLength = 2;
+			else
+				maxOnsetLength = 3;
+		}
+		
+		// Codas
+		if (features.medialCodas == Feature.NO && features.terminalCodas == Feature.NO 
+				&& features.geminateConsonants == Feature.NO)
+		{
+			maxCodaLength = 0;
+		}
+		else if (features.codaClusters == Feature.YES)
+		{
+			if (rng.nextInt(4) < 3)
+				maxCodaLength = 2;
+			else
+				maxCodaLength = 3;
+		}
+		
+		// Nuclei
+		if (features.diphthongs == Feature.YES || features.geminateVowels == Feature.YES)
+			maxNucleusLength = 2;
+		
+		// Determine weights and offsets
+		if (features.onsetClusters == Feature.YES)
+		{
+			onsetClusterWeight = Math.max(rng.nextGaussian() * onsetClusterProminenceStdev
+										+ onsetClusterProminenceMean, minimumOnsetClusterProminence);
 			onsetClusterOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
 
-		if (maxNucleusLength > 1)
+		if (features.diphthongs == Feature.YES || features.geminateVowels == Feature.YES)
 		{
-			baseDiphthongChance = Math.max(rng.nextGaussian() * 0.05 + 0.15, minimumNucleusClusterProminence);
+			nucleusClusterWeight = Math.max(rng.nextGaussian() * 0.05 + 0.15, minimumNucleusClusterProminence);
 			diphthongOffset = rng.nextGaussian() * 0.25 + 0.5;
+			geminateVowelOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
 		
-		if (maxCodaLength > 0)
+		if (features.codaClusters == Feature.YES)
 		{
-			baseCodaClusterChance = Math.max(rng.nextGaussian() * 0.1 + 0.25, minimumCodaClusterProminence);
+			codaClusterWeight = Math.max(rng.nextGaussian() * 0.1 + 0.25, minimumCodaClusterProminence);
 			codaClusterOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
 	}
@@ -429,7 +490,9 @@ public class Phonology
 			if (rng.nextDouble() < VowelProperty.values()[i].getProbability())
 				vowelPropertiesRepresented[i] = true;
 		
-		// Set onset prominence ratings for consonant properties
+		/*
+		 * Set these prominence ratings no matter what
+		 */
 		
 		// Medial onsets
 		baseConsonantRatings = new PhoneticRatings(true, basicProminenceStdev, basicProminenceMean);
@@ -441,20 +504,28 @@ public class Phonology
 		// Medial nuclei
 		baseVowelRatings = new PhoneticRatings(false, vowelProminenceStdev, vowelProminenceMean);
  
-		initialNucleusRatings = new PhoneticRatings(baseVowelRatings);
-		initialNucleusRatings.disturb(0.5);
-		initialNucleusRatings.offset(-0.10);
-		
-		terminalNucleusRatings = new PhoneticRatings(baseVowelRatings);
-		terminalNucleusRatings.disturb(0.5);
-		terminalNucleusRatings.offset(-0.25);
-		
+		// Root nuclei
 		rootNucleusRatings = new PhoneticRatings(baseVowelRatings);
 		rootNucleusRatings.disturb(0.5);
 		rootNucleusRatings.offset(-0.25);
 		
-
+		/*
+		 * Set these prominence ratings only if the corresponding feature is presenct
+		 */
+		if (features.initialOnsets != Feature.REQUIRED)
+		{
+			initialNucleusRatings = new PhoneticRatings(baseVowelRatings);
+			initialNucleusRatings.disturb(0.5);
+			initialNucleusRatings.offset(-0.10);
+		}
 		
+		if (features.terminalCodas != Feature.REQUIRED)
+		{
+			terminalNucleusRatings = new PhoneticRatings(baseVowelRatings);
+			terminalNucleusRatings.disturb(0.5);
+			terminalNucleusRatings.offset(-0.25);
+		}
+			
 		/*
 		 * Set coda prominence values for consonant properties. 
 		 * Coda prominence values are generated by "disturbing" base prominence values, that is, by adding a 
@@ -476,38 +547,48 @@ public class Phonology
 			baseCodaRatings.disturb(basicProminenceStdev * codaDisturbance);
 			baseCodaRatings.offset(codaRatingOffset);
 			
-			terminalCodaRatings = new PhoneticRatings(baseCodaRatings);
-			terminalCodaRatings.disturb(0.5);
+			// Set interlude lead/follow prominences
+			if (features.medialCodas != Feature.NO || features.geminateConsonants != Feature.NO)
+			{
+				interludeLeadRatings =   new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
+				interludeFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
+			}
+			
+			if (features.terminalCodas != Feature.NO)
+			{
+				terminalCodaRatings = new PhoneticRatings(baseCodaRatings);
+				terminalCodaRatings.disturb(0.5);
+			}
 		}
 		
-		// Set onset cluster lead/follow prominences
-		if (maxOnsetLength > 1)
+		
+		if (features.onsetClusters == Feature.YES)
 		{
+			// Onset cluster lead/follow prominences
 			onsetClusterLeadRatings   = new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
 			onsetClusterFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
 		}
 
-		// Set diphthong (nucleus cluster) lead/follow prominences
-		if (maxNucleusLength > 1)
+		if (features.geminateVowels == Feature.YES || features.diphthongs == Feature.YES)
 		{
+			// Diphthong (nucleus cluster) lead/follow prominences
 			diphthongLeadRatings   = new PhoneticRatings(false, diphthongLeadStdev, diphthongLeadMean);
 			diphthongFollowRatings = new PhoneticRatings(false, diphthongFollowStdev, diphthongFollowMean);
 		}
 		
-		// Set coda lead/follow prominences
-		if (maxCodaLength > 1)
+		if (features.codaClusters == Feature.YES)
 		{
+			// Set coda lead/follow prominences
 			codaClusterLeadRatings   = new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
 			codaClusterFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
 		}
 
-		// Set hiatus ratings
-		hiatusLeadRatings =   new PhoneticRatings(true, hiatusLeadStdev, hiatusLeadMean);
-		hiatusFollowRatings = new PhoneticRatings(true, hiatusFollowStdev, hiatusFollowMean);
-		
-		// Set interlude lead/follow prominences
-		interludeLeadRatings =   new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
-		interludeFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
+		if (features.hiatus != Feature.NO)
+		{
+			// Set hiatus ratings
+			hiatusLeadRatings =   new PhoneticRatings(true, hiatusLeadStdev, hiatusLeadMean);
+			hiatusFollowRatings = new PhoneticRatings(true, hiatusFollowStdev, hiatusFollowMean);
+		}
 		
 		// Set miscellaneous phonotactic offsets
 		onsetNgOffset   	  = Math.max(rng.nextGaussian() * onsetNgOffsetStdev + onsetNgOffsetMean, 0);
@@ -662,7 +743,7 @@ public class Phonology
 		medialOnsets.removeUnusedMembers();
 		medialOnsets.normalizeAll();
 		medialOnsets.sortAll();
-		medialOnsets.setLengthProbabilities(baseOnsetClusterChance);
+		medialOnsets.setLengthProbabilities(onsetClusterWeight);
 		
 		
 		initialOnsets = new ConstituentLibrary(this, maxOnsetLength, ConstituentType.ONSET, 
@@ -672,7 +753,7 @@ public class Phonology
 //		initialOnsets.exaggerate(2);
 		initialOnsets.normalizeAll();
 		initialOnsets.sortAll();
-		initialOnsets.setLengthProbabilities(baseOnsetClusterChance);
+		initialOnsets.setLengthProbabilities(onsetClusterWeight);
 	}
 	
 	/**
@@ -720,7 +801,7 @@ public class Phonology
 		medialNuclei.removeUnusedMembers();
 		medialNuclei.normalizeAll();
 		medialNuclei.sortAll();
-		medialNuclei.setLengthProbabilities(baseDiphthongChance);
+		medialNuclei.setLengthProbabilities(nucleusClusterWeight);
 		
 		// Populate initial nucleus library
 		initialNuclei = new ConstituentLibrary(this, maxNucleusLength, ConstituentType.NUCLEUS,
@@ -730,7 +811,7 @@ public class Phonology
 		medialNuclei.exaggerate(2);
 		initialNuclei.normalizeAll();
 		initialNuclei.sortAll();
-		initialNuclei.setLengthProbabilities(baseDiphthongChance);
+		initialNuclei.setLengthProbabilities(nucleusClusterWeight);
 		
 		// Populate initial nucleus library
 		terminalNuclei = new ConstituentLibrary(this, maxNucleusLength, ConstituentType.NUCLEUS,
@@ -740,7 +821,7 @@ public class Phonology
 		terminalNuclei.exaggerate(2);
 		terminalNuclei.normalizeAll();
 		terminalNuclei.sortAll();
-		terminalNuclei.setLengthProbabilities(baseDiphthongChance);
+		terminalNuclei.setLengthProbabilities(nucleusClusterWeight);
 
 		// Populate initial nucleus library
 		rootNuclei = new ConstituentLibrary(this, maxNucleusLength, ConstituentType.NUCLEUS,
@@ -749,7 +830,7 @@ public class Phonology
 		rootNuclei.removeUnusedMembers();
 		rootNuclei.normalizeAll();
 		rootNuclei.sortAll();
-		rootNuclei.setLengthProbabilities(baseDiphthongChance);
+		rootNuclei.setLengthProbabilities(nucleusClusterWeight);
 	}
 
 	/**
@@ -811,7 +892,7 @@ public class Phonology
 		terminalCodas.exaggerate(2);
 		terminalCodas.normalizeAll();
 		terminalCodas.sortAll();
-		terminalCodas.setLengthProbabilities(baseDiphthongChance);
+		terminalCodas.setLengthProbabilities(codaClusterWeight);
 	}
 	
 	/**
@@ -856,15 +937,15 @@ public class Phonology
 			// Normalize probabilities and sort the current vowel's interludes according to them
 			v1.rootFollowers.normalizeAll();
 			v1.rootFollowers.sortAll();
-			v1.rootFollowers.setLengthProbabilities(baseDiphthongChance);
+			v1.rootFollowers.setLengthProbabilities(nucleusClusterWeight);
 			
 			v1.followers.normalizeAll();
 			v1.followers.sortAll();
-			v1.followers.setLengthProbabilities(baseDiphthongChance);
+			v1.followers.setLengthProbabilities(nucleusClusterWeight);
 			
 			v1.terminalFollowers.normalizeAll();
 			v1.terminalFollowers.sortAll();
-			v1.terminalFollowers.setLengthProbabilities(baseDiphthongChance);
+			v1.terminalFollowers.setLengthProbabilities(nucleusClusterWeight);
 		}
 	}
 	
@@ -938,7 +1019,7 @@ public class Phonology
 			// Normalize probabilities and sort the current coda's interlude list according to them.
 			p1.followers.normalizeAll();
 			p1.followers.sortAll();
-			p1.followers.setLengthProbabilities(baseOnsetClusterChance);
+			p1.followers.setLengthProbabilities(onsetClusterWeight);
 		}
 		
 		// TODO: Temporary feature: remove codas with no interludes.
@@ -948,7 +1029,7 @@ public class Phonology
 		
 		medialCodas.scaleProbabilityByFollowerCount();
 		medialCodas.sortAll();
-		medialCodas.setLengthProbabilities(baseCodaClusterChance);
+		medialCodas.setLengthProbabilities(codaClusterWeight);
 	}
 		
 	private void setRootStrengthChances()
@@ -1011,9 +1092,9 @@ public class Phonology
 		baseTerminalCodaChance = Math.max(Math.min(rng.nextGaussian() * 0.3 + 0.5, 1), 0);
 		
 		// Correct cluster chances
-		if (maxOnsetLength < 2)	baseOnsetClusterChance = 0;
-		if (maxNucleusLength < 2)	baseDiphthongChance = 0;
-		if (maxCodaLength < 2)		baseCodaClusterChance = 0;
+		if (maxOnsetLength < 2)	onsetClusterWeight = 0;
+		if (maxNucleusLength < 2)	nucleusClusterWeight = 0;
+		if (maxCodaLength < 2)		codaClusterWeight = 0;
 		
 //		baseSuffixOnsetChance = Math.min(Math.max(rng.nextDouble() * 2 - 0.5, 0), 1);
 		baseSuffixOnsetChance = 0;
