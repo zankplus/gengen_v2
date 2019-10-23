@@ -1,0 +1,14 @@
+package gengenv2.morphemes;
+
+public enum Feature {
+	NO, 	
+	YES,
+	INITIAL_ONLY, 
+	MEDIAL_ONLY,
+	TERMINAL_ONLY,
+	REQUIRED,
+	RESTRICTED,
+	UNRESTRICTED,
+	AGGLUTINATIVE,
+	FUSIONAl
+}

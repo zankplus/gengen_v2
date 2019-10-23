@@ -31,14 +31,14 @@ import java.util.ArrayList;
  * 
  *
  */
-final class Phonotactics
+public final class Phonotactics
 {
 	// 3 = rare | 2 = common | 1 = rare | 0 = scandalous
 	
 	/**
 	 * Prevalence of transitions between consonants in onset clusters
 	 */
-	static int[][] onsetTransitions = new int[][]
+	public final static int[][] onsetTransitions = new int[][]
 	{	//	0	1	2	3	4	5	6	7	8	9	10	11	13	14	15
 		{	0,	1,	1,	1,	1,	1,	1,	2,	1,	1,	0,	1,	1,	3,	3	},	// 0. unvoiced unaspirated stops
 		{	0,	0,	1,	1,	1,	1,	1,	1,	1,	1,	0,	1,	1,	3,	3	},	// 1. unvoiced aspirated stops
@@ -60,7 +60,7 @@ final class Phonotactics
 	/**
 	 * Prevalence of transitions between vowels in diphthongs (nucleus clusters)
 	 */
-	static int[][] nucleusTransitions = new int[][]
+	public final static int[][] nucleusTransitions = new int[][]
 	{
 		//	0	1	2	3	4
 		{	0,	0,	0,	0,	0	},	// 0. schwa
@@ -73,7 +73,7 @@ final class Phonotactics
 	/**
 	 * Prevalence of transitions between consonants in coda clusters
 	 */
-	static int[][] codaTransitions = new int[][]
+	public final static int[][] codaTransitions = new int[][]
 	{	//	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	
 		{	0,	0,	0,	0,	0,	0,	0,	3,	0,	0,	0,	0,	0,	0,	0	},	// 0. unvoiced unaspirated stops
 		{	1,	0,	0,	0,	0,	0,	0,	3,	0,	0,	0,	0,	0,	0,	0	},	// 1. unvoiced aspirated stops
@@ -95,7 +95,7 @@ final class Phonotactics
 	/**
 	 * Prevalence of transitions between consonants across syllables, from codas to onsets
 	 */
-	static int[][] interludeTransitions = new int[][]
+	public final static int[][] interludeTransitions = new int[][]
 	{
 		//	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	
 		{	3,	2,	2,	2,	3,	2,	3,	3,	2,	2,	2,	3,	1,	3,	3	},	// 0. unvoiced unaspirated stops
@@ -118,7 +118,7 @@ final class Phonotactics
 	/**
 	 * Prevalence of transitions between vowels across syllables, from one nucleus to another
 	 */
-	static int[][] hiatusTransitions = new int[][]
+	public final static int[][] hiatusTransitions = new int[][]
 	{
 		//	ə	a	e	o	i	u	y
 		{	0,	0,	0,	0,	0,	0,	0},	// 0. ə
@@ -138,7 +138,7 @@ final class Phonotactics
 	 * to accommodate the fact that they prefer to agree in voicing with whatever they are clustered with.
 	 * Generally, a Phonology will admit any member of the same category in the same position. 
 	 */
-	static ArrayList<int[]> consonantCategories = new ArrayList<int[]>()
+	public final static ArrayList<int[]> consonantCategories = new ArrayList<int[]>()
 	{
 		{
 			add(new int[] {0, 1, 2, 3});		// 0. unvoiced unaspirated stops
@@ -162,7 +162,7 @@ final class Phonotactics
 	/**
 	 * Phonotactic categories for vowel sounds
 	 */
-	static ArrayList<int[]> vowelCategories = new ArrayList<int[]>()
+	public final static ArrayList<int[]> vowelCategories = new ArrayList<int[]>()
 	{
 		{
 			add(new int[] {0});				// 0. schwa

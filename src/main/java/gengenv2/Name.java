@@ -21,6 +21,9 @@ package gengenv2;
 
 import java.util.ArrayList;
 
+import gengenv2.morphemes.Constituent;
+import gengenv2.morphemes.Segment;
+
 /**
  * The underlying representation for a phonological word produced by a Phonology. In addition to containing
  * the string representation of a name, the Name class stores the sequence of Phonemes that constitutes the name,

@@ -3,6 +3,8 @@ package gengenv2;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import gengenv2.morphemes.Constituent;
+
 public class SuffixLibrary
 {
 	private Phonology p;

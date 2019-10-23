@@ -24,6 +24,8 @@ import java.util.Random;
 import gengenv2.Name.Syllable;
 import gengenv2.Phonology.Phoneme;
 import gengenv2.Phonology.VowelPhoneme;
+import gengenv2.morphemes.Constituent;
+import gengenv2.morphemes.Morpheme;
 
 /**
  * A sort of flowchart or state machine for generating names according to a Phonology's inventory, phonotactics, 
@@ -55,7 +57,7 @@ public class NameAssembly
 	private RootNucleusNode rnNode;
 	
 	// Current name variables
-	Name name;				// The name currently being generated
+	Morpheme root;				// The name currently being generated
 	double icTarget;		// Intended information content of the current name
 	double pName;			// Probability of generating the current name
 	Constituent prev;		// The most recent syllable constituent added to the name
@@ -89,31 +91,41 @@ public class NameAssembly
 		rnNode		= new RootNucleusNode();
 	}
 	
+//	/**
+//	 * @return	A complete name generated according to this NameAssembly's flowchart
+//	 * @since	1.2
+//	 */
+//	public Name makeName()
+//	{
+//		return makeName(rng.nextGaussian() * infoConStdev + infoConMean, WordType.STEM);
+//	}
+//	
+//	/**
+//	 * A suffix generated according to this NameAssembly's flowchart, meant to be attached to
+//	 * to a Name ending in a root nucleus to form a complete Name.
+//	 * 
+//	 * @return	A suffix generated according to this NameAssembly's flowchart
+//	 * @since	1.2	
+//	 */
+//	public Name makeSuffix()
+//	{
+//		return makeName(rng.nextGaussian() * suffixInfoConStdev + suffixInfoConMean, WordType.SUFFIX);
+//	}
+//	
+//	public Name makeSuffix(double mean, double stdev)
+//	{
+//		return makeName(rng.nextGaussian() * stdev + mean, WordType.SUFFIX);
+//	}
+	
 	/**
 	 * @return	A complete name generated according to this NameAssembly's flowchart
 	 * @since	1.2
 	 */
-	public Name makeName()
+	public Morpheme makeWord()
 	{
-		return makeName(rng.nextGaussian() * infoConStdev + infoConMean, WordType.STEM);
+		return makeWord(rng.nextGaussian() * infoConStdev + infoConMean);
 	}
 	
-	/**
-	 * A suffix generated according to this NameAssembly's flowchart, meant to be attached to
-	 * to a Name ending in a root nucleus to form a complete Name.
-	 * 
-	 * @return	A suffix generated according to this NameAssembly's flowchart
-	 * @since	1.2	
-	 */
-	public Name makeSuffix()
-	{
-		return makeName(rng.nextGaussian() * suffixInfoConStdev + suffixInfoConMean, WordType.SUFFIX);
-	}
-	
-	public Name makeSuffix(double mean, double stdev)
-	{
-		return makeName(rng.nextGaussian() * stdev + mean, WordType.SUFFIX);
-	}
 	
 	/**
 	 * Generates a name by first resetting the naming variables and then invoking a particular Node's nextNode()
@@ -124,11 +136,47 @@ public class NameAssembly
 	 * @return	The completed name
 	 * @since	1.0
 	 */
+	protected Morpheme makeWord(double icTarget)
+	{
+		// Initialize naming variables
+		this.icTarget = icTarget;
+		root = new Morpheme();
+		prev = null;
+		pName = 1;
+		
+		// Propagate through the flowchart until one of the nodes returns null
+		Node node = ioNode;
+
+		try
+		{
+			while (node != null)
+			node = node.nextNode();
+		} catch (Exception e)
+		{
+			System.err.println(root);
+			e.printStackTrace();
+			System.exit(0);
+		}
+
+		root.setInformationContent(-Math.log(pName));
+		
+		return root;
+	}
+	
+	/**
+	 * Generates a name by first resetting the naming variables and then invoking a particular Node's nextNode()
+	 * method (InitialOnsetNode for complete names, NucleusLocationNode for suffixes). This initiates a decision 
+	 * process that propagates through all the Nodes in the flowchart, each of which may add a syllable Constituent 
+	 * (or two, for interludes) to the in-progress Name.
+	 * 
+	 * @return	The completed name
+	 * @since	1.0
+	 *//*
 	protected Name makeName(double icTarget, WordType type)
 	{
 		// Initialize naming variables
 		this.icTarget = icTarget;
-		name = new Name(type);
+		root = new Name();
 		prev = null;
 		pName = 1;
 		
@@ -169,17 +217,23 @@ public class NameAssembly
 			Constituent first = name.getSyllables().get(0).constituents[1];
 			
 			// Suffixes comprising only a single nucleus are always strong
-			if (name.getSyllables().size() == 1 && name.getSyllables().get(0).constituents[2] == null)
+			if (name.sylCount() == 1 && name.getSyllables().get(0).constituents[2] == null)
 				name.strength = RootStrength.STRONG;
+
+			// Pivot vowels in polysyllabic suffixes are always weak
+			else if (name.sylCount() > 1)
+				name.strength = RootStrength.WEAK;
+			
 			// Diphthongs are always strong
 			else if (first.size() > 1)
 				name.strength = RootStrength.STRONG;
+			
 			else if (rng.nextDouble() < ((VowelPhoneme)first.lastPhoneme()).strongSuffixStartChance)
 				name.strength = RootStrength.STRONG;
 		}
 		
 		return name;
-	}
+	}*/
 	
 	/**
 	 * A simple interface implemented by all Nodes in the name assembly flowchart, to ensure that they can all
@@ -396,35 +450,35 @@ public class NameAssembly
 		public Node nextNode()
 		{			
 			// For suffixes
-			if (name.getWordType() == WordType.SUFFIX)
-			{
-				double hMedial, hTerminal;
-				
-				// Get entropy measurements
-				if (prev != null && prev.type == ConstituentType.NUCLEUS)
-				{
-					VowelPhoneme v = ((VowelPhoneme) prev.lastPhoneme());
-					hMedial = v.hiatusMedialSyllableEntropy;
-					hTerminal = v.hiatusTerminalSyllableEntropy;
-				}
-				else
-				{
-					hMedial = medialSyllableEntropy;
-					hTerminal = terminalSyllableEntropy;
-				}
-				
-				double currentIC = -Math.log(pName);
-				double hMedialDiff = Math.abs(hMedial + currentIC - icTarget);
-				double hTerminalDiff = Math.abs(hTerminal + currentIC - icTarget);
-				
-				// Use entropy measurements to decide what kind of syllable will bring us closest to the target
-				return (hTerminal < hMedialDiff || currentIC > icTarget || name.sylCount() > 0) ? tsNode : mnNode;
-			}
+//			if (name.getWordType() == WordType.SUFFIX)
+//			{
+//				double hMedial, hTerminal;
+//				
+//				// Get entropy measurements
+//				if (prev != null && prev.type == ConstituentType.NUCLEUS)
+//				{
+//					VowelPhoneme v = ((VowelPhoneme) prev.lastPhoneme());
+//					hMedial = v.hiatusMedialSyllableEntropy;
+//					hTerminal = v.hiatusTerminalSyllableEntropy;
+//				}
+//				else
+//				{
+//					hMedial = medialSyllableEntropy;
+//					hTerminal = terminalSyllableEntropy;
+//				}
+//				
+//				double currentIC = -Math.log(pName);
+//				double hMedialDiff = Math.abs(hMedial + currentIC - icTarget);
+//				double hTerminalDiff = Math.abs(hTerminal + currentIC - icTarget);
+//				
+//				// Use entropy measurements to decide what kind of syllable will bring us closest to the target
+//				return (hTerminal < hMedialDiff || currentIC > icTarget || name.sylCount() > 0) ? tsNode : mnNode;
+//			}
 			
 			// For in-progress names ending in roots
-			else
+//			else
 			{
-				if (name.getSyllables().size() == 0)
+				if (root.phonemes.size() == 0)
 					return inNode;
 				
 				double hMedial, hRoot;
@@ -738,8 +792,8 @@ public class NameAssembly
 			addConstituentFrom(p.terminalCodas);
 			
 			// Names has completed instead of ending in a root
-			if (name.getWordType() == WordType.STEM)
-				name.setWordType(WordType.COMPLETE);
+//			if (name.getWordType() == WordType.STEM)
+//				name.setWordType(WordType.COMPLETE);
 						
 			return null;
 		}
@@ -764,8 +818,8 @@ public class NameAssembly
 				addConstituentFrom(p.terminalNuclei);
 			
 			// Names has completed instead of ending in a root
-			if (name.getWordType() == WordType.STEM)
-				name.setWordType(WordType.COMPLETE);
+//			if (name.getWordType() == WordType.STEM)
+//				name.setWordType(WordType.COMPLETE);
 			
 			return null;
 		}
@@ -824,7 +878,8 @@ public class NameAssembly
 //				System.exit(0);
 //			}
 		prev = c;
-		name.add(c);
+		for (Phoneme ph : c.content)
+			root.add(ph);
 	}
 	
 	/**

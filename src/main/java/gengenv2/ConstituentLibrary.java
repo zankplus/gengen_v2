@@ -23,6 +23,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
+import gengenv2.morphemes.Constituent;
+import gengenv2.enums.ConstituentType;
+import gengenv2.enums.ConstituentLocation;
+
 /**
  * A compilation of all the syllable Constituents that might occur in a certain context, grouped according to
  * length and intended be drawn from at random. 
@@ -59,7 +63,7 @@ public class ConstituentLibrary
 	 * @param type			Type of Constituent housed in this library (onset/nucleus/coda)
 	 * @param location		Location in which this library is invoked (initial/medial/final/root)
 	 */
-	public ConstituentLibrary (Phonology parent, int maxLength, ConstituentType type, ConstituentLocation location)
+	public ConstituentLibrary (int maxLength, ConstituentType type, ConstituentLocation location)
 	{
 		this.parent = parent;
 		this.maxLength = maxLength;

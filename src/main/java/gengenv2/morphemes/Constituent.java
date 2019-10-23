@@ -17,9 +17,10 @@
  * 
  */
 
-package gengenv2;
+package gengenv2.morphemes;
 
-import gengenv2.Phonology.Phoneme;
+import gengenv2.ConstituentLibrary;
+import gengenv2.enums.ConstituentType;
 
 /**
  * Represents a sequence of 1 or more consecutive Phonemes in a particular position in a word -
@@ -27,11 +28,11 @@ import gengenv2.Phonology.Phoneme;
  * @version	1.2
  * @since	1.1 (since 1.0 as SyllableSegment)
  */
-class Constituent implements Comparable<Constituent>
+public class Constituent implements Comparable<Constituent>
 {
-	ConstituentType type;
-	Phoneme[] content;
-	double probability;
+	public final ConstituentType type;
+	private final Phoneme[] content;
+	private double probability;
 			
 	/**
 	 * Constructor sets the Constituent's essential parameters.
@@ -81,6 +82,16 @@ class Constituent implements Comparable<Constituent>
 		return content.length;
 	}
 	
+	public Phoneme getContent (int index)
+	{
+		return content[index];
+	}
+	
+	public int getLength()
+	{
+		return content.length;
+	}
+	
 	/**
 	 * @return	The last Phoneme in this segment's sequence of Phonemes.
 	 * @since	1.0
@@ -91,6 +102,11 @@ class Constituent implements Comparable<Constituent>
 			return content[content.length - 2];
 		else
 			return content[content.length - 1];
+	}
+	
+	public double getProbability()
+	{
+		return probability;
 	}
 	
 	/**
@@ -148,3 +164,9 @@ class Constituent implements Comparable<Constituent>
 		return 0;
 	}
 }
+
+/**
+ * The structural role of a Constituent (a sequence of Phonemes) in a syllable. 
+ * @since	1.0
+ */
+
