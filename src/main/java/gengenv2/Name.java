@@ -1,4 +1,4 @@
-/** Copyright 2018, 2019 Clayton Cooper
+﻿/** Copyright 2018, 2019 Clayton Cooper
  *	
  *	This file is part of gengen2.
  *

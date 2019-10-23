@@ -39,7 +39,7 @@ import gengenv2.morphemes.Morpheme;
  * @version	1.2
  * @since	1.0
  */
-public class NameAssembly
+public class MorphemeAssembly
 {
 	// General variables
 	Phonology p;			// Reference to parent phonology
@@ -75,7 +75,7 @@ public class NameAssembly
 	 * 
 	 * @param	p	The Phonology to which this NameAssembly belongs	
 	 */
-	public NameAssembly(Phonology p)
+	public MorphemeAssembly(Phonology p)
 	{
 		this.p = p;
 		rng = p.rng;

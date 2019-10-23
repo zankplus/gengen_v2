@@ -28,5 +28,3 @@ public class FeatureSet
 		hiatus				= Feature.NO;
 	}
 }
-
-

@@ -169,4 +169,3 @@ public class Constituent implements Comparable<Constituent>
  * The structural role of a Constituent (a sequence of Phonemes) in a syllable. 
  * @since	1.0
  */
-
