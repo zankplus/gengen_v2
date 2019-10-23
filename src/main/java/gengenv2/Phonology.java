@@ -60,7 +60,7 @@ public class Phonology
 	 * Phonology's rules for stress and rhythm, and is used to assign stress to words NameAssembly has made.
 	 */
 	FeatureSet features;
-	NameAssembly assembly;
+	MorphemeAssembly assembly;
 	StressRules stressRules;
 	SuffixLibrary suffixes;
 	CombinationRules combinationRules;
@@ -300,7 +300,7 @@ public class Phonology
 	 */
 	public Phonology(long seed)
 	{
-		rng = new Random(seed);
+		rng = PublicRandom.getRNG(PublicRandom.newRNG(seed));
 		this.seed = seed;
 		thisPhonology = this;
 		
@@ -348,7 +348,7 @@ public class Phonology
 		setBaseChances();		
 		
 		// Create flowchart
-		assembly = new NameAssembly(this);
+		assembly = new MorphemeAssembly(this);
 		
 		makeSuffixes();
 		
@@ -382,10 +382,10 @@ public class Phonology
 			features.medialCodas = Feature.YES;
 	
 		// Feature: Terminal codas
-		roll = rng.nextInt(8);
+		roll = rng.nextInt(100);
 		if (roll == 0)
 			features.terminalCodas = Feature.REQUIRED;
-		else if (roll < 5)
+		else if (roll < 65)
 			features.terminalCodas = Feature.YES;
 		
 		// Feature: Coda clusters
@@ -1850,12 +1850,15 @@ public class Phonology
 				deviance /= Math.sqrt(segment.properties.length);
 				wordInitialProminence += deviance;
 				
-				if (maxCodaLength > 0)
+				if (features.medialCodas != Feature.NO)
 				{
 					deviance = baseCodaRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					medialCodaProminence += deviance;
-					
+				}
+				
+				if (features.terminalCodas != Feature.NO)
+				{
 					deviance = terminalCodaRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(segment.properties.length);
 					terminalCodaProminence += deviance;
@@ -1954,21 +1957,30 @@ public class Phonology
 				deviance /= Math.sqrt(segment.properties.length);
 				wordInitialProminence += deviance;
 				
-				deviance = terminalNucleusRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				terminalProminence += deviance;
+				if (features.terminalCodas != Feature.NO)
+				{
+					deviance = terminalNucleusRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(segment.properties.length);
+					terminalProminence += deviance;
+				}
 				
-				deviance = rootNucleusRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				rootProminence += deviance;
+				if (features.medialCodas != Feature.NO)
+				{
+					deviance = rootNucleusRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(segment.properties.length);
+					rootProminence += deviance;
+				}
 				
-				deviance = hiatusLeadRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				interludeLeadProminence += deviance;
-				
-				deviance = hiatusFollowRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				interludeFollowProminence += deviance;
+				if (features.hiatus != Feature.NO)
+				{
+					deviance = hiatusLeadRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(segment.properties.length);
+					interludeLeadProminence += deviance;
+					
+					deviance = hiatusFollowRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(segment.properties.length);
+					interludeFollowProminence += deviance;
+				}
 				
 				if (maxNucleusLength > 1)
 				{

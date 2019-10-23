@@ -41,6 +41,8 @@ public class App
 	 */
     public static void main(String[] args)
     {   
+    	
+    	
     	// Revisit this
     	Phonology p = new Phonology(6606978045922287062L);
 //    	Phonology p = new Phonology(2956502808346677711L);
