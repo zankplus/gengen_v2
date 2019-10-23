@@ -163,6 +163,11 @@ public class Constituent implements Comparable<Constituent>
 			return -1;
 		return 0;
 	}
+
+	public void setProbability(double d) 
+	{
+		probability = d;
+	}
 }
 
 /**

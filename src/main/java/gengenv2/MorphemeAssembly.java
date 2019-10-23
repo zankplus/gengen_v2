@@ -21,11 +21,11 @@ package gengenv2;
 
 import java.util.Random;
 
-import gengenv2.Name.Syllable;
-import gengenv2.Phonology.Phoneme;
-import gengenv2.Phonology.VowelPhoneme;
+import gengenv2.enums.ConstituentType;
 import gengenv2.morphemes.Constituent;
 import gengenv2.morphemes.Morpheme;
+import gengenv2.morphemes.Phoneme;
+import gengenv2.morphemes.VowelPhoneme;
 
 /**
  * A sort of flowchart or state machine for generating names according to a Phonology's inventory, phonotactics, 
@@ -342,7 +342,7 @@ public class MorphemeAssembly
 			{
 				if (!p.vowelInventory[i].segment.expression.equals(":"))
 				{
-					ConstituentLibrary nuclei = p.vowelInventory[i].followers;
+					ConstituentLibrary nuclei = p.vowelInventory[i].getFollowers();
 					
 					// Get decision entropy of onset vs hiatus
 					double pOnset = Math.log(p.medialOnsets.size() + 1) * p.baseMedialOnsetChance;
@@ -418,27 +418,26 @@ public class MorphemeAssembly
 			{
 				if (!v.segment.expression.equals(":"))
 				{
-					v.hiatusMedialSyllableEntropy = getMedialEntropy(v.followers, interludeEntropies, 
-																		nucleusWeights);
-					v.hiatusRootSyllableEntropy = v.rootFollowers.getEntropy();
+					v.setHiatusMedialSyllableEntropy(getMedialEntropy(v.getFollowers(), interludeEntropies, nucleusWeights));
+					v.setHiatusRootSyllableEntropy(v.getRootFollowers().getEntropy());
 					
 					consonantTerminationEntropy = vowelTerminationEntropy = 0;
 					if (p.terminalCodas != null)
 					{
-						consonantTerminationEntropy = v.followers.getEntropy() + p.terminalCodas.getEntropy();
+						consonantTerminationEntropy = v.getFollowers().getEntropy() + p.terminalCodas.getEntropy();
 					}
 					
-					vowelTerminationEntropy = v.terminalFollowers.getEntropy();
-					v.hiatusTerminalCodaChance = getConsonantTerminationChance(v.followers, v.terminalFollowers);
-					v.hiatusTerminalSyllableEntropy = decisionEntropy(
-										new double[] { v.hiatusTerminalCodaChance, 1 - v.hiatusTerminalCodaChance },
-										new double[] { consonantTerminationEntropy, vowelTerminationEntropy });
+					vowelTerminationEntropy = v.getTerminalFollowers().getEntropy();
+					v.setHiatusTerminalCodaChance(getConsonantTerminationChance(v.getFollowers(), v.getTerminalFollowers()));
+					v.setHiatusTerminalSyllableEntropy(decisionEntropy(
+										new double[] { v.getHiatusTerminalCodaChance(), 1 - v.getHiatusTerminalCodaChance() },
+										new double[] { consonantTerminationEntropy, vowelTerminationEntropy }));
 					System.out.println("Entropies for hiatus on " + v + ":");
 					System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
-					System.out.println(v.hiatusTerminalCodaChance);
-					System.out.printf("\t%.3f Medial syllable\n", v.hiatusMedialSyllableEntropy);
-					System.out.printf("\t%.3f Terminal syllable\n", v.hiatusTerminalSyllableEntropy);
-					System.out.printf("\t%.3f Root syllable\n", v.hiatusRootSyllableEntropy);
+					System.out.println(v.getHiatusTerminalCodaChance());
+					System.out.printf("\t%.3f Medial syllable\n", v.getHiatusMedialSyllableEntropy());
+					System.out.printf("\t%.3f Terminal syllable\n", v.getHiatusTerminalSyllableEntropy());
+					System.out.printf("\t%.3f Root syllable\n", v.getHiatusRootSyllableEntropy());
 				}
 			}
 		}
@@ -487,8 +486,8 @@ public class MorphemeAssembly
 				if (prev != null && prev.type == ConstituentType.NUCLEUS)
 				{
 					VowelPhoneme v = ((VowelPhoneme) prev.lastPhoneme());
-					hMedial = v.hiatusMedialSyllableEntropy;
-					hRoot = v.hiatusRootSyllableEntropy;
+					hMedial = v.getHiatusMedialSyllableEntropy();
+					hRoot = v.getHiatusRootSyllableEntropy();
 				}
 				else
 				{
@@ -507,7 +506,7 @@ public class MorphemeAssembly
 					if (hRoot == 0)
 					{
 						Constituent next = p.medialOnsets.pickSimple();
-						pName *= next.probability;
+						pName *= next.getProbability();
 						addConstituent(next);
 					}
 					return rnNode;
@@ -549,7 +548,7 @@ public class MorphemeAssembly
 						{
 							nucleusEntropies[index] = interludeEntropies[j];
 							nucleusProbabilities[index] = nucleusWeightings[j]
-									* curr.probability * nuclei.getLengthProbability(curr.size());
+									* curr.getProbability() * nuclei.getLengthProbability(curr.size());
 							sum += nucleusProbabilities[index];
 							break;
 						}
@@ -729,7 +728,7 @@ public class MorphemeAssembly
 					double emptyCodaChance = Math.log(p.medialOnsets.size() + c.followers().size() + 1);
 					emptyCodaChance *= 1 - p.baseMedialCodaChance;
 					double nonemptyCodaChance = nonemptyCodaWeight / (emptyCodaChance + nonemptyCodaWeight);
-					chance += c.probability * p.medialNuclei.getLengthProbability(c.size()) * nonemptyCodaChance;
+					chance += c.getProbability() * p.medialNuclei.getLengthProbability(c.size()) * nonemptyCodaChance;
 				}
 			}
 			return chance;
@@ -744,7 +743,7 @@ public class MorphemeAssembly
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
 				cFinal = prev.followers().size();
-				vFinal = ((VowelPhoneme)prev.lastPhoneme()).terminalFollowers.size();
+				vFinal = ((VowelPhoneme)prev.lastPhoneme()).getTerminalFollowers().size();
 			}
 			else
 			{
@@ -813,7 +812,7 @@ public class MorphemeAssembly
 		{
 			// Add terminal nucleus
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
-				addConstituentFrom(((VowelPhoneme) prev.lastPhoneme()).terminalFollowers);
+				addConstituentFrom(((VowelPhoneme) prev.lastPhoneme()).getTerminalFollowers());
 			else
 				addConstituentFrom(p.terminalNuclei);
 			
@@ -839,7 +838,7 @@ public class MorphemeAssembly
 		{
 			// Add root nucleus
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
-				addConstituentFrom(((VowelPhoneme)prev.lastPhoneme()).rootFollowers);
+				addConstituentFrom(((VowelPhoneme)prev.lastPhoneme()).getRootFollowers());
 			else
 				addConstituentFrom(p.rootNuclei);
 			
@@ -856,7 +855,7 @@ public class MorphemeAssembly
 	private void addConstituentFrom(ConstituentLibrary lib)
 	{
 		Constituent next = lib.pick();
-		pName *= next.probability;
+		pName *= next.getProbability();
 		pName *= lib.getLengthProbability(next.size());
 		addConstituent(next);
 	}
@@ -878,8 +877,8 @@ public class MorphemeAssembly
 //				System.exit(0);
 //			}
 		prev = c;
-		for (Phoneme ph : c.content)
-			root.add(ph);
+		for (int i = 0; i < c.getLength(); i++)
+			root.add(c.getContent(i));
 	}
 	
 	/**

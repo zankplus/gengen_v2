@@ -172,3 +172,4 @@ public final class Phonotactics
 			add(new int[] {7});				// 4. vowel length
 		}
 	};
+}

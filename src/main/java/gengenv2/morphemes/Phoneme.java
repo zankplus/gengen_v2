@@ -14,7 +14,6 @@ import gengenv2.enums.SegmentProperty;
  */
 public abstract class Phoneme
 {
-	Phonology parent;
 	public final Segment segment;
 	
 	// Interlude properties
@@ -35,12 +34,16 @@ public abstract class Phoneme
 	 */
 	public Phoneme(Segment segment)
 	{
-		this.parent = parent;
 		this.segment = segment;
 		followers = null;
 	}
 	
 	abstract boolean isConsonant();
+	
+	public ConstituentLibrary getFollowers()
+	{
+		return followers;
+	}
 	
 	public double getInterludeLeadProminence()
 	{

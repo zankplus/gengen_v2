@@ -27,7 +27,6 @@ import java.util.Random;
 import org.apache.commons.math3.distribution.LogNormalDistribution;
 
 import gengenv2.enums.*;
-import gengenv2.enums.ConstituentType;
 import gengenv2.morphemes.*;
 
 
@@ -60,13 +59,13 @@ public class Phonology
 	/* Auxiliary systems
 	 * 
 	 * These are other special systems used by the Phonology to aid in name-making, defined in their own classes.
-	 * nameAssembly creates words using phonology's rules for syllable structure. stressRules represents the 
-	 * Phonology's rules for stress and rhythm, and is used to assign stress to words NameAssembly has made.
+	 * MorphemeAssembly creates words using phonology's rules for syllable structure. stressRules represents the 
+	 * Phonology's rules for stress and rhythm, and is used to assign stress to words MorphemeAssembly has made.
 	 */
 	FeatureSet features;
-	NameAssembly assembly;
-	StressRules stressRules;
-	SuffixLibrary suffixes;
+	MorphemeAssembly assembly;
+//	StressRules stressRules;
+//	SuffixLibrary suffixes;
 //	CombinationRules combinationRules;
 	
 	/* 
@@ -100,8 +99,8 @@ public class Phonology
 	 *  a consonant cluster, diphthong, or interlude, and are used to determine how commonplace each such cluster is.
 	 */
 	
-	private	boolean[] consonantPropertiesRepresented;	// Records of which phonetic properties this language
-	private boolean[] vowelPropertiesRepresented;		// recognizes. Used in the Phoneme selection process
+	boolean[] consonantPropertiesRepresented;	// Records of which phonetic properties this language
+	boolean[] vowelPropertiesRepresented;		// recognizes. Used in the Phoneme selection process
 	
 	// Basic ratings
 	PhoneticRatings baseConsonantRatings;	// Basic ratings for consonant sounds. Other consonant ratings are
@@ -209,7 +208,7 @@ public class Phonology
 	 * Occurrence coefficients
 	 * 
 	 * These are coefficients affecting the chances of certain features of syllables occurring. These are used in 
-	 * the NameAssembly class to determine the frequency of certain events occurring, usually by multiplying
+	 * the MorphemeAssembly class to determine the frequency of certain events occurring, usually by multiplying
 	 * a log count of a certain feature to obtain an (unnormalized) probability value.
 	 * 
 	 * Cluster chances represent the chance of a marginally more complex syllable Constituent occurring. The
@@ -349,12 +348,12 @@ public class Phonology
 		setBaseChances();		
 		
 		// Create flowchart
-		assembly = new NameAssembly(this);
+		assembly = new MorphemeAssembly(this);
 		
 //		makeSuffixes();
 		
 		// Create stress rules
-		stressRules = new StressRules();
+//		stressRules = new StressRules();
 	}
 	
 	/**
@@ -496,17 +495,17 @@ public class Phonology
 		 */
 		
 		// Medial onsets
-		baseConsonantRatings = new PhoneticRatings(true, basicProminenceStdev, basicProminenceMean);
+		baseConsonantRatings = new PhoneticRatings(this, true, basicProminenceStdev, basicProminenceMean);
 		
 		// Initial onsets
-		initialOnsetRatings = new PhoneticRatings(baseConsonantRatings);
+		initialOnsetRatings = new PhoneticRatings(this, baseConsonantRatings);
 		initialOnsetRatings.disturb(0.5);
 		
 		// Medial nuclei
-		baseVowelRatings = new PhoneticRatings(false, vowelProminenceStdev, vowelProminenceMean);
+		baseVowelRatings = new PhoneticRatings(this, false, vowelProminenceStdev, vowelProminenceMean);
  
 		// Root nuclei
-		rootNucleusRatings = new PhoneticRatings(baseVowelRatings);
+		rootNucleusRatings = new PhoneticRatings(this, baseVowelRatings);
 		rootNucleusRatings.disturb(0.5);
 		rootNucleusRatings.offset(-0.25);
 		
@@ -515,14 +514,14 @@ public class Phonology
 		 */
 		if (features.initialOnsets != Feature.REQUIRED)
 		{
-			initialNucleusRatings = new PhoneticRatings(baseVowelRatings);
+			initialNucleusRatings = new PhoneticRatings(this, baseVowelRatings);
 			initialNucleusRatings.disturb(0.5);
 			initialNucleusRatings.offset(-0.10);
 		}
 		
 		if (features.terminalCodas != Feature.REQUIRED)
 		{
-			terminalNucleusRatings = new PhoneticRatings(baseVowelRatings);
+			terminalNucleusRatings = new PhoneticRatings(this, baseVowelRatings);
 			terminalNucleusRatings.disturb(0.5);
 			terminalNucleusRatings.offset(-0.25);
 		}
@@ -537,7 +536,7 @@ public class Phonology
 		if (maxCodaLength > 0)
 		{
 			// Medial codas
-			baseCodaRatings = new PhoneticRatings(true, basicCodaStdev, basicCodaMean);
+			baseCodaRatings = new PhoneticRatings(this, true, basicCodaStdev, basicCodaMean);
 			
 			// Coda disturbance is the square of a uniformly distributed random number between 0 and 1
 			codaDisturbance = Math.pow(rng.nextDouble(), 2);
@@ -551,13 +550,13 @@ public class Phonology
 			// Set interlude lead/follow prominences
 			if (features.medialCodas != Feature.NO)
 			{
-				interludeLeadRatings =   new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
-				interludeFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
+				interludeLeadRatings =   new PhoneticRatings(this, true, clusterLeadStdev, clusterLeadMean);
+				interludeFollowRatings = new PhoneticRatings(this, true, clusterFollowStdev, clusterFollowMean);
 			}
 			
 			if (features.terminalCodas != Feature.NO)
 			{
-				terminalCodaRatings = new PhoneticRatings(baseCodaRatings);
+				terminalCodaRatings = new PhoneticRatings(this, baseCodaRatings);
 				terminalCodaRatings.disturb(0.5);
 			}
 		}
@@ -566,29 +565,29 @@ public class Phonology
 		if (features.onsetClusters == Feature.YES)
 		{
 			// Onset cluster lead/follow prominences
-			onsetClusterLeadRatings   = new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
-			onsetClusterFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
+			onsetClusterLeadRatings   = new PhoneticRatings(this, true, clusterLeadStdev, clusterLeadMean);
+			onsetClusterFollowRatings = new PhoneticRatings(this, true, clusterFollowStdev, clusterFollowMean);
 		}
 
 		if (features.geminateVowels == Feature.YES || features.diphthongs == Feature.YES)
 		{
 			// Diphthong (nucleus cluster) lead/follow prominences
-			diphthongLeadRatings   = new PhoneticRatings(false, diphthongLeadStdev, diphthongLeadMean);
-			diphthongFollowRatings = new PhoneticRatings(false, diphthongFollowStdev, diphthongFollowMean);
+			diphthongLeadRatings   = new PhoneticRatings(this, false, diphthongLeadStdev, diphthongLeadMean);
+			diphthongFollowRatings = new PhoneticRatings(this, false, diphthongFollowStdev, diphthongFollowMean);
 		}
 		
 		if (features.codaClusters == Feature.YES)
 		{
 			// Set coda lead/follow prominences
-			codaClusterLeadRatings   = new PhoneticRatings(true, clusterLeadStdev, clusterLeadMean);
-			codaClusterFollowRatings = new PhoneticRatings(true, clusterFollowStdev, clusterFollowMean);
+			codaClusterLeadRatings   = new PhoneticRatings(this, true, clusterLeadStdev, clusterLeadMean);
+			codaClusterFollowRatings = new PhoneticRatings(this, true, clusterFollowStdev, clusterFollowMean);
 		}
 
 		if (features.hiatus != Feature.NO)
 		{
 			// Set hiatus ratings
-			hiatusLeadRatings =   new PhoneticRatings(true, hiatusLeadStdev, hiatusLeadMean);
-			hiatusFollowRatings = new PhoneticRatings(true, hiatusFollowStdev, hiatusFollowMean);
+			hiatusLeadRatings =   new PhoneticRatings(this, true, hiatusLeadStdev, hiatusLeadMean);
+			hiatusFollowRatings = new PhoneticRatings(this, true, hiatusFollowStdev, hiatusFollowMean);
 		}
 		
 		// Set miscellaneous phonotactic offsets
@@ -672,7 +671,7 @@ public class Phonology
 			
 			if (add)
 			{
-				inv.add(new VowelPhoneme(vowels[i]));
+				inv.add(makeVowelPhoneme(Vowel.segments[1]));
 				if (vowels[i].expression.equals(":"))
 					longVowel = (VowelPhoneme) inv.get(inv.size() - 1);
 			}
@@ -684,7 +683,7 @@ public class Phonology
 		if (vowelInventory.length == 0)
 		{
 			baseVowelRatings.setRating(VowelProperty.OPEN.ordinal(), 1);
-			vowelInventory = new VowelPhoneme[] { new VowelPhoneme(Vowel.segments[1]) };
+			vowelInventory = new VowelPhoneme[] { makeVowelPhoneme(Vowel.segments[1]) };
 		}
 		
 		// Mark phonotactic transition categories represented in this language's inventory
@@ -921,7 +920,9 @@ public class Phonology
 		// Medial hiatus
 		for (VowelPhoneme v1 : vowelInventory)
 		{
-			v1.makeHiatus();			
+			v1.makeHiatus(medialNuclei, leadProbabilities, followProbabilities, hiatusOffset, nucleusClusterWeight);
+			v1.makeHiatus(terminalNuclei, leadProbabilities, followProbabilities, hiatusOffset, nucleusClusterWeight);
+			v1.makeHiatus(rootNuclei, leadProbabilities, followProbabilities, hiatusOffset, nucleusClusterWeight);
 		}
 	}
 	
@@ -992,7 +993,7 @@ public class Phonology
 	
 	/**
 	 * Sets base chances for medial onsets and medial/terminal codas. These values are used
-	 * in NameAssembly to determine the weights of transitions between nodes.
+	 * in MorphemeAssembly to determine the weights of transitions between nodes.
 	 * 
 	 * @since	1.0
 	 */
@@ -1064,6 +1065,79 @@ public class Phonology
 //		combinationRules = new CombinationRules(this);
 //	}
 
+	private VowelPhoneme makeVowelPhoneme(Vowel vowel)
+	{
+		// Assign initial prominence values
+		double medialProminence				= 1;	// this functions as the nucleus initial prominence here
+		double wordInitialProminence		= 1;
+		double terminalProminence			= 1;
+		double rootProminence				= 1;
+		double nucleusLeadProminence 		= 1;
+		double nucleusFollowProminence 		= 1;
+		double interludeLeadProminence  	= 1;
+		double interludeFollowProminence 	= 1;
+		
+		
+		
+		// Apply offsets
+		if (vowel.expression.equals(":"))
+		{
+			medialProminence = Integer.MIN_VALUE;
+		}
+		
+		// Calculate prominence values
+		for (VowelProperty s : vowel.properties)
+		{
+			double deviance = baseVowelRatings.getRating(s.ordinal()) - 1;
+			deviance /= Math.sqrt(vowel.properties.length);
+			medialProminence += deviance;
+			
+			deviance = initialNucleusRatings.getRating(s.ordinal()) - 1;
+			deviance /= Math.sqrt(vowel.properties.length);
+			wordInitialProminence += deviance;
+			
+			if (features.terminalCodas != Feature.REQUIRED)
+			{
+				deviance = terminalNucleusRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(vowel.properties.length);
+				terminalProminence += deviance;
+			}
+			else
+				terminalProminence = 0;
+			
+			deviance = rootNucleusRatings.getRating(s.ordinal()) - 1;
+			deviance /= Math.sqrt(vowel.properties.length);
+			rootProminence += deviance;
+			
+			deviance = hiatusLeadRatings.getRating(s.ordinal()) - 1;
+			deviance /= Math.sqrt(vowel.properties.length);
+			interludeLeadProminence += deviance;
+			
+			deviance = hiatusFollowRatings.getRating(s.ordinal()) - 1;
+			deviance /= Math.sqrt(vowel.properties.length);
+			interludeFollowProminence += deviance;
+			
+			if (maxNucleusLength > 1)
+			{
+				deviance = diphthongLeadRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(vowel.properties.length);
+				nucleusLeadProminence += deviance;
+				
+				deviance = diphthongFollowRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(vowel.properties.length);
+				nucleusFollowProminence += deviance;	
+			}
+			else
+			{
+				nucleusLeadProminence = 0;
+				nucleusFollowProminence = 0;
+			}
+		}
+		
+		return new VowelPhoneme(vowel, medialProminence, wordInitialProminence, terminalProminence, rootProminence, nucleusLeadProminence,
+								nucleusFollowProminence, interludeLeadProminence, interludeFollowProminence);
+		}
+	
 	/**
 	 * Generates onset inventories by calling the recursive function generateMedialOnsets for each
 	 * phoneme on the consonant inventory.
@@ -1642,86 +1716,21 @@ public class Phonology
 		return seed;
 	}
 	
-	class PhoneticRatings
+		
+	public ConstituentLibrary getMedialNuclei()
 	{
-		private double[] ratings;
-		boolean[] propertiesRepresented;
-		SegmentProperty[] properties;
-		
-		public PhoneticRatings(boolean consonant, double stdev, double mean)
-		{
-			if (consonant)
-			{
-				properties = ConsonantProperty.values();
-				propertiesRepresented = consonantPropertiesRepresented;
-			}
-			else
-			{
-				properties = VowelProperty.values();
-				propertiesRepresented = vowelPropertiesRepresented;
-			}
-			
-			ratings = new double[properties.length];
-			
-			for (int i = 0; i < ratings.length; i++)
-				if (propertiesRepresented[i])
-					ratings[i] = rng.nextGaussian() * stdev + mean;
-		}
-		
-		/**
-		 * Copy constructor
-		 * @param other	The PhoneticRatings to be copied
-		 */
-		public PhoneticRatings(PhoneticRatings other)
-		{
-			ratings = new double[other.properties.length];
-			for (int i = 0; i < ratings.length; i++)
-				ratings[i] = other.getRating(i);
-			
-			this.properties = other.properties;
-			this.propertiesRepresented = other.propertiesRepresented;
-		}
-		
-		public void disturb(double stdev)
-		{
-			for (int i = 0; i < ratings.length; i++)
-				ratings[i] = rng.nextGaussian() * stdev + ratings[i];
-		}
-		
-		public void offset(double offset)
-		{
-			for (int i = 0; i < ratings.length; i++)
-				ratings[i] = ratings[i] + offset;
-		}
-		
-		public void offset(double[] offsets)
-		{
-			if (offsets.length != ratings.length)
-				return;
-			
-			for (int i = 0; i < ratings.length; i++)
-				ratings[i] = ratings[i] + offsets[i];
-		}
-		
-		public void exaggerate(double power)
-		{
-			for (int i = 0; i < ratings.length; i++)
-				ratings[i] = Math.pow(ratings[i], power);
-		}
-		
-		public double getRating(int index)
-		{
-			return ratings[index];
-		}
-		
-		public void setRating(int index, double value)
-		{
-			ratings[index] = value;
-		}
-		
-		public int size()
-		{
-			return ratings.length;
-		}
+		return medialNuclei;
+	}
+	
+	public ConstituentLibrary getTerminalNuclei()
+	{
+		return terminalNuclei;
+	}
+	
+	public ConstituentLibrary getRootNuclei()
+	{
+		return rootNuclei;
 	}
 }
+	
+	

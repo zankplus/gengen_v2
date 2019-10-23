@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import gengenv2.Name.Syllable;
 import gengenv2.morphemes.Morpheme;
 
 /**

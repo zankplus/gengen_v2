@@ -131,9 +131,9 @@ public class ConstituentLibrary
 			{
 				Constituent max = list.get(0);
 				for (int i = 0; i < list.size(); i++)
-					if (list.get(i).probability < 0)
+					if (list.get(i).getProbability() < 0)
 					{
-						if (list.get(i).probability > max.probability)
+						if (list.get(i).getProbability() > max.getProbability())
 							max = list.get(i);
 						
 						list.remove(i);
@@ -144,7 +144,7 @@ public class ConstituentLibrary
 				// Never leave a library totally empty - always keep 1 in the first list
 				if (j == 0 && list.size() == 0)
 				{
-					max.probability = 1;
+					max.setProbability(1);
 					list.add(max);
 				}
 			}
@@ -176,9 +176,9 @@ public class ConstituentLibrary
 		{
 			double sum = 0;
 			for (Constituent c : library[i]) 
-				sum += c.probability;
+				sum += c.getProbability();
 			for (Constituent c : library[i])
-				c.probability /= sum;
+				c.setProbability(c.getProbability() / sum);
 		}
 	}
 	
@@ -237,7 +237,7 @@ public class ConstituentLibrary
 		for (int i = 1; i <= maxLength; i++)
 		{
 			for (int j = 0; j < countMembersOfLength(i); j++)
-				getMembersOfLength(i).get(j).probability = Math.pow(getMembersOfLength(i).get(j).probability, power);
+				getMembersOfLength(i).get(j).setProbability(Math.pow(getMembersOfLength(i).get(j).getProbability(), power));
 		}
 		
 		normalizeAll();
@@ -274,7 +274,7 @@ public class ConstituentLibrary
 	 */
 	public void add(Constituent c)
 	{
-		library[c.content.length - 1].add(c);
+		library[c.getLength() - 1].add(c);
 		memberCount++;
 	}
 	
@@ -353,10 +353,10 @@ public class ConstituentLibrary
 			double rand = rng.nextDouble();
 			for (Constituent c : lib)
 			{
-				if (rand < c.probability)
+				if (rand < c.getProbability())
 					return c;
 				else
-					rand -= c.probability;
+					rand -= c.getProbability();
 			}
 			throw new Exception();
 		} 
@@ -365,7 +365,7 @@ public class ConstituentLibrary
 			System.err.println("Failed to select syllable segment; " +
 								"were the inventory's prominence values not normalized?");
 			for (Constituent c : lib)
-				System.out.println(c + " " + c.probability);
+				System.out.println(c + " " + c.getProbability());
 			e.printStackTrace();
 			System.exit(0);
 		}
@@ -405,7 +405,7 @@ public class ConstituentLibrary
 		{
 			ArrayList<Constituent> list = library[j];
 			for (int i = 0; i < list.size(); i++)
-				list.get(i).probability *= Math.log(list.get(i).followers().countMembersOfLength(1) + 1);
+				list.get(i).setProbability(list.get(i).getProbability() * Math.log(list.get(i).followers().countMembersOfLength(1) + 1));
 		}
 		
 		normalizeAll();
@@ -462,14 +462,14 @@ public class ConstituentLibrary
 		for (int i = 1; i <= maxLength; i++)
 			for (Constituent c : getMembersOfLength(i))
 			{
-				double pCurr = c.probability * getLengthProbability(i);
+				double pCurr = c.getProbability() * getLengthProbability(i);
 				double p = pCurr;
 				if (compoundEntropy)
 				{
 					for (int j = 1; j < c.followers().maxLength; j++)
 						for (Constituent d : c.followers().getMembersOfLength(j))
 						{
-							double pNext = d.probability * c.followers().getLengthProbability(j);
+							double pNext = d.getProbability() * c.followers().getLengthProbability(j);
 							p = pCurr * pNext;
 							if (p != 0)
 								entropy += -p * Math.log(p);
