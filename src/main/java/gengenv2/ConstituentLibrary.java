@@ -39,7 +39,7 @@ public class ConstituentLibrary
 {
 	// General variables
 	private Phonology parent;
-	private static Random rng = null;
+	private Random rng = null;
 	
 	// Library information
 	private ArrayList<Constituent>[] library;
@@ -71,7 +71,7 @@ public class ConstituentLibrary
 		this.type = type;
 		
 		if (rng == null)
-			rng = parent.rng;
+			rng = PublicRandom.getRNG();
 		
 		library = new ArrayList[maxLength];
 		for (int i = 0; i < maxLength; i++)

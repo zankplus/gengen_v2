@@ -28,6 +28,7 @@ import org.apache.commons.math3.distribution.LogNormalDistribution;
 
 import gengenv2.enums.*;
 import gengenv2.morphemes.*;
+import gengenv2.morphemes.Segment;
 
 
 /**
@@ -303,7 +304,7 @@ public class Phonology
 	 */
 	public Phonology(long seed)
 	{
-		rng = new Random(seed);
+		rng = PublicRandom.getRNG(PublicRandom.newRNG(seed));
 		this.seed = seed;
 		thisPhonology = this;
 		
@@ -341,7 +342,7 @@ public class Phonology
 		makeNuclei();
 		makeHiatus();
 		
-		if (maxCodaLength > 0)
+		if (features.medialCodas != Feature.NO || features.terminalCodas != Feature.NO)
 			makeCodas();
 		
 		// Set base chances for use in the flowchart
@@ -410,6 +411,18 @@ public class Phonology
 			features.hiatus = Feature.RESTRICTED;
 		else if (roll < 4)
 			features.hiatus = Feature.UNRESTRICTED;
+		
+		System.out.println("FEATURES");
+		System.out.println("Initial onsets:      " + features.initialOnsets);
+		System.out.println("Onset clusters:      " + features.onsetClusters);
+		System.out.println("Medial codas:        " + features.medialCodas);
+		System.out.println("Terminal codas:      " + features.terminalCodas);
+		System.out.println("Coda clusters:       " + features.codaClusters);
+		System.out.println("Geminate consonants: " + features.geminateConsonants);	
+		System.out.println("Geminate vowels:     " + features.geminateVowels);
+		System.out.println("Diphthongs:          " + features.diphthongs);
+		System.out.println("Hiatus:              " + features.hiatus);
+		
 	}
 	
 	private void determineClusterStatistics()
@@ -630,7 +643,7 @@ public class Phonology
 			if (add)
 			{
 				if (rng.nextDouble() > consonants[i].defectiveChance)
-					inv.add(new ConsonantPhoneme(consonants[i]));
+					inv.add(makeConsonantPhoneme(consonants[i]));
 				else
 					defective.add(consonants[i]);
 			}		
@@ -644,7 +657,7 @@ public class Phonology
 			for (int i = 0; i < Consonant.segments[0].properties.length; i++)
 				baseConsonantRatings.setRating(Consonant.segments[0].properties[i].ordinal(), 1);
 			
-			consonantInventory = new ConsonantPhoneme[] { new ConsonantPhoneme(Consonant.segments[0]) };
+			consonantInventory = new ConsonantPhoneme[] { makeConsonantPhoneme(Consonant.segments[0]) };
 		}
 		
 		// Mark phonotactic transition categories represented in this language's inventory
@@ -671,7 +684,7 @@ public class Phonology
 			
 			if (add)
 			{
-				inv.add(makeVowelPhoneme(Vowel.segments[1]));
+				inv.add(makeVowelPhoneme(Vowel.segments[i]));
 				if (vowels[i].expression.equals(":"))
 					longVowel = (VowelPhoneme) inv.get(inv.size() - 1);
 			}
@@ -866,28 +879,35 @@ public class Phonology
 							validCodaTransitions[i][j] = true; 
 					}
 	
-		// Initialize coda library
-		medialCodas = new ConstituentLibrary(maxCodaLength, ConstituentType.CODA, ConstituentLocation.MEDIAL);
-		
-		// Populate coda list
-		generateCodas(medialCodas);
+		if (features.medialCodas != Feature.NO)
+		{
+			// Initialize coda library
+			medialCodas = new ConstituentLibrary(maxCodaLength, ConstituentType.CODA, ConstituentLocation.MEDIAL);
+			
+			// Populate coda list
+			generateCodas(medialCodas);
 
-		// Remove unused codas
-		medialCodas.removeUnusedMembers();
+			// Remove unused codas
+			medialCodas.removeUnusedMembers();
+			
+			// Note that unlike makeOnsets and makeNuclei, in makeCodas We delay the normalization of coda values until after
+			// makeInterludes, as that method makes use of codas (in particular, that may be cut from the master list.
+			if (medialCodas.maxLength() > 0)
+				makeInterludes();
+		}
 		
-		// Note that unlike makeOnsets and makeNuclei, in makeCodas We delay the normalization of coda values until after
-		// makeInterludes, as that method makes use of codas (in particular, that may be cut from the master list.
 		
-		if (medialCodas.maxLength() > 0)
-			makeInterludes();
+		if (features.terminalCodas != Feature.NO)
+		{
+			terminalCodas = new ConstituentLibrary(maxCodaLength, ConstituentType.CODA, ConstituentLocation.TERMINAL);
+			generateCodas(terminalCodas);
+			terminalCodas.removeUnusedMembers();
+			terminalCodas.exaggerate(2);
+			terminalCodas.normalizeAll();
+			terminalCodas.sortAll();
+			terminalCodas.setLengthProbabilities(codaClusterWeight);
+		}
 		
-		terminalCodas = new ConstituentLibrary(maxCodaLength, ConstituentType.CODA, ConstituentLocation.TERMINAL);
-		generateCodas(terminalCodas);
-		terminalCodas.removeUnusedMembers();
-		terminalCodas.exaggerate(2);
-		terminalCodas.normalizeAll();
-		terminalCodas.sortAll();
-		terminalCodas.setLengthProbabilities(codaClusterWeight);
 	}
 	
 	/**
@@ -1065,6 +1085,123 @@ public class Phonology
 //		combinationRules = new CombinationRules(this);
 //	}
 
+	private ConsonantPhoneme makeConsonantPhoneme(Consonant cs)
+	{
+		// Assign default prominence values
+		double medialProminence				= 1;
+		double wordInitialProminence	 	= 1;
+		double medialCodaProminence			= 1;
+		double terminalCodaProminence		= 1;
+		
+		double onsetClusterLeadProminence	= 1;
+		double onsetClusterFollowProminence = 1;
+		double codaClusterLeadProminence    = 1;
+		double codaClusterFollowProminence  = 1;
+		double interludeLeadProminence  	= 1;
+		double interludeFollowProminence	= 1;
+		
+		// Apply offsets
+		if (cs.expression.equals("ng"))
+		{
+			medialProminence   		  -= onsetNgOffset;
+			wordInitialProminence	  -= onsetNgOffset;
+			interludeFollowProminence -= onsetNgOffset;
+		}
+		else if (cs.expression.equals("'"))
+		{
+			medialCodaProminence		-= codaGlottalStopOffset;
+			terminalCodaProminence		-= codaGlottalStopOffset;
+			codaClusterLeadProminence	-= codaGlottalStopOffset;
+			codaClusterFollowProminence -= codaGlottalStopOffset;
+		}
+		
+		/* Calculate prominence values. 
+		 * Math note: initialProminence is the result of combining all the prominence values of the
+		 * segment's properties, with mean 1. The deviance of each prominence is scaled by the root of
+		 * the number of the segment's properties; this ensures that all intialProminence values are
+		 * distributed, in effect, with the same standard deviation, regardless of how many values are
+		 * added to make it (normally, adding random variables increases the stdev of the sum). The
+		 * same is true of the cluster prominence values as well.
+		 */
+		for (ConsonantProperty s : cs.properties)
+		{
+			// Initial properties
+			double deviance = baseConsonantRatings.getRating(s.ordinal()) - 1;
+			deviance /= Math.sqrt(cs.properties.length);
+			medialProminence += deviance;
+			
+			deviance = initialOnsetRatings.getRating(s.ordinal()) - 1;
+			deviance /= Math.sqrt(cs.properties.length);
+			wordInitialProminence += deviance;
+			
+			if (maxCodaLength > 0)
+			{
+				deviance = baseCodaRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(cs.properties.length);
+				medialCodaProminence += deviance;
+				
+				if (features.terminalCodas != Feature.NO)
+				{
+					deviance = terminalCodaRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(cs.properties.length);
+					terminalCodaProminence += deviance;
+				}
+				else
+					terminalCodaProminence = 0;
+				
+			}
+			
+			// Onset cluster properties
+			if (features.onsetClusters != Feature.NO)
+			{
+				deviance = onsetClusterLeadRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(cs.properties.length);
+				onsetClusterLeadProminence += deviance;
+				
+				deviance = onsetClusterFollowRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(cs.properties.length);
+				onsetClusterFollowProminence += deviance;
+			}
+			else
+			{
+				onsetClusterLeadProminence = 0;
+				onsetClusterFollowProminence = 0;
+			}
+			
+			// Coda cluster properties
+			if ((features.medialCodas != Feature.NO || features.terminalCodas != Feature.NO) && features.codaClusters != Feature.NO)
+			{
+				deviance = codaClusterLeadRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(cs.properties.length);
+				codaClusterLeadProminence += deviance;
+				
+				deviance = codaClusterFollowRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(cs.properties.length);
+				codaClusterFollowProminence += deviance;
+				
+				if (features.medialCodas != Feature.NO)
+				{
+					deviance = interludeLeadRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(cs.properties.length);
+					interludeLeadProminence += deviance;
+					
+					deviance = interludeFollowRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(cs.properties.length);
+					interludeFollowProminence += deviance;
+				}
+				else
+					interludeLeadProminence = interludeFollowProminence = 0;
+			}
+			else
+				codaClusterLeadProminence = codaClusterFollowProminence = 0;
+			
+		}
+		
+		return new ConsonantPhoneme(cs, medialProminence, wordInitialProminence, medialCodaProminence, terminalCodaProminence, 
+									onsetClusterLeadProminence, onsetClusterFollowProminence, codaClusterLeadProminence, codaClusterFollowProminence,
+									interludeLeadProminence, interludeFollowProminence);
+	}
+	
 	private VowelPhoneme makeVowelPhoneme(Vowel vowel)
 	{
 		// Assign initial prominence values
@@ -1136,7 +1273,7 @@ public class Phonology
 		
 		return new VowelPhoneme(vowel, medialProminence, wordInitialProminence, terminalProminence, rootProminence, nucleusLeadProminence,
 								nucleusFollowProminence, interludeLeadProminence, interludeFollowProminence);
-		}
+	}
 	
 	/**
 	 * Generates onset inventories by calling the recursive function generateMedialOnsets for each

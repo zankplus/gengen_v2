@@ -414,6 +414,7 @@ public class MorphemeAssembly
 			System.out.printf("\t%.3f Root syllable\n", rootSyllableEntropy);
 			
 			// As above, but for hiatus-based entropy values
+			
 			for (VowelPhoneme v : p.vowelInventory)
 			{
 				if (!v.segment.expression.equals(":"))
@@ -432,6 +433,7 @@ public class MorphemeAssembly
 					v.setHiatusTerminalSyllableEntropy(decisionEntropy(
 										new double[] { v.getHiatusTerminalCodaChance(), 1 - v.getHiatusTerminalCodaChance() },
 										new double[] { consonantTerminationEntropy, vowelTerminationEntropy }));
+					
 					System.out.println("Entropies for hiatus on " + v + ":");
 					System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
 					System.out.println(v.getHiatusTerminalCodaChance());

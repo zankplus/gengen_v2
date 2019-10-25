@@ -14,107 +14,31 @@ public class ConsonantPhoneme extends Phoneme
 	public final double codaClusterLeadProminence;
 	public final double codaClusterFollowProminence;
 	
-	public ConsonantPhoneme(Segment segment)
+	public ConsonantPhoneme(Segment segment,
+							double medialProminence,
+							double wordInitialProminence,
+							double medialCodaProminence,
+							double terminalCodaProminence,
+							double onsetClusterLeadProminence,
+							double onsetClusterFollowProminence,
+							double codaClusterLeadProminence,
+							double codaClusterFollowProminence,
+							double interludeLeadProminence,
+							double interludeFollowProminence)
 	{
 		super(segment);
+		this.medialProminence = medialProminence;
+		this.wordInitialProminence = wordInitialProminence;
+		this.medialCodaProminence = medialCodaProminence;
+		this.terminalCodaProminence = terminalCodaProminence;
 		
-		// Assign default prominence values
-		medialProminence			 = 1;
-		wordInitialProminence	 	 = 1;
-		medialCodaProminence		 = 1;
-		terminalCodaProminence		 = 1;
+		this.onsetClusterLeadProminence	= onsetClusterLeadProminence;
+		this.onsetClusterFollowProminence = onsetClusterFollowProminence;
+		this.codaClusterLeadProminence    = codaClusterLeadProminence;
+		this.codaClusterFollowProminence  = codaClusterFollowProminence;
+		this.interludeLeadProminence  	= interludeLeadProminence;
+		this.interludeFollowProminence	= interludeFollowProminence;
 		
-		onsetClusterLeadProminence   = 1;
-		onsetClusterFollowProminence = 1;
-		codaClusterLeadProminence    = 1;
-		codaClusterFollowProminence  = 1;
-		interludeLeadProminence  	 = 1;
-		interludeFollowProminence 	 = 1;
-		
-		// Apply offsets
-		if (segment.expression.equals("ng"))
-		{
-			medialProminence   		  -= onsetNgOffset;
-			wordInitialProminence	  -= onsetNgOffset;
-			interludeFollowProminence -= onsetNgOffset;
-		}
-		else if (segment.expression.equals("'"))
-		{
-			medialCodaProminence		-= codaGlottalStopOffset;
-			terminalCodaProminence		-= codaGlottalStopOffset;
-			codaClusterLeadProminence	-= codaGlottalStopOffset;
-			codaClusterFollowProminence -= codaGlottalStopOffset;
-		}
-		
-		/* Calculate prominence values. 
-		 * Math note: initialProminence is the result of combining all the prominence values of the
-		 * segment's properties, with mean 1. The deviance of each prominence is scaled by the root of
-		 * the number of the segment's properties; this ensures that all intialProminence values are
-		 * distributed, in effect, with the same standard deviation, regardless of how many values are
-		 * added to make it (normally, adding random variables increases the stdev of the sum). The
-		 * same is true of the cluster prominence values as well.
-		 */
-		for (ConsonantProperty s : ((Consonant) segment).properties)
-		{
-			// Initial properties
-			double deviance = baseConsonantRatings.getRating(s.ordinal()) - 1;
-			deviance /= Math.sqrt(segment.properties.length);
-			medialProminence += deviance;
-			
-			deviance = initialOnsetRatings.getRating(s.ordinal()) - 1;
-			deviance /= Math.sqrt(segment.properties.length);
-			wordInitialProminence += deviance;
-			
-			if (maxCodaLength > 0)
-			{
-				deviance = baseCodaRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				medialCodaProminence += deviance;
-				
-				if (features.terminalCodas != Feature.NO)
-				{
-					deviance = terminalCodaRatings.getRating(s.ordinal()) - 1;
-					deviance /= Math.sqrt(segment.properties.length);
-					terminalCodaProminence += deviance;
-				}
-				
-			}
-			
-			// Onset cluster properties
-			if (maxOnsetLength > 1)
-			{
-				deviance = onsetClusterLeadRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				onsetClusterLeadProminence += deviance;
-				
-				deviance = onsetClusterFollowRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				onsetClusterFollowProminence += deviance;
-			}
-			
-			// Coda cluster properties
-			if (maxCodaLength > 1)
-			{
-				deviance = codaClusterLeadRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				codaClusterLeadProminence += deviance;
-				
-				deviance = codaClusterFollowRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(segment.properties.length);
-				codaClusterFollowProminence += deviance;
-				
-				if (features.medialCodas != Feature.NO)
-				{
-					deviance = interludeLeadRatings.getRating(s.ordinal()) - 1;
-					deviance /= Math.sqrt(segment.properties.length);
-					interludeLeadProminence += deviance;
-					
-					deviance = interludeFollowRatings.getRating(s.ordinal()) - 1;
-					deviance /= Math.sqrt(segment.properties.length);
-					interludeFollowProminence += deviance;
-				}
-			}
-		}
 	}
 	
 	public void createFollowerList(int medialOnsetsLength)
