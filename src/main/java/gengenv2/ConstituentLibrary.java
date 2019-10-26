@@ -362,8 +362,9 @@ public class ConstituentLibrary
 		} 
 		catch (Exception e) 
 		{
-			System.err.println("Failed to select syllable segment; " +
-								"were the inventory's prominence values not normalized?");
+			System.out.println("Failed to select syllable segment; were the inventory's prominence values not normalized?");
+			System.out.println(getName());
+			System.out.println(lib.size() + " members of length " + index);
 			for (Constituent c : lib)
 				System.out.println(c + " " + c.getProbability());
 			e.printStackTrace();
@@ -508,4 +509,23 @@ public class ConstituentLibrary
 	{
 		return location;
 	}
+	
+	public String getName ()
+	{
+		return location  + " " + type; 
+	}
+	
+	public void printMembers()
+	{
+		for (int i = 0; i < library.length; i++)
+			if (library[i].size() > 0)
+			{
+				System.out.println("\tLength " + (i + 1));
+				for (int j = 0; j < library[i].size(); j++)
+				{
+					System.out.println(library[i].get(j) + "\t" + library[i].get(j).getProbability());
+				}
+			}
+	}
+	
 }

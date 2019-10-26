@@ -48,7 +48,6 @@ public class Phonology
 	protected Random rng;
 	private String name;
 	private long seed;
-	private Phonology thisPhonology;
 	
 	/*
 	 * High level features
@@ -306,7 +305,6 @@ public class Phonology
 	{
 		rng = PublicRandom.getRNG(PublicRandom.newRNG(seed));
 		this.seed = seed;
-		thisPhonology = this;
 		
 		// Commence generation
 		constructPhonology();
@@ -351,10 +349,14 @@ public class Phonology
 		// Create flowchart
 		assembly = new MorphemeAssembly(this);
 		
+
+		
 //		makeSuffixes();
 		
 		// Create stress rules
 //		stressRules = new StressRules();
+		
+		
 	}
 	
 	/**
@@ -893,7 +895,9 @@ public class Phonology
 			// Note that unlike makeOnsets and makeNuclei, in makeCodas We delay the normalization of coda values until after
 			// makeInterludes, as that method makes use of codas (in particular, that may be cut from the master list.
 			if (medialCodas.maxLength() > 0)
+			{
 				makeInterludes();
+			}
 		}
 		
 		
@@ -992,16 +996,14 @@ public class Phonology
 					
 					if (leadProbability[p1.segment.transitionCategory] * 
 							followProbability[p2.segment.transitionCategory] < probability)
-						p1.addFollower(medialOnsets.getMembersOfLength(1).get(j));
+						addInterlude(p1, medialOnsets.getMembersOfLength(1).get(j));
 				}
 			}
 			
 			p1.normalizeAndSortFollowers(onsetClusterWeight);
 		}
 		
-		// TODO: Temporary feature: remove codas with no interludes.
-		// In the future, we may want to include these phonemes in the terminal coda, but those will be
-		// handled by a separate inventory.
+		// Remove codas with no interludes
 		medialCodas.pruneMembersWithoutFollowers();
 		
 		medialCodas.scaleProbabilityByFollowerCount();
@@ -1011,6 +1013,74 @@ public class Phonology
 		
 
 	
+	/**
+		 * Adds a SyllableSegment to this Phoneme's interlude inventory. If this Phoneme represents a consonant,
+		 * the SyllableSegment represents an onset that may follow when this Phoneme is used as a coda. If this
+		 * Phoneme represents a vowel, the SyllableSegment represents a nucleus that may follow in hiatus.
+		 * @param	c	A coda or nucleus that may follow this Phoneme
+		 * @since	1.0
+		 */
+		protected void addInterlude(Phoneme phoneme, Constituent follower)
+		{
+			// If interludeLeadProminence <= 0, this phoneme does not lead in interludes/hiatus
+			if (phoneme.getInterludeLeadProminence() <= 0)
+				return;
+			
+			// Calculate interlude's probability.
+			// Base probability equals sum of following segment's interludeFollow and onsetInitial prominences
+			double probability = follower.getContent(0).getInterludeFollowProminence();
+			probability += follower.getContent(0).getMedialProminence() - 1;
+			
+			// Apply nasal dissonance inhibitor, if relevant
+			if (phoneme.segment.isConsonant() && Phoneme.isDissonantNasalCluster(phoneme, follower.getContent(0)))
+				probability -= nasalDissonanceOffset;
+			
+			// If probability is positive, add this interlude
+			if (probability > 0)
+			{
+				phoneme.addFollower(new Constituent(follower, probability));
+			}
+			
+			// Add any possible clusters, too. Examine onset clusters if this is a consonantal interlude ...
+			if (phoneme.segment.isConsonant())
+				for (int i = 1; i < medialOnsets.maxLength(); i++)
+				{
+					for (Constituent onset : medialOnsets.getMembersOfLength(i + 1))
+						if (onset.getContent(0) == follower.getContent(0))
+						{
+							// Set base probability equal to the next segment's prominence
+							probability = onset.getProbability();
+							
+							// Apply offsets, if relevant
+							if (Phoneme.isDissonantNasalCluster(phoneme, onset.getContent(0)))
+								probability -= nasalDissonanceOffset;
+							
+							if (Phoneme.isUnequalVoicing(phoneme, onset.getContent(0)))
+								probability -= unequalVoicingOffset;
+							
+							// If probability is positive, add this interlude
+							if (probability > 0)
+								phoneme.addFollower(new Constituent(onset, probability));
+						}
+				}
+			// ... or, if this is a hiatus, look at diphthongs
+			else if (medialNuclei.maxLength() == 2)
+			{
+				for (Constituent diphthong : medialNuclei.getMembersOfLength(2))
+					if (diphthong.getContent(0) == follower.getContent(0))
+					{
+						// Set base probability equal to the next segment's prominence
+						probability = diphthong.getProbability();
+						
+						// If probability is positive, add this interlude
+						if (probability > 0)
+							phoneme.addFollower(new Constituent(diphthong, probability));
+					}
+			}
+	//		Print interlude statistics
+	//		System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
+		}
+
 	/**
 	 * Sets base chances for medial onsets and medial/terminal codas. These values are used
 	 * in MorphemeAssembly to determine the weights of transitions between nodes.
@@ -1544,74 +1614,6 @@ public class Phonology
 						}
 				}
 			}
-	}
-	
-	/**
-	 * Adds a SyllableSegment to this Phoneme's interlude inventory. If this Phoneme represents a consonant,
-	 * the SyllableSegment represents an onset that may follow when this Phoneme is used as a coda. If this
-	 * Phoneme represents a vowel, the SyllableSegment represents a nucleus that may follow in hiatus.
-	 * @param	c	A coda or nucleus that may follow this Phoneme
-	 * @since	1.0
-	 */
-	protected void addInterlude(Phoneme phoneme, Constituent follower)
-	{
-		// If interludeLeadProminence <= 0, this phoneme does not lead in interludes/hiatus
-		if (phoneme.getInterludeLeadProminence() <= 0)
-			return;
-		
-		// Calculate interlude's probability.
-		// Base probability equals sum of following segment's interludeFollow and onsetInitial prominences
-		double probability = follower.getContent(0).getInterludeFollowProminence();
-		probability += follower.getContent(0).getMedialProminence() - 1;
-		
-		// Apply nasal dissonance inhibitor, if relevant
-		if (phoneme.segment.isConsonant() && Phoneme.isDissonantNasalCluster(phoneme, follower.getContent(0)))
-			probability -= nasalDissonanceOffset;
-		
-		// If probability is positive, add this interlude
-		if (probability > 0)
-		{
-			phoneme.addFollower(new Constituent(follower, probability));
-		}
-		
-		// Add any possible clusters, too. Examine onset clusters if this is a consonantal interlude ...
-		if (phoneme.segment.isConsonant())
-			for (int i = 1; i < medialOnsets.maxLength(); i++)
-			{
-				for (Constituent onset : medialOnsets.getMembersOfLength(i + 1))
-					if (onset.getContent(0) == follower.getContent(0))
-					{
-						// Set base probability equal to the next segment's prominence
-						probability = onset.getProbability();
-						
-						// Apply offsets, if relevant
-						if (Phoneme.isDissonantNasalCluster(phoneme, onset.getContent(0)))
-							probability -= nasalDissonanceOffset;
-						
-						if (Phoneme.isUnequalVoicing(phoneme, onset.getContent(0)))
-							probability -= unequalVoicingOffset;
-						
-						// If probability is positive, add this interlude
-						if (probability > 0)
-							phoneme.addFollower(new Constituent(onset, probability));
-					}
-			}
-		// ... or, if this is a hiatus, look at diphthongs
-		else if (medialNuclei.maxLength() == 2)
-		{
-			for (Constituent diphthong : medialNuclei.getMembersOfLength(2))
-				if (diphthong.getContent(0) == follower.getContent(0))
-				{
-					// Set base probability equal to the next segment's prominence
-					probability = diphthong.getProbability();
-					
-					// If probability is positive, add this interlude
-					if (probability > 0)
-						phoneme.addFollower(new Constituent(diphthong, probability));
-				}
-		}
-//		Print interlude statistics
-//		System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
 	}
 	
 	/**

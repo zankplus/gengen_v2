@@ -52,7 +52,6 @@ public class Morphology
 	{
 		// Test
 		
-		PublicRandom.initialize();
 		Phonology p = new Phonology(-4889008631637249723L);
 		System.out.println(p);
 		

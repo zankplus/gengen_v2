@@ -17,7 +17,7 @@ public abstract class Phoneme
 	public final Segment segment;
 	
 	// Interlude properties
-	ConstituentLibrary followers;
+	protected ConstituentLibrary followers;
 	
 	// Prominences
 	double medialProminence;

@@ -78,7 +78,7 @@ public class MorphemeAssembly
 	public MorphemeAssembly(Phonology p)
 	{
 		this.p = p;
-		rng = p.rng;
+		rng = PublicRandom.getRNG();
 	
 		ioNode 		= new InitialOnsetNode();
 		nlNode 		= new NucleusLocationNode();
@@ -406,12 +406,12 @@ public class MorphemeAssembly
 										new double[] { pConsonantTermination, 1 - pConsonantTermination },
 										new double[] { consonantTerminationEntropy, vowelTerminationEntropy });
 			
-			System.out.println("General syllable entropies");
-			System.out.printf("\t%.3f Initial syllable\n", initialSyllableEntropy);
-			System.out.printf("\t%.3f Medial syllable\n", medialSyllableEntropy);
-			System.out.printf("\t%.3f Terminal syllable with coda\n", consonantTerminationEntropy);
-			System.out.printf("\t%.3f Terminal syllable, no coda\n", vowelTerminationEntropy);
-			System.out.printf("\t%.3f Root syllable\n", rootSyllableEntropy);
+//			System.out.println("General syllable entropies");
+//			System.out.printf("\t%.3f Initial syllable\n", initialSyllableEntropy);
+//			System.out.printf("\t%.3f Medial syllable\n", medialSyllableEntropy);
+//			System.out.printf("\t%.3f Terminal syllable with coda\n", consonantTerminationEntropy);
+//			System.out.printf("\t%.3f Terminal syllable, no coda\n", vowelTerminationEntropy);
+//			System.out.printf("\t%.3f Root syllable\n", rootSyllableEntropy);
 			
 			// As above, but for hiatus-based entropy values
 			
@@ -434,12 +434,12 @@ public class MorphemeAssembly
 										new double[] { v.getHiatusTerminalCodaChance(), 1 - v.getHiatusTerminalCodaChance() },
 										new double[] { consonantTerminationEntropy, vowelTerminationEntropy }));
 					
-					System.out.println("Entropies for hiatus on " + v + ":");
-					System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
-					System.out.println(v.getHiatusTerminalCodaChance());
-					System.out.printf("\t%.3f Medial syllable\n", v.getHiatusMedialSyllableEntropy());
-					System.out.printf("\t%.3f Terminal syllable\n", v.getHiatusTerminalSyllableEntropy());
-					System.out.printf("\t%.3f Root syllable\n", v.getHiatusRootSyllableEntropy());
+//					System.out.println("Entropies for hiatus on " + v + ":");
+//					System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
+//					System.out.println(v.getHiatusTerminalCodaChance());
+//					System.out.printf("\t%.3f Medial syllable\n", v.getHiatusMedialSyllableEntropy());
+//					System.out.printf("\t%.3f Terminal syllable\n", v.getHiatusTerminalSyllableEntropy());
+//					System.out.printf("\t%.3f Root syllable\n", v.getHiatusRootSyllableEntropy());
 				}
 			}
 		}
@@ -710,9 +710,7 @@ public class MorphemeAssembly
 			
 			// Onset following a coda: add an onset from the coda's follower list
 			else
-			{
 				addConstituentFrom(prev.followers());
-			}
 		}
 		
 		/**

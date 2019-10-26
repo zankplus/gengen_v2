@@ -42,8 +42,9 @@ public class App
     public static void main(String[] args)
     {   
     	// Revisit this
-    	Phonology p = new Phonology(-7749542029527716838L);
-//    	Phonology p = new Phonology(6606978045922287062L);
+//    	Phonology p = new Phonology();
+//    	Phonology p = new Phonology(-7749542029527716838L);
+    	Phonology p = new Phonology(4719841129047145646L);
 //    	Phonology p = new Phonology(2956502808346677711L);
 //    	Phonology p = new Phonology(-4686731362303332792L);	// ecko!!!!
     	
@@ -56,7 +57,9 @@ public class App
 //    	for (int i = 1; i <= p.initialOnsets.maxLength(); i++)
 //    		p.printInventory(p.initialOnsets.getMembersOfLength(i));
 		
+    	
     	p.compareOnsets();
+    	
     	testRoots(p);
 //    	System.out.println();
 //    	p.compareNuclei();
@@ -105,6 +108,7 @@ public class App
 			}
 			System.out.println();
 		}
+
     }
     
     /**
