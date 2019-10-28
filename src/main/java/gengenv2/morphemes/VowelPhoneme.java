@@ -14,9 +14,6 @@ public class VowelPhoneme extends Phoneme
 	public final double terminalProminence;
 	public final double rootProminence;
 	
-	private double strongRootEndChance;			// Chance a root ending in this vowel will be strong
-	private double strongSuffixStartChance;		// Chance a suffix starting with this vowel will be strong
-	
 	private double hiatusMedialSyllableEntropy;	// entropy for a medial syllable starting with a vowel
 	private double hiatusTerminalSyllableEntropy;
 	private double hiatusRootSyllableEntropy;

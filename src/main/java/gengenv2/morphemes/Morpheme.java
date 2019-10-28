@@ -7,7 +7,7 @@ import gengenv2.Phonology;
 public class Morpheme
 {
 	public ArrayList<Phoneme> phonemes;	
-	public double informationContent;
+	private double informationContent;
 	public int[] syllables;
 	
 	public Morpheme()

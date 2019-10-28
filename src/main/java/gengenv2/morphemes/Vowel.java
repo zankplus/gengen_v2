@@ -63,7 +63,7 @@ public class Vowel extends Segment
 		/*3*/	new Vowel("o", "o", "ö", "ó", 2, new VowelProperty[] {VowelProperty.MID,		VowelProperty.BACK}),
 		/*4*/	new Vowel("i", "i", "ï", "í", 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.FRONT}),
 		/*5*/	new Vowel("u", "u", "ü", "ú", 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.BACK}),
-		/*6*/	new Vowel("y", "ɨ", "ÿ", "ý", 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.CENTER}),
+		/*6*/	new Vowel("ў", "ɨ", "ÿ", "ý", 3, new VowelProperty[] {VowelProperty.CLOSE,	VowelProperty.CENTER}),
 		/*7*/	new Vowel(":", "ː", "",  "" , 4, new VowelProperty[] {VowelProperty.LONG}),
 	};
 }

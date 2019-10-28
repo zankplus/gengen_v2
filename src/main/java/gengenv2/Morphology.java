@@ -5,6 +5,9 @@ import java.util.Random;
 public class Morphology
 {
 	double[] suffixPreferences;	// Chance of generating each type of suffix
+	double boundRootChance;
+	double freeRootChance;
+	
 	Random rng;
 	Phonology parent;
 	
@@ -12,16 +15,32 @@ public class Morphology
 	public Morphology(Phonology p)
 	{
 		parent = p;
+		rng = PublicRandom.getRNG();
 		
-		if (p.terminalCodas == null)
+		setRootPreferences();
+		setSuffixPreferences();
+	}
+	
+	private void setRootPreferences()
+	{
+		// 20% chance purely bound, 40% purely free, 40% somewhere in between
+		boundRootChance = rng.nextDouble() * 2.5 - 0.5;
+		boundRootChance = Math.min(boundRootChance, 1);
+		boundRootChance = Math.max(boundRootChance, 0);
+		
+		freeRootChance = 1 - boundRootChance;
+	}
+	
+	private void setSuffixPreferences()
+	{
+		if (parent.terminalCodas == null)
 			suffixPreferences = new double[2];
 		else
 			suffixPreferences = new double[3];
 		
-		rng = PublicRandom.getRNG();
 		
-		// Set base chances for each type of suffix randomly between -0.5 and 1
 		
+		// Set base chances for each type of suffix randomly between -0.5 and 1	
 		int max = 0;
 		for (int i = 0; i < suffixPreferences.length; i++)
 		{
@@ -48,16 +67,18 @@ public class Morphology
 			suffixPreferences[i] /= sum;
 	}
 	
-	public static void main(String[] args)
+	public String toString()
 	{
-		// Test
-		
-		Phonology p = new Phonology(-4889008631637249723L);
-		System.out.println(p);
-		
-		Morphology m = new Morphology(p);
-		for (int i = 0; i < m.suffixPreferences.length; i++)
-			System.out.println(SuffixType.values()[i] + ":\t" + m.suffixPreferences[i]);
+		String result = "";
+		result += "ROOTS\n";
+		result += "Bound root chance:\t" + boundRootChance + "\n";
+		result += "Free root chance:\t" + freeRootChance + "\n";
+		result += "\n";
+		result += "SUFFIXES\n";
+		for (int i = 0; i < suffixPreferences.length; i++)
+			result += SuffixType.values()[i] + ": \t" + suffixPreferences[i] + "\n"; 
+		result += "\n";
+		return result;
 	}
 }
 

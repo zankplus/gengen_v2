@@ -23,8 +23,10 @@ import java.util.Random;
 
 import gengenv2.enums.ConstituentType;
 import gengenv2.morphemes.Constituent;
+import gengenv2.morphemes.Feature;
 import gengenv2.morphemes.Morpheme;
 import gengenv2.morphemes.Phoneme;
+import gengenv2.morphemes.Root;
 import gengenv2.morphemes.VowelPhoneme;
 
 /**
@@ -57,16 +59,16 @@ public class MorphemeAssembly
 	private RootNucleusNode rnNode;
 	
 	// Current name variables
-	Morpheme root;				// The name currently being generated
+	Morpheme morpheme;				// The name currently being generated
 	double icTarget;		// Intended information content of the current name
 	double pName;			// Probability of generating the current name
 	Constituent prev;		// The most recent syllable constituent added to the name
 	
 	// Information content variables
-	double infoConMean = 8;				// Average value of target information content for names
-	double infoConStdev = 1.5;			// Standard deviation of target information content for names
-	double suffixInfoConMean = 0;		// Avg. value of target information content for suffixes
-	double suffixInfoConStdev = 5;		// Standard deviation of target information content for suffixes
+	double boundRootInfoConMean = 8;				// Average value of target information content for bound roots
+	double boundRootInfoConStdev = 1.5;				// Standard deviation of target information content for round roots
+	double freeRootInfoConMean = 8;					// Average value of target information content for free roots
+	double freeRootInfoConStdev = 1.5;				// Standard deviation of target information content for free roots
 
 	
 	/**
@@ -121,9 +123,21 @@ public class MorphemeAssembly
 	 * @return	A complete name generated according to this NameAssembly's flowchart
 	 * @since	1.2
 	 */
-	public Morpheme makeWord()
+	private Morpheme makeWord(double icStdev, double icMean)
 	{
-		return makeWord(rng.nextGaussian() * infoConStdev + infoConMean);
+		return makeWord(rng.nextGaussian() * icStdev + icMean);
+	}
+	
+	public Morpheme makeBoundRoot()
+	{
+		morpheme = new Root(true);
+		return makeWord(boundRootInfoConStdev, boundRootInfoConMean);
+	}
+	
+	public Morpheme makeFreeRoot()
+	{
+		morpheme = new Root(false);
+		return makeWord(freeRootInfoConStdev, freeRootInfoConMean);
 	}
 	
 	
@@ -140,7 +154,6 @@ public class MorphemeAssembly
 	{
 		// Initialize naming variables
 		this.icTarget = icTarget;
-		root = new Morpheme();
 		prev = null;
 		pName = 1;
 		
@@ -150,17 +163,19 @@ public class MorphemeAssembly
 		try
 		{
 			while (node != null)
-			node = node.nextNode();
+			{
+				node = node.nextNode();
+			}
 		} catch (Exception e)
 		{
-			System.err.println(root);
+			System.err.println(morpheme);
 			e.printStackTrace();
 			System.exit(0);
 		}
 
-		root.setInformationContent(-Math.log(pName));
+		morpheme.setInformationContent(-Math.log(pName));
 		
-		return root;
+		return morpheme;
 	}
 	
 	/**
@@ -259,6 +274,7 @@ public class MorphemeAssembly
 		 */
 		public InitialOnsetNode()
 		{
+			
 			// Empty onset chance
 			emptyOnsetChance = Math.log(p.initialNuclei.size());
 			emptyOnsetChance *= p.baseEmptyInitialOnsetChance;
@@ -313,7 +329,7 @@ public class MorphemeAssembly
 		private double initialSyllableEntropy;			// entropy for an initial, non-final syllable
 		private double medialSyllableEntropy;			// entropy for a medial syllable starting with a consonant
 		private double terminalSyllableEntropy;			// entropy for a final syllable starting with a consonant
-		private double rootSyllableEntropy;				// entropy for a root-ending syllable starting w/ a consonant
+		private double boundRootSyllableEntropy;		// entropy for a root-ending syllable starting w/ a consonant
 		
 		/**
 		 * Constructor measures and stores entropy for different types of initial, medial, and terminal syllables.
@@ -385,7 +401,7 @@ public class MorphemeAssembly
 			// entropy along for each vowel to avoid recalculating it for every diphthong that might include it.
 			initialSyllableEntropy = getMedialEntropy(p.initialNuclei, interludeEntropies, nucleusWeights);
 			medialSyllableEntropy = getMedialEntropy(p.medialNuclei, interludeEntropies, nucleusWeights);
-			rootSyllableEntropy = p.rootNuclei.getEntropy();
+			boundRootSyllableEntropy = p.rootNuclei.getEntropy();
 			
 			double consonantTerminationEntropy, vowelTerminationEntropy;
 			double pConsonantTermination;
@@ -406,12 +422,13 @@ public class MorphemeAssembly
 										new double[] { pConsonantTermination, 1 - pConsonantTermination },
 										new double[] { consonantTerminationEntropy, vowelTerminationEntropy });
 			
-//			System.out.println("General syllable entropies");
-//			System.out.printf("\t%.3f Initial syllable\n", initialSyllableEntropy);
-//			System.out.printf("\t%.3f Medial syllable\n", medialSyllableEntropy);
-//			System.out.printf("\t%.3f Terminal syllable with coda\n", consonantTerminationEntropy);
-//			System.out.printf("\t%.3f Terminal syllable, no coda\n", vowelTerminationEntropy);
-//			System.out.printf("\t%.3f Root syllable\n", rootSyllableEntropy);
+			System.out.println("General syllable entropies");
+			System.out.printf("\t%.3f Initial syllable\n", initialSyllableEntropy);
+			System.out.printf("\t%.3f Medial syllable\n", medialSyllableEntropy);
+			System.out.printf("\t%.3f Terminal syllable with coda\n", consonantTerminationEntropy);
+			System.out.printf("\t%.3f Terminal syllable, no coda\n", vowelTerminationEntropy);
+			System.out.printf("\t%.3f Terminal syllable (either)\n", terminalSyllableEntropy);
+			System.out.printf("\t%.3f Root syllable\n", boundRootSyllableEntropy);
 			
 			// As above, but for hiatus-based entropy values
 			
@@ -434,12 +451,12 @@ public class MorphemeAssembly
 										new double[] { v.getHiatusTerminalCodaChance(), 1 - v.getHiatusTerminalCodaChance() },
 										new double[] { consonantTerminationEntropy, vowelTerminationEntropy }));
 					
-//					System.out.println("Entropies for hiatus on " + v + ":");
-//					System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
-//					System.out.println(v.getHiatusTerminalCodaChance());
-//					System.out.printf("\t%.3f Medial syllable\n", v.getHiatusMedialSyllableEntropy());
-//					System.out.printf("\t%.3f Terminal syllable\n", v.getHiatusTerminalSyllableEntropy());
-//					System.out.printf("\t%.3f Root syllable\n", v.getHiatusRootSyllableEntropy());
+					System.out.println("Entropies for hiatus on " + v + ":");
+					System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
+					System.out.println(v.getHiatusTerminalCodaChance());
+					System.out.printf("\t%.3f Medial syllable\n", v.getHiatusMedialSyllableEntropy());
+					System.out.printf("\t%.3f Terminal syllable\n", v.getHiatusTerminalSyllableEntropy());
+					System.out.printf("\t%.3f Root syllable\n", v.getHiatusRootSyllableEntropy());
 				}
 			}
 		}
@@ -479,39 +496,50 @@ public class MorphemeAssembly
 			// For in-progress names ending in roots
 //			else
 			{
-				if (root.phonemes.size() == 0)
+				if (morpheme.phonemes.size() == 0)
 					return inNode;
 				
-				double hMedial, hRoot;
+				double hMedial, hEnding;
 
 				// Get entropy measurements
 				if (prev != null && prev.type == ConstituentType.NUCLEUS)
 				{
 					VowelPhoneme v = ((VowelPhoneme) prev.lastPhoneme());
 					hMedial = v.getHiatusMedialSyllableEntropy();
-					hRoot = v.getHiatusRootSyllableEntropy();
+					
+					if (morpheme instanceof Root && ((Root) morpheme).isBound())
+						hEnding = v.getHiatusRootSyllableEntropy();
+					else
+						hEnding = v.getHiatusTerminalSyllableEntropy();
 				}
 				else
 				{
 					hMedial = medialSyllableEntropy;
-					hRoot = rootSyllableEntropy;
+					if (morpheme instanceof Root && ((Root) morpheme).isBound())
+						hEnding = boundRootSyllableEntropy;
+					else
+						hEnding = terminalSyllableEntropy;
 				}
 				
 				double hMedialDiff = Math.abs(hMedial + -Math.log(pName) - icTarget);
-				double hRootDiff = Math.abs(hRoot + -Math.log(pName) - icTarget);
+				double hRootDiff = Math.abs(hEnding + -Math.log(pName) - icTarget);
 				
 				// Use entropy measurements to decide what kind of syllable will bring us closest to the target
 				if (hRootDiff < hMedialDiff)
 				{
 					// If we're adding a root but the previous nucleus doesn't can't undergo hiatus with
 					// any of the root nuclei, add a simple onset
-					if (hRoot == 0)
+					if (hEnding == 0)
 					{
 						Constituent next = p.medialOnsets.pickSimple();
 						pName *= next.getProbability();
 						addConstituent(next);
 					}
-					return rnNode;
+					
+					if (morpheme instanceof Root && ((Root) morpheme).isBound())
+						return rnNode;
+					else
+						return tsNode;
 				}
 				else
 					return mnNode;
@@ -878,7 +906,7 @@ public class MorphemeAssembly
 //			}
 		prev = c;
 		for (int i = 0; i < c.getLength(); i++)
-			root.add(c.getContent(i));
+			morpheme.add(c.getContent(i));
 	}
 	
 	/**

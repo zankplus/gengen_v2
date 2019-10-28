@@ -296,6 +296,9 @@ public class Phonology
 	// Name assembly properties
 	static double heavyRimeSuppressionFactor		= 1.5;
 	
+	// New variables
+	Morphology morphology;
+	
 	/**
 	 * Sets the rng to a specified seed before calling constructPhonology to set up the Phonology.
 	 * @param	seed	The seed to be used for the random number generator
@@ -345,6 +348,9 @@ public class Phonology
 		
 		// Set base chances for use in the flowchart
 		setBaseChances();		
+		
+		morphology = new Morphology(this);
+		System.out.println(morphology);
 		
 		// Create flowchart
 		assembly = new MorphemeAssembly(this);
@@ -1090,7 +1096,8 @@ public class Phonology
 	private void setBaseChances()
 	{
 		// Chance of a name starting with a vowel
-		baseEmptyInitialOnsetChance = Math.max(rng.nextGaussian() * emptyInitialOnsetProminenceStdev + emptyInitialOnsetProminenceMean, 0);
+		if (features.initialOnsets != Feature.REQUIRED)
+			baseEmptyInitialOnsetChance = Math.max(rng.nextGaussian() * emptyInitialOnsetProminenceStdev + emptyInitialOnsetProminenceMean, 0);
 		
 		double baseCodaChance, codaLocationBalance;
 		LogNormalDistribution logNormal;
@@ -1117,8 +1124,10 @@ public class Phonology
 		else
 			baseCodaChance = 0;
 		
-		baseMedialCodaChance =   Math.max(rng.nextGaussian() * 0.05 + 0.20, 0);
-		baseTerminalCodaChance = Math.max(Math.min(rng.nextGaussian() * 0.3 + 0.5, 1), 0);
+		if (features.medialCodas != Feature.NO)
+			baseMedialCodaChance =   Math.max(rng.nextGaussian() * 0.05 + 0.20, 0);
+		if (features.terminalCodas != Feature.NO)
+			baseTerminalCodaChance = Math.max(Math.min(rng.nextGaussian() * 0.3 + 0.5, 1), 0);
 		
 		// Correct cluster chances
 		if (maxOnsetLength < 2)	onsetClusterWeight = 0;
@@ -1299,9 +1308,16 @@ public class Phonology
 			deviance /= Math.sqrt(vowel.properties.length);
 			medialProminence += deviance;
 			
-			deviance = initialNucleusRatings.getRating(s.ordinal()) - 1;
-			deviance /= Math.sqrt(vowel.properties.length);
-			wordInitialProminence += deviance;
+			
+			if (features.initialOnsets != Feature.REQUIRED)
+			{
+				deviance = initialNucleusRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(vowel.properties.length);
+				wordInitialProminence += deviance;
+			}
+			else
+				wordInitialProminence = 0;
+			
 			
 			if (features.terminalCodas != Feature.REQUIRED)
 			{
@@ -1316,13 +1332,21 @@ public class Phonology
 			deviance /= Math.sqrt(vowel.properties.length);
 			rootProminence += deviance;
 			
-			deviance = hiatusLeadRatings.getRating(s.ordinal()) - 1;
-			deviance /= Math.sqrt(vowel.properties.length);
-			interludeLeadProminence += deviance;
-			
-			deviance = hiatusFollowRatings.getRating(s.ordinal()) - 1;
-			deviance /= Math.sqrt(vowel.properties.length);
-			interludeFollowProminence += deviance;
+			if (features.hiatus != Feature.NO)
+			{
+				deviance = hiatusLeadRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(vowel.properties.length);
+				interludeLeadProminence += deviance;
+				
+				deviance = hiatusFollowRatings.getRating(s.ordinal()) - 1;
+				deviance /= Math.sqrt(vowel.properties.length);
+				interludeFollowProminence += deviance;
+			}
+			else
+			{
+				interludeLeadProminence = 0;
+				interludeFollowProminence = 0;
+			}
 			
 			if (maxNucleusLength > 1)
 			{
@@ -1622,7 +1646,10 @@ public class Phonology
 	 */
 	public Morpheme makeName()
 	{
-		return assembly.makeWord();
+		if (rng.nextDouble() < morphology.boundRootChance)
+			return assembly.makeBoundRoot();
+		else
+			return assembly.makeFreeRoot();
 	}
 	
 	/**
@@ -1638,7 +1665,7 @@ public class Phonology
 		
 		for (int i = 0; i < number; i++)
 		{
-			Morpheme root = assembly.makeWord();
+			Morpheme root = makeName();
 			roots.add(root);
 		}
 		
