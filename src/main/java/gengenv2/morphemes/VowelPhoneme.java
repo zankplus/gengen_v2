@@ -19,6 +19,7 @@ public class VowelPhoneme extends Phoneme
 	private double hiatusRootSyllableEntropy;
 	private double hiatusTerminalCodaChance;
 	
+	ConstituentLibrary followers;
 	ConstituentLibrary terminalFollowers;
 	ConstituentLibrary rootFollowers;
 	
@@ -157,6 +158,11 @@ public class VowelPhoneme extends Phoneme
 		}
 //		Print interlude statistics
 //		System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
+	}
+	
+	public ConstituentLibrary getFollowers()
+	{
+		return followers;
 	}
 
 	public ConstituentLibrary getRootFollowers()

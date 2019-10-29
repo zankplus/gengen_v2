@@ -16,9 +16,6 @@ public abstract class Phoneme
 {
 	public final Segment segment;
 	
-	// Interlude properties
-	protected ConstituentLibrary followers;
-	
 	// Prominences
 	double medialProminence;
 	double wordInitialProminence;
@@ -35,15 +32,9 @@ public abstract class Phoneme
 	public Phoneme(Segment segment)
 	{
 		this.segment = segment;
-		followers = null;
 	}
 	
 	abstract boolean isConsonant();
-	
-	public ConstituentLibrary getFollowers()
-	{
-		return followers;
-	}
 	
 	public double getInterludeLeadProminence()
 	{
@@ -63,11 +54,6 @@ public abstract class Phoneme
 	public double getInitialProminence()
 	{
 		return wordInitialProminence;
-	}
-	
-	public void addFollower(Constituent c)
-	{
-		followers.add(c);
 	}
 	
 	public String toString()

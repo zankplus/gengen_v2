@@ -116,7 +116,10 @@ public class Constituent implements Comparable<Constituent>
 	 */
 	public ConstituentLibrary followers()
 	{
-		return lastPhoneme().followers;
+		if (lastPhoneme().isConsonant())
+			return ((ConsonantPhoneme) lastPhoneme()).getBridgeFollowers();
+		else
+			return ((VowelPhoneme) lastPhoneme()).getFollowers();
 	}
 	
 	

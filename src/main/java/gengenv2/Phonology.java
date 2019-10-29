@@ -630,8 +630,8 @@ public class Phonology
 		ArrayList<Phoneme> inv = new ArrayList<Phoneme>();
 		
 		// Make easy reference to consonant segment array
-		Consonant[] consonants = Consonant.segments;
-		ArrayList<Consonant> defective = new ArrayList<Consonant>();
+		ConsonantSegment[] consonants = ConsonantSegment.segments;
+		ArrayList<ConsonantSegment> defective = new ArrayList<ConsonantSegment>();
 		
 		// Populate consonant inventory
 		for (int i = 0; i < consonants.length; i++)
@@ -662,10 +662,10 @@ public class Phonology
 		// If this language has no consonants, add 'P' to the inventory
 		if (consonantInventory.length == 0)
 		{
-			for (int i = 0; i < Consonant.segments[0].properties.length; i++)
-				baseConsonantRatings.setRating(Consonant.segments[0].properties[i].ordinal(), 1);
+			for (int i = 0; i < ConsonantSegment.segments[0].properties.length; i++)
+				baseConsonantRatings.setRating(ConsonantSegment.segments[0].properties[i].ordinal(), 1);
 			
-			consonantInventory = new ConsonantPhoneme[] { makeConsonantPhoneme(Consonant.segments[0]) };
+			consonantInventory = new ConsonantPhoneme[] { makeConsonantPhoneme(ConsonantSegment.segments[0]) };
 		}
 		
 		// Mark phonotactic transition categories represented in this language's inventory
@@ -674,7 +674,7 @@ public class Phonology
 			consonantCategoriesRepresented[p.segment.transitionCategory] = true;
 		
 		// Make easy reference to vowel segment array
-		Vowel[] vowels = Vowel.segments;
+		VowelSegment[] vowels = VowelSegment.segments;
 		
 		inv = new ArrayList<Phoneme>();
 		
@@ -692,7 +692,7 @@ public class Phonology
 			
 			if (add)
 			{
-				inv.add(makeVowelPhoneme(Vowel.segments[i]));
+				inv.add(makeVowelPhoneme(VowelSegment.segments[i]));
 				if (vowels[i].expression.equals(":"))
 					longVowel = (VowelPhoneme) inv.get(inv.size() - 1);
 			}
@@ -704,7 +704,7 @@ public class Phonology
 		if (vowelInventory.length == 0)
 		{
 			baseVowelRatings.setRating(VowelProperty.OPEN.ordinal(), 1);
-			vowelInventory = new VowelPhoneme[] { makeVowelPhoneme(Vowel.segments[1]) };
+			vowelInventory = new VowelPhoneme[] { makeVowelPhoneme(VowelSegment.segments[1]) };
 		}
 		
 		// Mark phonotactic transition categories represented in this language's inventory
@@ -947,7 +947,7 @@ public class Phonology
 
 		// Roll lead and follow probabilities.
 		// -1 to count ignores the 'lengthener' segment
-		double[] leadProbabilities = new double[Vowel.count() - 1], followProbabilities = new double[Vowel.count() - 1];
+		double[] leadProbabilities = new double[VowelSegment.count() - 1], followProbabilities = new double[VowelSegment.count() - 1];
 		for (int i = 0; i < leadProbabilities.length; i++)
 		{
 			leadProbabilities[i] = rng.nextDouble();
@@ -1033,7 +1033,7 @@ public class Phonology
 		 * @param	c	A coda or nucleus that may follow this Phoneme
 		 * @since	1.0
 		 */
-		protected void addInterlude(Phoneme phoneme, Constituent follower)
+		protected void addInterlude(ConsonantPhoneme phoneme, Constituent follower)
 		{
 			// If interludeLeadProminence <= 0, this phoneme does not lead in interludes/hiatus
 			if (phoneme.getInterludeLeadProminence() <= 0)
@@ -1051,7 +1051,7 @@ public class Phonology
 			// If probability is positive, add this interlude
 			if (probability > 0)
 			{
-				phoneme.addFollower(new Constituent(follower, probability));
+				phoneme.getBridgeFollowers().add(new Constituent(follower, probability));
 			}
 			
 			// Add any possible clusters, too. Examine onset clusters if this is a consonantal interlude ...
@@ -1073,7 +1073,7 @@ public class Phonology
 							
 							// If probability is positive, add this interlude
 							if (probability > 0)
-								phoneme.addFollower(new Constituent(onset, probability));
+								phoneme.getBridgeFollowers().add(new Constituent(onset, probability));
 						}
 				}
 			// ... or, if this is a hiatus, look at diphthongs
@@ -1087,7 +1087,7 @@ public class Phonology
 						
 						// If probability is positive, add this interlude
 						if (probability > 0)
-							phoneme.addFollower(new Constituent(diphthong, probability));
+							phoneme.getBridgeFollowers().add(new Constituent(diphthong, probability));
 					}
 			}
 	//		Print interlude statistics
@@ -1177,7 +1177,7 @@ public class Phonology
 //		combinationRules = new CombinationRules(this);
 //	}
 
-	private ConsonantPhoneme makeConsonantPhoneme(Consonant cs)
+	private ConsonantPhoneme makeConsonantPhoneme(ConsonantSegment cs)
 	{
 		// Assign default prominence values
 		double medialProminence				= 1;
@@ -1294,7 +1294,7 @@ public class Phonology
 									interludeLeadProminence, interludeFollowProminence);
 	}
 	
-	private VowelPhoneme makeVowelPhoneme(Vowel vowel)
+	private VowelPhoneme makeVowelPhoneme(VowelSegment vowel)
 	{
 		// Assign initial prominence values
 		double medialProminence				= 1;	// this functions as the nucleus initial prominence here
