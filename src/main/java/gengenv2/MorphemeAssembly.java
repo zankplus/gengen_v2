@@ -160,11 +160,15 @@ public class MorphemeAssembly
 		// Propagate through the flowchart until one of the nodes returns null
 		Node node = ioNode;
 
+		int nodesTraversed = 0;
 		try
 		{
 			while (node != null)
 			{
 				node = node.nextNode();
+				if (++nodesTraversed > 100)
+					throw new Exception("Could not reach exit from assembly flowchart.");
+				
 			}
 		} catch (Exception e)
 		{
@@ -276,8 +280,13 @@ public class MorphemeAssembly
 		{
 			
 			// Empty onset chance
-			emptyOnsetChance = Math.log(p.initialNuclei.size());
-			emptyOnsetChance *= p.baseEmptyInitialOnsetChance;
+			if (p.features.initialOnsets != Feature.REQUIRED)
+			{
+				emptyOnsetChance = Math.log(p.initialNuclei.size());
+				emptyOnsetChance *= p.baseEmptyInitialOnsetChance;
+			}
+			else
+				emptyOnsetChance = 0;
 			
 			// Scaling each prominence value by the log of the number of possibilities it represents
 			// helps ensure that rich inventories are well represented while poor ones are sampled
@@ -285,7 +294,7 @@ public class MorphemeAssembly
 			// onset cluster having that cluster at the start of 20% of names.
 			// This technique is repeated abundantly throughout the Node classes.
 
-			// Onset onset chance
+			// Nonempty onset chance
 			double nonemptyOnsetChance = Math.log(p.initialOnsets.size() + 1);
 			nonemptyOnsetChance *= (1 - p.baseEmptyInitialOnsetChance);
 			
@@ -326,7 +335,7 @@ public class MorphemeAssembly
 	private class NucleusLocationNode extends Node
 	{
 		// General entropy measurements (for syllables not beginning with a hiatus)
-		private double initialSyllableEntropy;			// entropy for an initial, non-final syllable
+		private double initialSyllableEntropy;			// entropy for an initial, non-final syllable beginning with a nucleus
 		private double medialSyllableEntropy;			// entropy for a medial syllable starting with a consonant
 		private double terminalSyllableEntropy;			// entropy for a final syllable starting with a consonant
 		private double boundRootSyllableEntropy;		// entropy for a root-ending syllable starting w/ a consonant
@@ -406,7 +415,7 @@ public class MorphemeAssembly
 			double consonantTerminationEntropy, vowelTerminationEntropy;
 			double pConsonantTermination;
 			
-			if (p.terminalCodas == null)
+			if (p.features.terminalCodas == Feature.NO)
 			{
 				consonantTerminationEntropy = 0;
 				pConsonantTermination = 0;
@@ -418,12 +427,13 @@ public class MorphemeAssembly
 			}
 			
 			vowelTerminationEntropy = p.terminalNuclei.getEntropy();
+			
 			terminalSyllableEntropy = decisionEntropy(
 										new double[] { pConsonantTermination, 1 - pConsonantTermination },
 										new double[] { consonantTerminationEntropy, vowelTerminationEntropy });
 			
 			System.out.println("General syllable entropies");
-			System.out.printf("\t%.3f Initial syllable\n", initialSyllableEntropy);
+			System.out.printf("\t%.3f Initial syllable (vowel-initial only)\n", initialSyllableEntropy);
 			System.out.printf("\t%.3f Medial syllable\n", medialSyllableEntropy);
 			System.out.printf("\t%.3f Terminal syllable with coda\n", consonantTerminationEntropy);
 			System.out.printf("\t%.3f Terminal syllable, no coda\n", vowelTerminationEntropy);
@@ -431,34 +441,34 @@ public class MorphemeAssembly
 			System.out.printf("\t%.3f Root syllable\n", boundRootSyllableEntropy);
 			
 			// As above, but for hiatus-based entropy values
-			
-			for (VowelPhoneme v : p.vowelInventory)
-			{
-				if (!v.segment.expression.equals(":"))
+			if (p.features.hiatus != Feature.NO)
+				for (VowelPhoneme v : p.vowelInventory)
 				{
-					v.setHiatusMedialSyllableEntropy(getMedialEntropy(v.getFollowers(), interludeEntropies, nucleusWeights));
-					v.setHiatusRootSyllableEntropy(v.getRootFollowers().getEntropy());
-					
-					consonantTerminationEntropy = vowelTerminationEntropy = 0;
-					if (p.terminalCodas != null)
+					if (!v.segment.expression.equals(":"))
 					{
-						consonantTerminationEntropy = v.getFollowers().getEntropy() + p.terminalCodas.getEntropy();
+						v.setHiatusMedialSyllableEntropy(getMedialEntropy(v.getFollowers(), interludeEntropies, nucleusWeights));
+						v.setHiatusRootSyllableEntropy(v.getRootFollowers().getEntropy());
+						
+						consonantTerminationEntropy = vowelTerminationEntropy = 0;
+						if (p.terminalCodas != null)
+						{
+							consonantTerminationEntropy = v.getFollowers().getEntropy() + p.terminalCodas.getEntropy();
+						}
+						
+						vowelTerminationEntropy = v.getTerminalFollowers().getEntropy();
+						v.setHiatusTerminalCodaChance(getConsonantTerminationChance(v.getFollowers(), v.getTerminalFollowers()));
+						v.setHiatusTerminalSyllableEntropy(decisionEntropy(
+											new double[] { v.getHiatusTerminalCodaChance(), 1 - v.getHiatusTerminalCodaChance() },
+											new double[] { consonantTerminationEntropy, vowelTerminationEntropy }));
+						
+						System.out.println("Entropies for hiatus on " + v + ":");
+						System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
+						System.out.println(v.getHiatusTerminalCodaChance());
+						System.out.printf("\t%.3f Medial syllable\n", v.getHiatusMedialSyllableEntropy());
+						System.out.printf("\t%.3f Terminal syllable\n", v.getHiatusTerminalSyllableEntropy());
+						System.out.printf("\t%.3f Root syllable\n", v.getHiatusRootSyllableEntropy());
 					}
-					
-					vowelTerminationEntropy = v.getTerminalFollowers().getEntropy();
-					v.setHiatusTerminalCodaChance(getConsonantTerminationChance(v.getFollowers(), v.getTerminalFollowers()));
-					v.setHiatusTerminalSyllableEntropy(decisionEntropy(
-										new double[] { v.getHiatusTerminalCodaChance(), 1 - v.getHiatusTerminalCodaChance() },
-										new double[] { consonantTerminationEntropy, vowelTerminationEntropy }));
-					
-					System.out.println("Entropies for hiatus on " + v + ":");
-					System.out.println(consonantTerminationEntropy + " " + vowelTerminationEntropy);
-					System.out.println(v.getHiatusTerminalCodaChance());
-					System.out.printf("\t%.3f Medial syllable\n", v.getHiatusMedialSyllableEntropy());
-					System.out.printf("\t%.3f Terminal syllable\n", v.getHiatusTerminalSyllableEntropy());
-					System.out.printf("\t%.3f Root syllable\n", v.getHiatusRootSyllableEntropy());
 				}
-			}
 		}
 		
 		/**
@@ -467,6 +477,7 @@ public class MorphemeAssembly
 		 */
 		public Node nextNode()
 		{			
+			
 			// For suffixes
 //			if (name.getWordType() == WordType.SUFFIX)
 //			{
@@ -521,11 +532,11 @@ public class MorphemeAssembly
 						hEnding = terminalSyllableEntropy;
 				}
 				
-				double hMedialDiff = Math.abs(hMedial + -Math.log(pName) - icTarget);
-				double hRootDiff = Math.abs(hEnding + -Math.log(pName) - icTarget);
+				double hEndingDiff = Math.abs(hEnding + -Math.log(pName) - icTarget);
+				double hMedialDiff = Math.abs(hMedial + hEnding + -Math.log(pName) - icTarget);
 				
 				// Use entropy measurements to decide what kind of syllable will bring us closest to the target
-				if (hRootDiff < hMedialDiff)
+				if (hEndingDiff < hMedialDiff && -Math.log(pName) >= morpheme.minimumInformationContent())
 				{
 					// If we're adding a root but the previous nucleus doesn't can't undergo hiatus with
 					// any of the root nuclei, add a simple onset
@@ -556,7 +567,7 @@ public class MorphemeAssembly
 		private double getMedialEntropy(ConstituentLibrary nuclei, double[] interludeEntropies,
 										double[] nucleusWeightings)
 		{
-			if (nuclei.size() == 0)
+			if (nuclei == null || nuclei.size() == 0)
 				return 0;
 			
 			double[] nucleusEntropies = new double[nuclei.size()];
@@ -594,14 +605,20 @@ public class MorphemeAssembly
 
 		private double getConsonantTerminationChance(ConstituentLibrary medialLib, ConstituentLibrary terminalLib)
 		{
-			if (p.terminalCodas == null || (medialLib.size() == 0 && terminalLib.size() == 0))
+			if (p.features.terminalCodas == Feature.NO)
 				return 0;
+			else if (p.features.terminalCodas == Feature.REQUIRED)
+				return 1;
+			else if (medialLib.size() == 0 && terminalLib.size() == 0)	// For hiatus libraries with neither medial nor terminal followers
+				return 0;
+				
 			double pConsonantTermination, pVowelTermination;
 			pConsonantTermination = Math.log(medialLib.size() * p.terminalCodas.size() + 1);
 			pConsonantTermination *= p.baseTerminalCodaChance;
 			pVowelTermination = Math.log(terminalLib.size() + 1);
 			pVowelTermination *= 1 - p.baseTerminalCodaChance;
-			System.out.println("!   " + medialLib.size() + " " + p.terminalCodas.size() + " " + terminalLib.size());
+//			System.out.println("!   " + medialLib.size() + " " + p.terminalCodas.size() + " " + terminalLib.size());
+//			System.out.println("!!  " + p.baseTerminalCodaChance);
 			return pConsonantTermination / (pConsonantTermination + pVowelTermination);
 		}
 		
@@ -668,7 +685,6 @@ public class MorphemeAssembly
 		{
 			nonemptyCodaWeight = (p.medialCodas == null) ? 0 : Math.log(p.medialCodas.getCompoundSize() + 1);
 			nonemptyCodaWeight *= p.baseMedialCodaChance;
-			
 			nonemptyOnsetWeight = Math.log(p.medialOnsets.size() + 1);
 			nonemptyOnsetWeight *= p.baseMedialOnsetChance;
 			System.out.println("Average medial coda chance: " + getAverageCodaChance());

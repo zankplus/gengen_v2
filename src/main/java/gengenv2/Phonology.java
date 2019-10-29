@@ -766,7 +766,6 @@ public class Phonology
 		medialOnsets.sortAll();
 		medialOnsets.setLengthProbabilities(onsetClusterWeight);
 		
-		
 		initialOnsets = new ConstituentLibrary(maxOnsetLength, ConstituentType.ONSET, ConstituentLocation.INITIAL);
 		generateOnsets(initialOnsets);
 		initialOnsets.removeUnusedMembers();
@@ -825,23 +824,29 @@ public class Phonology
 		
 		// Populate initial nucleus library
 		initialNuclei = new ConstituentLibrary(maxNucleusLength, ConstituentType.NUCLEUS,
-												ConstituentLocation.INITIAL);
-		generateNuclei(initialNuclei);
-		initialNuclei.removeUnusedMembers();
-		medialNuclei.exaggerate(2);
-		initialNuclei.normalizeAll();
-		initialNuclei.sortAll();
-		initialNuclei.setLengthProbabilities(nucleusClusterWeight);
+				ConstituentLocation.INITIAL);
+		if (features.initialOnsets != Feature.REQUIRED)
+		{
+			generateNuclei(initialNuclei);
+			initialNuclei.removeUnusedMembers();
+			medialNuclei.exaggerate(2);
+			initialNuclei.normalizeAll();
+			initialNuclei.sortAll();
+			initialNuclei.setLengthProbabilities(nucleusClusterWeight);
+		}
 		
 		// Populate initial nucleus library
 		terminalNuclei = new ConstituentLibrary(maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.TERMINAL);
-		generateNuclei(terminalNuclei);
-		terminalNuclei.removeUnusedMembers();
-		terminalNuclei.exaggerate(2);
-		terminalNuclei.normalizeAll();
-		terminalNuclei.sortAll();
-		terminalNuclei.setLengthProbabilities(nucleusClusterWeight);
-
+		if (features.terminalCodas != Feature.REQUIRED)
+		{
+			generateNuclei(terminalNuclei);
+			terminalNuclei.removeUnusedMembers();
+			terminalNuclei.exaggerate(2);
+			terminalNuclei.normalizeAll();
+			terminalNuclei.sortAll();
+			terminalNuclei.setLengthProbabilities(nucleusClusterWeight);
+		}
+		
 		// Populate initial nucleus library
 		rootNuclei = new ConstituentLibrary(maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.ROOT);
 		generateNuclei(rootNuclei);
@@ -911,7 +916,9 @@ public class Phonology
 		{
 			terminalCodas = new ConstituentLibrary(maxCodaLength, ConstituentType.CODA, ConstituentLocation.TERMINAL);
 			generateCodas(terminalCodas);
+			terminalCodas.printMembers();
 			terminalCodas.removeUnusedMembers();
+			System.out.println("Terminal coda count 2: " + terminalCodas.size());
 			terminalCodas.exaggerate(2);
 			terminalCodas.normalizeAll();
 			terminalCodas.sortAll();
@@ -1098,6 +1105,8 @@ public class Phonology
 		// Chance of a name starting with a vowel
 		if (features.initialOnsets != Feature.REQUIRED)
 			baseEmptyInitialOnsetChance = Math.max(rng.nextGaussian() * emptyInitialOnsetProminenceStdev + emptyInitialOnsetProminenceMean, 0);
+		else
+			baseEmptyInitialOnsetChance = 0;
 		
 		double baseCodaChance, codaLocationBalance;
 		LogNormalDistribution logNormal;
@@ -1126,8 +1135,12 @@ public class Phonology
 		
 		if (features.medialCodas != Feature.NO)
 			baseMedialCodaChance =   Math.max(rng.nextGaussian() * 0.05 + 0.20, 0);
-		if (features.terminalCodas != Feature.NO)
-			baseTerminalCodaChance = Math.max(Math.min(rng.nextGaussian() * 0.3 + 0.5, 1), 0);
+		if (features.terminalCodas == Feature.NO)
+			baseTerminalCodaChance = 0;
+		else if (features.terminalCodas == Feature.REQUIRED)
+			baseTerminalCodaChance = 1;
+		else
+			baseTerminalCodaChance = Math.max(Math.min(rng.nextGaussian() * 0.3 + 0.5, 1), 0.01);
 		
 		// Correct cluster chances
 		if (maxOnsetLength < 2)	onsetClusterWeight = 0;

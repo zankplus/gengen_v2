@@ -19,6 +19,7 @@
 
 package gengenv2;
 
+import java.awt.List;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
@@ -146,6 +147,7 @@ public class ConstituentLibrary
 				{
 					max.setProbability(1);
 					list.add(max);
+					memberCount++;
 				}
 			}
 		}

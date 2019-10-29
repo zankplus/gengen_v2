@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import gengenv2.Phonology;
 
-public class Morpheme
+public abstract class Morpheme
 {
 	public ArrayList<Phoneme> phonemes;	
 	private double informationContent;
@@ -43,4 +43,6 @@ public class Morpheme
 			result += ph.segment.expression;
 		return result;
 	}
+	
+	public abstract double minimumInformationContent();
 }

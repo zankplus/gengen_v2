@@ -21,4 +21,10 @@ public class Root extends Morpheme
 			result += "-";
 		return result;
 	}
+	
+	@Override
+	public double minimumInformationContent()
+	{
+		return 5;
+	}
 }
