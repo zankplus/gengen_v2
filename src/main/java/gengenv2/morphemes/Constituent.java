@@ -23,25 +23,24 @@ import gengenv2.ConstituentLibrary;
 import gengenv2.enums.ConstituentType;
 
 /**
- * Represents a sequence of 1 or more consecutive Phonemes in a particular position in a word -
- * either an onset, a nucleus, or a coda.
+ * Represents a Phoneme in a particular positional context in a word - either an onset, a nucleus, or a coda.
  * @version	1.2
  * @since	1.1 (since 1.0 as SyllableSegment)
  */
 public class Constituent implements Comparable<Constituent>
 {
 	public final ConstituentType type;
-	private final Phoneme[] content;
+	private final Phoneme content;
 	private double probability;
 			
 	/**
 	 * Constructor sets the Constituent's essential parameters.
 	 * @param	type		Constituent's type (onset, nucleus, coda)
-	 * @param	content		Sequence of Phonemes comprising the segment
+	 * @param	content		Phoneme comprising the segment
 	 * @param	probability	Probability of this segment appearing out of all syllable segments of same type and length
 	 * @since	1.0
 	 */
-	public Constituent (ConstituentType type, Phoneme[] content, double probability)
+	public Constituent (ConstituentType type, Phoneme content, double probability)
 	{
 		this.type = type;
 		this.content = content;
@@ -73,36 +72,11 @@ public class Constituent implements Comparable<Constituent>
 		this.probability = other.probability;
 	}
 	
-	/**
-	 * @return	The number of Phonemes in this Constituent
-	 * @since	1.2
-	 */
-	public int size()
+	public Phoneme getContent()
 	{
-		return content.length;
+		return content;
 	}
 	
-	public Phoneme getContent (int index)
-	{
-		return content[index];
-	}
-	
-	public int getLength()
-	{
-		return content.length;
-	}
-	
-	/**
-	 * @return	The last Phoneme in this segment's sequence of Phonemes.
-	 * @since	1.0
-	 */
-	public Phoneme lastPhoneme()
-	{
-		if (content[content.length - 1].segment.expression.equals(":"))
-			return content[content.length - 2];
-		else
-			return content[content.length - 1];
-	}
 	
 	public double getProbability()
 	{
@@ -116,10 +90,34 @@ public class Constituent implements Comparable<Constituent>
 	 */
 	public ConstituentLibrary followers()
 	{
-		if (lastPhoneme().isConsonant())
-			return ((ConsonantPhoneme) lastPhoneme()).getBridgeFollowers();
+		if (content.isConsonant())
+			return ((ConsonantPhoneme) content).getBridgeFollowers();
 		else
-			return ((VowelPhoneme) lastPhoneme()).getFollowers();
+			return ((VowelPhoneme) content).getFollowers();
+	}
+	
+	public ConstituentLibrary followers(ConstituentType type)
+	{
+		try
+		{
+			if (type == ConstituentType.ONSET)
+				return ((ConsonantPhoneme) content).getOnsetFollowers();
+			else if (type == ConstituentType.CODA)
+				return ((ConsonantPhoneme) content).getCodaPreceders();
+			else if (type == ConstituentType.NUCLEUS)
+				return ((VowelPhoneme) content).getNucleusFollowers();
+			else
+			{
+				throw new Exception();
+			}
+		}
+		catch (Exception e)
+		{
+			System.out.println("Couldn't obtain " + type + " followers for library \"" + content.toString().toUpperCase() + "\"");
+			System.exit(1);
+		}
+		
+		return null;
 	}
 	
 	
@@ -130,10 +128,7 @@ public class Constituent implements Comparable<Constituent>
 	 */
 	public String toString()
 	{
-		String result = "";
-		for (Phoneme p : content)
-			result += p.segment.expression;
-		return result;
+		return content.segment.expression;
 	}
 	
 	/**
@@ -144,12 +139,7 @@ public class Constituent implements Comparable<Constituent>
 	 */
 	public boolean sameSequence(Constituent other)
 	{
-		if (size() != other.size())
-			return false;
-		for (int i = 0 ; i < content.length; i++)
-			if (content[i] != other.content[i])
-				return false;
-		return true;
+		return content == other.content;
 	}
 
 	/**

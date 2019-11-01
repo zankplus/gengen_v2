@@ -515,7 +515,7 @@ public class MorphemeAssembly
 				// Get entropy measurements
 				if (prev != null && prev.type == ConstituentType.NUCLEUS)
 				{
-					VowelPhoneme v = ((VowelPhoneme) prev.lastPhoneme());
+					VowelPhoneme v = ((VowelPhoneme) prev.getContent());
 					hMedial = v.getHiatusMedialSyllableEntropy();
 					
 					if (morpheme instanceof Root && ((Root) morpheme).isBound())
@@ -542,7 +542,7 @@ public class MorphemeAssembly
 					// any of the root nuclei, add a simple onset
 					if (hEnding == 0)
 					{
-						Constituent next = p.medialOnsets.pickSimple();
+						Constituent next = p.medialOnsets.pick();
 						pName *= next.getProbability();
 						addConstituent(next);
 					}
@@ -925,31 +925,5 @@ public class MorphemeAssembly
 			morpheme.add(c.getContent(i));
 	}
 	
-	/**
-	 * Determines the entropy of an event where one subsequent event is chosen at random from a list of events
-	 * with known probabilities and entropies. 
-	 * 
-	 * @param probabilities	The probabilities for an array of events
-	 * @param entropies		The corresponding entropy measurements for an array of events
-	 * @return				The entropy measurement for the decision between subsequent events
-	 * @since				1.1
-	 */
-	private double decisionEntropy(double[] probabilities, double[] entropies)
-	{
-		if (probabilities.length != entropies.length)
-		{
-			System.err.println("Error in decisionEntropy(): length of probabilities[] and entropies[] did not match");
-			System.exit(0);
-		}
-		
-		double result = 0;
-		for (int i = 0; i < probabilities.length; i++)
-		{
-			double p = (probabilities[i] == 0) ? 0 : -Math.log(probabilities[i]);
-			
-			result += probabilities[i] * (p + entropies[i]);
-		}
-		
-		return result;
-	}
+	
 }

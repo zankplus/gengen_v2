@@ -18,10 +18,8 @@ public class ConsonantPhoneme extends Phoneme
 	private double codaClusterLeadChance;	// Chance that another phoneme will follow this one in a cluster (compared to a vowel)
 	
 	// Interlude properties
-	private ConstituentLibrary initialOnsetFollowers;
-	private ConstituentLibrary medialOnsetFollowers;
-	private ConstituentLibrary medialCodaFollowers;
-	private ConstituentLibrary terminalCodaFollowers;
+	private ConstituentLibrary onsetFollowers;
+	private ConstituentLibrary codaPreceders;
 	private ConstituentLibrary bridgeFollowers;
 	
 	public ConsonantPhoneme(Segment segment,
@@ -34,7 +32,9 @@ public class ConsonantPhoneme extends Phoneme
 							double codaClusterLeadProminence,
 							double codaClusterFollowProminence,
 							double interludeLeadProminence,
-							double interludeFollowProminence)
+							double interludeFollowProminence,
+							int maxOnsetLength,
+							int maxCodaLength)
 	{
 		super(segment);
 		this.medialProminence = medialProminence;
@@ -49,6 +49,11 @@ public class ConsonantPhoneme extends Phoneme
 		this.interludeLeadProminence  	= interludeLeadProminence;
 		this.interludeFollowProminence	= interludeFollowProminence;
 		
+		if (maxOnsetLength > 1)
+			onsetFollowers = new ConstituentLibrary(segment.expression, maxOnsetLength, ConstituentType.ONSET, ConstituentLocation.CLUSTER);
+		if (maxCodaLength > 1)
+			codaPreceders = new ConstituentLibrary(segment.expression, maxCodaLength, ConstituentType.CODA, ConstituentLocation.CLUSTER);
+		
 		bridgeFollowers = null;
 	}
 	
@@ -57,10 +62,19 @@ public class ConsonantPhoneme extends Phoneme
 		return bridgeFollowers;
 	}
 	
+	public ConstituentLibrary getOnsetFollowers()
+	{
+		return onsetFollowers;
+	}
+	
+	public ConstituentLibrary getCodaPreceders()
+	{
+		return codaPreceders;
+	}
+	
 	public void createFollowerList(int medialOnsetsLength)
 	{
-		bridgeFollowers = new ConstituentLibrary(medialOnsetsLength, ConstituentType.ONSET,
-				ConstituentLocation.MEDIAL);
+		bridgeFollowers = new ConstituentLibrary(segment.expression, medialOnsetsLength, ConstituentType.ONSET, ConstituentLocation.MEDIAL);
 	}
 	
 	public void normalizeAndSortFollowers(double onsetClusterWeight)
@@ -68,7 +82,6 @@ public class ConsonantPhoneme extends Phoneme
 		// Normalize probabilities and sort the current coda's interlude list according to them.
 		bridgeFollowers.normalizeAll();
 		bridgeFollowers.sortAll();
-		bridgeFollowers.setLengthProbabilities(onsetClusterWeight);
 	}
 	
 	public boolean isConsonant()

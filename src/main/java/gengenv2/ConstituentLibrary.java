@@ -24,7 +24,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
+import gengenv2.morphemes.ConsonantPhoneme;
 import gengenv2.morphemes.Constituent;
+import gengenv2.morphemes.VowelPhoneme;
 import gengenv2.enums.ConstituentType;
 import gengenv2.enums.ConstituentLocation;
 
@@ -39,15 +41,12 @@ import gengenv2.enums.ConstituentLocation;
 public class ConstituentLibrary
 {
 	// General variables
-	private Phonology parent;
 	private Random rng = null;
 	
 	// Library information
-	private ArrayList<Constituent>[] library;
+	private ArrayList<Constituent> library;
 	private double[] lengthProbabilities;
-	private int maxLength;
 	private int memberCount = 0;
-	private double entropy;
 	
 	// Context variables
 	private ConstituentType type;
@@ -55,6 +54,13 @@ public class ConstituentLibrary
 	
 	// Static variables
 	private static int count = 0;
+	
+	// Cluster variables
+	private String name;
+	private double clusterChance;
+	private int maxClusterLength;
+	private double[] entropy;
+	private boolean[] isEntropySet;
 	
 	/**
 	 * Constructor sets parent/RNG, default max length, and context variables, and initializes the library
@@ -64,55 +70,20 @@ public class ConstituentLibrary
 	 * @param type			Type of Constituent housed in this library (onset/nucleus/coda)
 	 * @param location		Location in which this library is invoked (initial/medial/final/root)
 	 */
-	public ConstituentLibrary (int maxLength, ConstituentType type, ConstituentLocation location)
+	public ConstituentLibrary (String name, int maxClusterLength, ConstituentType type, ConstituentLocation location)
 	{
-		this.parent = parent;
-		this.maxLength = maxLength;
+		this.name = name;
+		this.maxClusterLength = maxClusterLength;
 		this.location = location;
 		this.type = type;
 		
 		if (rng == null)
 			rng = PublicRandom.getRNG();
 		
-		library = new ArrayList[maxLength];
-		for (int i = 0; i < maxLength; i++)
-			library[i] = new ArrayList<Constituent>();
+		library = new ArrayList<Constituent>();
 		memberCount = 0;
-		entropy = -1;
-	}
-	
-	/**
-	 * Calculates the selection probability for each length of Constituent (i.e., the chance of choosing a length-1
-	 * Constituent, of choosing a length-2 one, etc.) in this library. Probability is based on the number of
-	 * members of a given length, and a factor reducing probability geometrically as length increases.
-	 * @param coefficient	Length scaling factor
-	 */
-	public void setLengthProbabilities(double coefficient)
-	{
-		// Set length probabilities.
-		lengthProbabilities = new double[maxLength];
-		double sum = 0;
-		for (int i = 0; i < maxLength - 1; i++)
-		{
-			lengthProbabilities[i] = (1 - coefficient) * Math.pow(coefficient, i) * 
-										Math.log(countMembersOfLength(i + 1) + 1);
-			sum += lengthProbabilities[i];
-		}
-		if (maxLength > 0)
-		{
-			lengthProbabilities[maxLength - 1] = Math.pow(coefficient, maxLength - 1) * 
-													Math.log(countMembersOfLength(maxLength) + 1);
-			sum += lengthProbabilities[maxLength - 1];
-		}
-		
-		// Normalize length probabilities
-		for (int i = 0; i < maxLength; i++)
-			lengthProbabilities[i] /= sum;
-		
-//		System.out.printf("%d: (%.3f)\t ", id, prob);
-//		for (int i = 1; i <= maxLength; i++)
-//			System.out.printf("[%d: %.3f - %d] ", i, lengthProbabilities[i - 1], countMembersOfLength(i));
-//		System.out.println();
+		entropy = new double[maxClusterLength];
+		isEntropySet = new boolean[maxClusterLength];
 	}
 	
 	/**
@@ -120,68 +91,52 @@ public class ConstituentLibrary
 	 * member with the highest probability is retained.
 	 * @since	1.2 
 	 */
-	public void removeUnusedMembers()
+	public void removeUnusedMembers(boolean allowEmptyList)
 	{
 		if (memberCount == 0)
 			return;
 		
-		for (int j = 0; j < maxLength; j++)
+		
+		if (library.size() > 0)
 		{
-			ArrayList<Constituent> list = library[j];
-			if (list.size() > 0)
-			{
-				Constituent max = list.get(0);
-				for (int i = 0; i < list.size(); i++)
-					if (list.get(i).getProbability() < 0)
-					{
-						if (list.get(i).getProbability() > max.getProbability())
-							max = list.get(i);
-						
-						list.remove(i);
-						memberCount--;
-						i--;
-					}
-				
-				// Never leave a library totally empty - always keep 1 in the first list
-				if (j == 0 && list.size() == 0)
+			Constituent max = library.get(0);
+			for (int i = 0; i < library.size(); i++)
+				if (library.get(i).getProbability() < 0)
 				{
-					max.setProbability(1);
-					list.add(max);
-					memberCount++;
+					if (library.get(i).getProbability() > max.getProbability())
+						max = library.get(i);
+					
+					library.remove(i);
+					memberCount--;
+					i--;
 				}
+			
+			// Never leave a library totally empty - always keep 1 in the first list
+			if (!allowEmptyList && library.size() == 0)
+			{
+				max.setProbability(1);
+				library.add(max);
+				memberCount++;
 			}
 		}
-		entropy = -1;
-		shrinkMaxToFit();
 	}
 	
-	/**
-	 * Reduces the maxLength to the length of the longest Constituent(s) available in the library.
-	 * This prevents other classes from accidentally accessing empty arrays in library and lets us keep
-	 * more accurate information about the content of a library.
-	 * @since	1.2
-	 */
-	private void shrinkMaxToFit()
+	public void removeUnusedMembers()
 	{
-		if (maxLength > 0)
-			for ( ; maxLength > 0 && library[maxLength - 1].size() == 0; maxLength--)
-				library[maxLength - 1] = null;
+		removeUnusedMembers(false);
 	}
-	
+
 	/**
 	 * Normalizes the probabilities of all library members of each length up to maxLength.
 	 * @since	1.2
 	 */
 	public void normalizeAll()
 	{
-		for (int i = 0; i < maxLength; i++)
-		{
-			double sum = 0;
-			for (Constituent c : library[i]) 
-				sum += c.getProbability();
-			for (Constituent c : library[i])
-				c.setProbability(c.getProbability() / sum);
-		}
+		double sum = 0;
+		for (Constituent c : library) 
+			sum += c.getProbability();
+		for (Constituent c : library)
+			c.setProbability(c.getProbability() / sum);
 	}
 	
 	/**
@@ -190,11 +145,13 @@ public class ConstituentLibrary
 	 */
 	public void sortAll()
 	{
-		for (int i = 0; i < maxLength; i++)
-		{
-			Collections.sort(library[i]);
-			Collections.reverse(library[i]);
-		}
+		Collections.sort(library);
+		Collections.reverse(library);
+	}
+	
+	public Constituent get(int index)
+	{
+		return library.get(index);
 	}
 	
 	/**
@@ -202,21 +159,11 @@ public class ConstituentLibrary
 	 * @return			An ArrayList of all Constituents of the given length
 	 * @since			1.2
 	 */
-	public ArrayList<Constituent> getMembersOfLength(int length)
+	public ArrayList<Constituent> getMembers()
 	{
-		return library[length - 1];
+		return library;
 	}
-	
-	/**
-	 * @param length	Length of Constituents queried
-	 * @return			The count of all Constituents of the given length
-	 * @since			1.2
-	 */
-	public int countMembersOfLength(int length)
-	{
-		return getMembersOfLength(length).size();
-	}
-	
+
 	/**
 	 * Returns the probability of picking a Constituent of the given length from a random call to pick().
 	 * @param 	length	Length of Constituent queried
@@ -236,38 +183,26 @@ public class ConstituentLibrary
 	 */
 	public void exaggerate(double power)
 	{
-		for (int i = 1; i <= maxLength; i++)
-		{
-			for (int j = 0; j < countMembersOfLength(i); j++)
-				getMembersOfLength(i).get(j).setProbability(Math.pow(getMembersOfLength(i).get(j).getProbability(), power));
-		}
+		for (int j = 0; j < size(); j++)
+			library.get(j).setProbability(Math.pow(library.get(j).getProbability(), power));
 		
 		normalizeAll();
 	}
 	
-	/**
-	 * Searches for a Constituent with the same sequence as a given Constituent and returns it if found.
-	 * @param	other	The Constituent to be matched
-	 * @return	The matching Constituent if found, otherwise null
-	 * @since	1.2 
-	 */
-	public Constituent getMatchingConstituent(Constituent other)
-	{
-		if (other.size() > maxLength)
-			return null;
-		
-		for (Constituent c : getMembersOfLength(other.size()))
-			if (c.sameSequence(other))
-				return c;
-		return null;
-	}
+//	/**
+//	 * Searches for a Constituent with the same sequence as a given Constituent and returns it if found.
+//	 * @param	other	The Constituent to be matched
+//	 * @return	The matching Constituent if found, otherwise null
+//	 * @since	1.2 
+//	 */
+//	public Constituent getMatchingConstituent(Constituent other)
+//	{
+//		for (Constituent c : getMembersOfLength(other.size()))
+//			if (c.sameSequence(other))
+//				return c;
+//		return null;
+//	}
 	
-	/**
-	 * Returns true if the given Constituent is present in this library
-	 * @param	other	The Constituent to be found
-	 * @return	True if the Constituent is somewhere in this library, otherwise false
-	 * @since	1.2 
-	 */
 	
 	/**
 	 * Adds a Constituent to the library and places it in the arraylist corresponding to its length.
@@ -276,7 +211,8 @@ public class ConstituentLibrary
 	 */
 	public void add(Constituent c)
 	{
-		library[c.getLength() - 1].add(c);
+//		System.out.println("Adding Constituent " + c + " to library " + toString() + " / " + c.getProbability());
+		library.add(c);
 		memberCount++;
 	}
 	
@@ -287,53 +223,7 @@ public class ConstituentLibrary
 	 */
 	public Constituent pick()
 	{
-		double rand = rng.nextDouble();
-		int length = -1;
-		
-		for (int i = 0; i < maxLength; i++)
-		{
-			rand -= lengthProbabilities[i];
-			if (rand <= 0)
-			{
-				length = i;
-				break;
-			}
-		}
-		
-		return pickConstituent(length);
-	}
-	
-	/**
-	 * Returns a random Constituent of length 1 from the library.
-	 * @return	A Constituent of length 1 from the library
-	 * @since	1.2
-	 */
-	public Constituent pickSimple()
-	{
-		return pickConstituent(0);
-	}
-	
-	/**
-	 * Returns	a random Constituent of length 2 or more from the library.
-	 * @return	A Constituent of length 2 or more from the library
-	 * @since	1.2
-	 */
-	public Constituent pickComplex()
-	{
-		double rand = rng.nextDouble() * (1 - lengthProbabilities[0]);
-		int length = -1;
-		
-		for (int i = 1; i < maxLength; i++)
-		{
-			rand -= lengthProbabilities[i];
-			if (rand <= 0)
-			{
-				length = i;
-				break;
-			}
-		}
-		
-		return pickConstituent(length);
+		return pickConstituent();
 	}
 	
 	/**
@@ -343,17 +233,15 @@ public class ConstituentLibrary
 	 * @return	Constituent	A syllable Constituent from the given list 
 	 * @since	1.0
 	 */
-	private Constituent pickConstituent(int index)
+	private Constituent pickConstituent()
 	{
-		ArrayList<Constituent> lib = library[index];
-		
-		 /*Generate a random number between 0 and 1 and subtract probability values in order (the  lists are sorted
-		 largest to smallest) until we reach a number lower than 0. The syllable segment whose probability value
-		 took us over the edge is returned.*/		
+		/*Generate a random number between 0 and 1 and subtract probability values in order (the  lists are sorted
+		largest to smallest) until we reach a number lower than 0. The syllable segment whose probability value
+		took us over the edge is returned.*/		
 		try
 		{
 			double rand = rng.nextDouble();
-			for (Constituent c : lib)
+			for (Constituent c : library)
 			{
 				if (rand < c.getProbability())
 					return c;
@@ -366,8 +254,7 @@ public class ConstituentLibrary
 		{
 			System.out.println("Failed to select syllable segment; were the inventory's prominence values not normalized?");
 			System.out.println(getName());
-			System.out.println(lib.size() + " members of length " + index);
-			for (Constituent c : lib)
+			for (Constituent c : library)
 				System.out.println(c + " " + c.getProbability());
 			e.printStackTrace();
 			System.exit(0);
@@ -383,35 +270,17 @@ public class ConstituentLibrary
 	 */
 	public void pruneMembersWithoutFollowers()
 	{
-		for (int j = 0; j < maxLength; j++)
-		{
-			ArrayList<Constituent> list = library[j];
-			for (int i = 0; i < list.size(); i++)
-				if (list.get(i).followers().getMembersOfLength(1).size() == 0)
-				{
-					list.remove(i);
-					memberCount--;
-					i--;
-				}
-		}
-		entropy = -1;
-	}
-	
-	/**
-	 * Multiplies the probability of each Constituent in the library by the log of its follower account, making
-	 * members with more followers more prevalent. Automatically normalizes probabilities after.
-	 * @since	1.2
-	 */
-	public void scaleProbabilityByFollowerCount()
-	{
-		for (int j = 0; j < maxLength; j++)
-		{
-			ArrayList<Constituent> list = library[j];
-			for (int i = 0; i < list.size(); i++)
-				list.get(i).setProbability(list.get(i).getProbability() * Math.log(list.get(i).followers().countMembersOfLength(1) + 1));
-		}
+		if (type != ConstituentType.CODA)
+			return;
 		
-		normalizeAll();
+		ArrayList<Constituent> list = library;
+		for (int i = 0; i < list.size(); i++)
+			if (list.get(i).followers().size() == 0)
+			{
+				list.remove(i);
+				memberCount--;
+				i--;
+			}
 	}
 	
 	/**
@@ -431,76 +300,79 @@ public class ConstituentLibrary
 	public int getCompoundSize()
 	{
 		int result = 0;
-		for (int i = 1; i <= maxLength; i++)
-			for (Constituent curr : getMembersOfLength(i))
+		for (Constituent curr : library)
 				result += curr.followers().size();
 		return result;
 	}
-	
-	/**
-	 * @return	The maximum length of any Constituent in this library
-	 * @since	1.2
-	 */
-	public int maxLength()
-	{
-		return maxLength;
-	}
-	
-	/**
-	 * Calculates the first-order entropy for this library's pick() function. Optionally, it can instead calculate
-	 * the second-order entropy, i.e., the entropy of picking a random Constituent from this library and then 
-	 * picking one of its followers. The value is saved after first calculation, so future calls simply return the 
-	 * stored entropy measurement.
-	 * 
-	 * @param 	compoundEntropy	Determines whether to return first- or second-order entropy
-	 * @return	The specified entropy measurement
-	 * @since	1.2
-	 */
-	private double getEntropy(boolean compoundEntropy)
-	{
-		if (entropy != -1 && !compoundEntropy)
-			return entropy;
-		
-		entropy = 0;
-		for (int i = 1; i <= maxLength; i++)
-			for (Constituent c : getMembersOfLength(i))
-			{
-				double pCurr = c.getProbability() * getLengthProbability(i);
-				double p = pCurr;
-				if (compoundEntropy)
-				{
-					for (int j = 1; j < c.followers().maxLength; j++)
-						for (Constituent d : c.followers().getMembersOfLength(j))
-						{
-							double pNext = d.getProbability() * c.followers().getLengthProbability(j);
-							p = pCurr * pNext;
-							if (p != 0)
-								entropy += -p * Math.log(p);
-						}
-				}
-				
-				if (p != 0)
-					entropy += -p * Math.log(p);
-			}
-		return entropy;
-	}
+
 	
 	/**
 	 * @return	The first-order entropy measurement for this library
 	 * @since	1.2
 	 */
-	public double getEntropy()
+	public double getSelectionEntropy()
 	{
-		return getEntropy(false);
+		double h = 0;
+		System.out.println("Calculating selection entropy for " + toString());
+		for (Constituent c : library)
+		{
+			h += Entropy.partialEntropy(c.getProbability());
+			System.out.println("\t" + c.toString() + ": " + Entropy.partialEntropy(c.getProbability()));
+		}
+		
+		System.out.println("\t\tTotal entropy: " + h);
+		
+		return h;
 	}
 	
-	/**
-	 * @return	The second-order entropy measurement for this library
-	 * @since	1.2
-	 */
-	public double getCompoundEntropy()
+	// Entropy of a cluster beginning with a random selection from this library
+	public void setClusterEntropy(ConstituentType clusterType, int length)
 	{
-		return getEntropy(true);
+		double h = 0;
+		
+		if (length > 1)
+		{
+			double[] pFollowers = new double[size()];
+			double[] hFollowers = new double[size()];
+			
+			for (int i = 0; i < library.size(); i++)
+			{
+				Constituent c = library.get(i);
+				ConstituentLibrary next = null;
+				
+				if (clusterType == ConstituentType.NUCLEUS)
+					next = ((VowelPhoneme) c.getContent()).getNucleusFollowers();
+				else if (clusterType == ConstituentType.ONSET)
+					next = ((ConsonantPhoneme) c.getContent()).getOnsetFollowers();
+				else if (clusterType == ConstituentType.CODA)
+					next = ((ConsonantPhoneme) c.getContent()).getCodaPreceders();
+				
+				double pAddMore, pStopHere, hAddMore, hStopHere;
+				
+				pAddMore = next.clusterChance;
+				hAddMore = next.getClusterEntropy(clusterType, length - 1);
+				pStopHere = 1 - pAddMore;
+				hStopHere = pStopHere == 0 ? 0 : -Math.log(pStopHere);
+//				System.out.println(this + " to " + c.getContent().segment.expression + ", length " + length + " / " + pAddMore + " " + hAddMore + " " + pStopHere + " " + hStopHere);
+				pFollowers[i] = c.getProbability();
+				hFollowers[i] = Entropy.decisionEntropy(new double[] { pAddMore, pStopHere }, new double[] { hAddMore, hStopHere }); 
+			}
+			
+			entropy[length - 1] = Entropy.decisionEntropy(pFollowers, hFollowers);
+			isEntropySet[length - 1] = true;
+		}
+		else if (length == 1)
+		{
+			entropy[length - 1] = getSelectionEntropy();
+			isEntropySet[length - 1] = true;
+		}
+	}
+	
+	public double getClusterEntropy(ConstituentType type, int length)
+	{
+		if (!isEntropySet[length - 1])
+			setClusterEntropy(type, length);
+		return entropy[length - 1];
 	}
 	
 	/**
@@ -512,22 +384,42 @@ public class ConstituentLibrary
 		return location;
 	}
 	
+	public ConstituentType getType()
+	{
+		return type;
+	}
+	
 	public String getName ()
 	{
 		return location  + " " + type; 
 	}
 	
-	public void printMembers()
+	public void setClusterChance(double clusterChance)
 	{
-		for (int i = 0; i < library.length; i++)
-			if (library[i].size() > 0)
-			{
-				System.out.println("\tLength " + (i + 1));
-				for (int j = 0; j < library[i].size(); j++)
-				{
-					System.out.println(library[i].get(j) + "\t" + library[i].get(j).getProbability());
-				}
-			}
+		this.clusterChance = clusterChance * Math.log(size() + 1);
 	}
 	
+	public double getClusterChance()
+	{
+		return clusterChance;
+	}
+	
+	public void printMembers()
+	{
+		System.out.println("Members of " + toString());
+		for (int j = 0; j < library.size(); j++)
+		{
+			System.out.println(library.get(j) + "\t" + library.get(j).getProbability());
+		}
+	}
+	
+	public String toString()
+	{
+		return name + "/" + type + "/" + location + " [" + size() + "]";
+	}
+	
+	public int getMaxClusterLength()
+	{
+		return maxClusterLength;
+	}
 }

@@ -20,6 +20,7 @@ public class VowelPhoneme extends Phoneme
 	private double hiatusTerminalCodaChance;
 	
 	ConstituentLibrary followers;
+	ConstituentLibrary nucleusFollowers;
 	ConstituentLibrary terminalFollowers;
 	ConstituentLibrary rootFollowers;
 	
@@ -31,7 +32,8 @@ public class VowelPhoneme extends Phoneme
 						double nucleusLeadProminence,
 						double nucleusFollowProminence,
 						double interludeLeadProminence,
-						double interludeFollowProminence)
+						double interludeFollowProminence,
+						int maxNucleusLength)
 	{
 		super(segment);
 		
@@ -43,6 +45,8 @@ public class VowelPhoneme extends Phoneme
 		this.nucleusFollowProminence = nucleusFollowProminence;
 		this.interludeLeadProminence = nucleusLeadProminence;
 		this.interludeFollowProminence = interludeFollowProminence;
+		if (maxNucleusLength > 1)
+			nucleusFollowers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.CLUSTER);
 		
 		hiatusMedialSyllableEntropy			= 0;
 		hiatusTerminalSyllableEntropy		= 0;
@@ -64,21 +68,17 @@ public class VowelPhoneme extends Phoneme
 		for (int j = 0; j < libs.length; j++)
 		{
 			System.out.print(libs[j].getLocation() + "  \t");
-			for (int i = 1; i <= libs[j].maxLength(); i++)
-			{
-				for (Constituent c : libs[j].getMembersOfLength(i))
-					System.out.printf("%s %.2f\t", c, c.getProbability() * libs[j].getLengthProbability(c.size()));
-			}
+			for (Constituent c : libs[j].getMembers())
+				System.out.printf("%s %.2f\t", c, c.getProbability());
 			System.out.println();
 		}
 	}
 	
-	public void createFollowerLists(int medialNucleusLength, int terminalNucleusLength, int rootNucleusLength)
+	public void createFollowerLists(int maxNucleusLength)
 	{
-		followers = new ConstituentLibrary(medialNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.MEDIAL);
-		terminalFollowers = new ConstituentLibrary(terminalNucleusLength, ConstituentType.NUCLEUS, 
-							ConstituentLocation.TERMINAL);
-		rootFollowers = new ConstituentLibrary(rootNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.ROOT);
+		followers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.MEDIAL);
+		terminalFollowers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.TERMINAL);
+		rootFollowers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.ROOT);
 	}
 	
 	public void makeHiatus(ConstituentLibrary lib, double[] leadProbabilities, double[] followProbabilities, double hiatusOffset, double nucleusClusterWeight)
@@ -93,9 +93,9 @@ public class VowelPhoneme extends Phoneme
 			followerLibrary = rootFollowers;
 		
 		// 
-		for (int j = 0; j < lib.countMembersOfLength(1); j++)
+		for (int j = 0; j < lib.size(); j++)
 		{
-			Phoneme v2 = lib.getMembersOfLength(1).get(j).getContent(0);
+			Phoneme v2 = lib.getMembers().get(j).getContent();
 			if (!segment.expression.equals(":"))
 			{
 				// Chance of representation ~= f(.3 x 4^(commonness - 3))
@@ -103,33 +103,32 @@ public class VowelPhoneme extends Phoneme
 				double probability = 0.3 * Math.pow(4, Phonotactics.hiatusTransitions[segment.getID()][v2.segment.getID()]
 						- 3) + hiatusOffset;
 				if (leadProbabilities[segment.getID()] * followProbabilities[v2.segment.getID()] < probability)
-				addInterlude(lib.getMembersOfLength(1).get(j), lib, followerLibrary);
+				addInterlude(lib.getMembers().get(j), lib.getLocation(), followerLibrary);
 			}
 		}
 		
 		// Normalize probabilities and sort the current vowel's interludes according to them
 		followerLibrary.normalizeAll();
 		followerLibrary.sortAll();
-		followerLibrary.setLengthProbabilities(nucleusClusterWeight);
 	}
 	
-	public void addInterlude(Constituent c, ConstituentLibrary sourceLibrary, ConstituentLibrary targetLibrary)
+	private void addInterlude(Constituent c, ConstituentLocation location, ConstituentLibrary targetLibrary)
 	{
 		// Calculate interlude's probability.
 		// Base probability equals sum of following segment's interludeFollow and onsetInitial prominences
-		double probability = c.getContent(0).interludeFollowProminence;
+		double probability = c.getContent().interludeFollowProminence;
 		
 		// Set source and target libraries and probability
-		switch(sourceLibrary.getLocation())
+		switch(location)
 		{
 			case MEDIAL:
-				probability += c.getContent(0).medialProminence - 1;
+				probability += c.getContent().medialProminence - 1;
 				break;
 			case TERMINAL:
-				probability += ((VowelPhoneme) c.getContent(0)).terminalProminence - 1;
+				probability += ((VowelPhoneme) c.getContent()).terminalProminence - 1;
 				break;
 			case ROOT:
-				probability += ((VowelPhoneme) c.getContent(0)).rootProminence - 1;
+				probability += ((VowelPhoneme) c.getContent()).rootProminence - 1;
 				break;
 			default:
 				return;
@@ -140,22 +139,7 @@ public class VowelPhoneme extends Phoneme
 		{
 			targetLibrary.add(new Constituent(c, probability));
 		}
-		
-		
-		// Consider adding diphthongs
-		if (sourceLibrary.maxLength() == 2)
-		{
-			for (Constituent diphthong : sourceLibrary.getMembersOfLength(2))
-				if (diphthong.getContent(0) == c.getContent(0))
-				{
-					// Set base probability equal to the next segment's prominence
-					probability = diphthong.getProbability();
-					
-					// If probability is positive, add this interlude
-					if (probability > 0)
-						targetLibrary.add(new Constituent(diphthong, probability));
-				}
-		}
+	
 //		Print interlude statistics
 //		System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
 	}
@@ -163,6 +147,11 @@ public class VowelPhoneme extends Phoneme
 	public ConstituentLibrary getFollowers()
 	{
 		return followers;
+	}
+	
+	public ConstituentLibrary getNucleusFollowers()
+	{
+		return nucleusFollowers;
 	}
 
 	public ConstituentLibrary getRootFollowers()
