@@ -268,16 +268,12 @@ public class ConstituentLibrary
 	 * TODO: Should this remove members with null follower libraries too?
 	 * @since	1.2
 	 */
-	public void pruneMembersWithoutFollowers()
+	public void removeInvalidMembers()
 	{
-		if (type != ConstituentType.CODA)
-			return;
-		
-		ArrayList<Constituent> list = library;
-		for (int i = 0; i < list.size(); i++)
-			if (list.get(i).followers().size() == 0)
+		for (int i = 0; i < library.size(); i++)
+			if (!library.get(i).getContent().isValidInPosition(location, type))
 			{
-				list.remove(i);
+				library.remove(i);
 				memberCount--;
 				i--;
 			}
@@ -409,7 +405,8 @@ public class ConstituentLibrary
 		System.out.println("Members of " + toString());
 		for (int j = 0; j < library.size(); j++)
 		{
-			System.out.println(library.get(j) + "\t" + library.get(j).getProbability());
+			System.out.println(library.get(j) + "\t" + library.get(j).getProbability() +
+								(library.get(j).getContent().isValidInPosition(location, type) ? "" : " (invalid in " + location + " " + type + ")"));
 		}
 	}
 	

@@ -3,6 +3,8 @@ package gengenv2.morphemes;
 import gengenv2.ConstituentLibrary;
 import gengenv2.Phonology;
 import gengenv2.enums.ConsonantProperty;
+import gengenv2.enums.ConstituentLocation;
+import gengenv2.enums.ConstituentType;
 import gengenv2.enums.SegmentProperty;
 
 /**
@@ -21,6 +23,8 @@ public abstract class Phoneme
 	double wordInitialProminence;
 	double interludeLeadProminence;		
 	double interludeFollowProminence;
+	private boolean[][] validPositions;
+	
 	
 	/**
 	 * This constructor sets all the appropriate prominence values, according to whether the Phoneme
@@ -32,6 +36,7 @@ public abstract class Phoneme
 	public Phoneme(Segment segment)
 	{
 		this.segment = segment;
+		validPositions = new boolean[ConstituentType.values().length][ConstituentLocation.values().length];
 	}
 	
 	abstract boolean isConsonant();
@@ -108,6 +113,16 @@ public abstract class Phoneme
 			}
 		
 		return false;
+	}
+	
+	public boolean isValidInPosition(ConstituentLocation location, ConstituentType type)
+	{
+		return validPositions[location.ordinal()][type.ordinal()];
+	}
+	
+	public void setValidInPosition(ConstituentLocation location, ConstituentType type)
+	{
+		validPositions[location.ordinal()][type.ordinal()] = true;
 	}
 }
 

@@ -622,6 +622,10 @@ public class MorphemeAssembly
 			return pConsonantTermination / (pConsonantTermination + pVowelTermination);
 		}
 		
+		private void getBridgeEntropy()
+		{
+			
+		}
 	}
 	
 	/**

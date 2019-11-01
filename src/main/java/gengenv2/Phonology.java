@@ -120,8 +120,8 @@ public class Phonology
 	PhoneticRatings onsetClusterFollowRatings;
 	PhoneticRatings codaClusterLeadRatings;			// Consonant clusters in codas
 	PhoneticRatings codaClusterFollowRatings;
-	PhoneticRatings interludeLeadRatings;			// Consonant clusters across syllable boundaries
-	PhoneticRatings interludeFollowRatings;
+	PhoneticRatings bridgeLeadRatings;			// Consonant clusters across syllable boundaries
+	PhoneticRatings bridgeFollowRatings;
 	PhoneticRatings diphthongLeadRatings;			// Vowel clusters (diphthongs) in nuclei
 	PhoneticRatings diphthongFollowRatings;
 	PhoneticRatings hiatusLeadRatings;				// Vowel sequences across syllable boundaries
@@ -256,6 +256,10 @@ public class Phonology
 	static double clusterLeadMean					= 1.00;
 	static double clusterFollowStdev  				= 0.50;
 	static double clusterFollowMean					= 1.00;
+	static double bridgeLeadStdev    				= 0.50;
+	static double bridgeLeadMean					= 1.00;
+	static double bridgeFollowStdev  				= 0.50;
+	static double bridgeFollowMean					= 1.00;
 	static double diphthongLeadStdev  				= 0.50;
 	static double diphthongLeadMean					= 1.00;
 	static double diphthongFollowStdev 				= 0.50;
@@ -424,10 +428,7 @@ public class Phonology
 		// Feature: Onset Clusters
 		if (rng.nextInt(2) < 1)
 			features.onsetClusters = Feature.YES;
-	
-		// TODO: test
-		features.onsetClusters = Feature.YES;
-		
+			
 		// Feature: Medial Codas
 		if (rng.nextInt(8) < 5)
 			features.medialCodas = Feature.YES;
@@ -605,7 +606,7 @@ public class Phonology
 		 * to them. The magnitude of the Gaussian term is determined by codaDisturbance, representing the
 		 * proportion of prominenceStdev by which to scale the deviation.
 		 */
-		if (maxCodaLength > 0)
+		if (features.medialCodas != Feature.NO || features.terminalCodas != Feature.NO)
 		{
 			// Medial codas
 			baseCodaRatings = new PhoneticRatings(this, true, basicCodaStdev, basicCodaMean);
@@ -622,8 +623,8 @@ public class Phonology
 			// Set interlude lead/follow prominences
 			if (features.medialCodas != Feature.NO)
 			{
-				interludeLeadRatings =   new PhoneticRatings(this, true, clusterLeadStdev, clusterLeadMean);
-				interludeFollowRatings = new PhoneticRatings(this, true, clusterFollowStdev, clusterFollowMean);
+				bridgeLeadRatings =   new PhoneticRatings(this, true, bridgeLeadStdev, bridgeLeadMean);
+				bridgeFollowRatings = new PhoneticRatings(this, true, bridgeFollowStdev, bridgeFollowMean);
 			}
 			
 			if (features.terminalCodas != Feature.NO)
@@ -957,7 +958,7 @@ public class Phonology
 			// makeInterludes, as that method makes use of codas (in particular, that may be cut from the master list.
 			if (medialCodas.size() > 0)
 			{
-				makeInterludes();
+				makeBridge();
 			}
 		}
 		
@@ -1022,12 +1023,12 @@ public class Phonology
 	 * 
 	 * @since	1.0
 	 */
-	private void makeInterludes()
+	private void makeBridge()
 	{
 		// Create follower lists for all consonants in inventory
 		for (ConsonantPhoneme cp : consonantInventory)
 		{
-			cp.createFollowerList(maxOnsetLength);
+			cp.createBridgePrecedersList(maxCodaLength);
 		}
 		
 		interludeOffset = rng.nextGaussian() * interludeOffsetStdev;
@@ -1045,61 +1046,69 @@ public class Phonology
 		// Generate lists of interlude transitions for phonemes
 		for (int i = 0; i < medialCodas.size(); i++)
 		{
-			ConsonantPhoneme p1 = (ConsonantPhoneme) medialCodas.get(i).getContent();
+			ConsonantPhoneme coda = (ConsonantPhoneme) medialCodas.get(i).getContent();
 			for (int j = 0; j < medialOnsets.size(); j++)
 			{
-				ConsonantPhoneme p2 = (ConsonantPhoneme) medialOnsets.get(j).getContent();
+				ConsonantPhoneme onset = (ConsonantPhoneme) medialOnsets.get(j).getContent();
 				
-				if (p1 != p2)	// Gemination will be covered by a separate process (1.0)
-				{
-					// Chance of representation ~= f(.4 x 15^(commonness - 3))
-					// 3 -> .559, 2 -> .069, 1 -> .007
-					double probability = 0.4 * 
-							Math.pow(15, transProb[p1.segment.transitionCategory][p2.segment.transitionCategory] - 3)
-											+ interludeOffset;
-					
-					if (leadProbability[p1.segment.transitionCategory] * 
-							followProbability[p2.segment.transitionCategory] < probability)
-						addInterlude(p1, medialOnsets.get(j));
-				}
+				
+				// Chance of representation ~= f(.4 x 15^(commonness - 3))
+				// 3 -> .559, 2 -> .069, 1 -> .007
+				double probability = 0.4 * 
+						Math.pow(15, transProb[coda.segment.transitionCategory][onset.segment.transitionCategory] - 3)
+										+ interludeOffset;
+				
+				if (leadProbability[coda.segment.transitionCategory] * followProbability[onset.segment.transitionCategory] < probability)
+					addBridge(coda, onset);
+				coda.setValidInPosition(ConstituentLocation.MEDIAL, ConstituentType.CODA);
 			}
-			
-			p1.normalizeAndSortFollowers(onsetClusterWeight);
 		}
 		
 		// Remove codas with no interludes
-		medialCodas.pruneMembersWithoutFollowers();
+		medialCodas.removeInvalidMembers();
 		medialCodas.sortAll();
+		
+		for (Constituent c : medialOnsets.getMembers())
+		{
+			ConsonantPhoneme coda = (ConsonantPhoneme) c.getContent();
+			coda.normalizeAndSortFollowers(onsetClusterWeight);
+			coda.getBridgePreceders().printMembers();
+		}
+			
+		
 	}
 		
 
 	
-	/**
+		/**
 		 * Adds a SyllableSegment to this Phoneme's interlude inventory. If this Phoneme represents a consonant,
-		 * the SyllableSegment represents an onset that may follow when this Phoneme is used as a coda. If this
-		 * Phoneme represents a vowel, the SyllableSegment represents a nucleus that may follow in hiatus.
+		 * the SyllableSegment represents an onset that may follow when this Phoneme is used as a coda.
 		 * @param	c	A coda or nucleus that may follow this Phoneme
 		 * @since	1.0
 		 */
-		protected void addInterlude(ConsonantPhoneme phoneme, Constituent follower)
+		protected void addBridge(ConsonantPhoneme codaTail, ConsonantPhoneme onsetHead)
 		{
 			// If interludeLeadProminence <= 0, this phoneme does not lead in interludes/hiatus
-			if (phoneme.getInterludeLeadProminence() <= 0)
+			if (codaTail.getInterludeLeadProminence() <= 0)
 				return;
 			
 			// Calculate interlude's probability.
 			// Base probability equals sum of following segment's interludeFollow and onsetInitial prominences
-			double probability = follower.getContent().getInterludeFollowProminence();
-			probability += follower.getContent().getMedialProminence() - 1;
+			double probability = onsetHead.getInterludeFollowProminence();
+			probability += onsetHead.getMedialProminence() - 1;
+			probability += codaTail.getInterludeLeadProminence() - 1;
+			
+			System.out.printf("%s to %s: %.3f + %.3f + %.3f - 2\n", codaTail, onsetHead, onsetHead.getInterludeFollowProminence(),
+								onsetHead.getMedialProminence(), codaTail.getInterludeLeadProminence());
 			
 			// Apply nasal dissonance inhibitor, if relevant
-			if (phoneme.segment.isConsonant() && Phoneme.isDissonantNasalCluster(phoneme, follower.getContent()))
+			if (Phoneme.isDissonantNasalCluster(codaTail, onsetHead))
 				probability -= nasalDissonanceOffset;
 			
 			// If probability is positive, add this interlude
 			if (probability > 0)
 			{
-				phoneme.getBridgeFollowers().add(new Constituent(follower, probability));
+				onsetHead.getBridgePreceders().add(new Constituent(ConstituentType.CODA, codaTail, probability));
 			}
 			
 			// Print interlude statistics
@@ -1273,23 +1282,27 @@ public class Phonology
 			}
 			
 			// Coda cluster properties
-			if ((features.medialCodas != Feature.NO || features.terminalCodas != Feature.NO) && features.codaClusters != Feature.NO)
+			if (features.medialCodas != Feature.NO || features.terminalCodas != Feature.NO)
 			{
-				deviance = codaClusterLeadRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(cs.properties.length);
-				codaClusterLeadProminence += deviance;
 				
-				deviance = codaClusterFollowRatings.getRating(s.ordinal()) - 1;
-				deviance /= Math.sqrt(cs.properties.length);
-				codaClusterFollowProminence += deviance;
+				if (features.codaClusters != Feature.NO)
+				{
+					deviance = codaClusterLeadRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(cs.properties.length);
+					codaClusterLeadProminence += deviance;
+					
+					deviance = codaClusterFollowRatings.getRating(s.ordinal()) - 1;
+					deviance /= Math.sqrt(cs.properties.length);
+					codaClusterFollowProminence += deviance;
+				}
 				
 				if (features.medialCodas != Feature.NO)
 				{
-					deviance = interludeLeadRatings.getRating(s.ordinal()) - 1;
+					deviance = bridgeLeadRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(cs.properties.length);
 					interludeLeadProminence += deviance;
 					
-					deviance = interludeFollowRatings.getRating(s.ordinal()) - 1;
+					deviance = bridgeFollowRatings.getRating(s.ordinal()) - 1;
 					deviance /= Math.sqrt(cs.properties.length);
 					interludeFollowProminence += deviance;
 				}
@@ -1624,8 +1637,6 @@ public class Phonology
 		{
 			coda.getCodaPreceders().normalizeAll();
 			coda.getCodaPreceders().sortAll();
-			coda.getCodaPreceders().printMembers();
-			
 			coda.getCodaPreceders().setClusterChance(baseClusterChance);
 			coda.getCodaPreceders().setClusterEntropy(ConstituentType.CODA, maxCodaLength);
 		}

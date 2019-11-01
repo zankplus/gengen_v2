@@ -17,10 +17,12 @@ public class ConsonantPhoneme extends Phoneme
 	private double onsetClusterLeadChance;	// Chance that another phoneme will follow this one in an onset (compared to a vowel)
 	private double codaClusterLeadChance;	// Chance that another phoneme will follow this one in a cluster (compared to a vowel)
 	
+	
+	
 	// Interlude properties
 	private ConstituentLibrary onsetFollowers;
 	private ConstituentLibrary codaPreceders;
-	private ConstituentLibrary bridgeFollowers;
+	private ConstituentLibrary bridgePreceders;
 	
 	public ConsonantPhoneme(Segment segment,
 							double medialProminence,
@@ -54,12 +56,12 @@ public class ConsonantPhoneme extends Phoneme
 		if (maxCodaLength > 1)
 			codaPreceders = new ConstituentLibrary(segment.expression, maxCodaLength, ConstituentType.CODA, ConstituentLocation.CLUSTER);
 		
-		bridgeFollowers = null;
+		bridgePreceders = null;
 	}
 	
-	public ConstituentLibrary getBridgeFollowers()
+	public ConstituentLibrary getBridgePreceders()
 	{
-		return bridgeFollowers;
+		return bridgePreceders;
 	}
 	
 	public ConstituentLibrary getOnsetFollowers()
@@ -72,16 +74,16 @@ public class ConsonantPhoneme extends Phoneme
 		return codaPreceders;
 	}
 	
-	public void createFollowerList(int medialOnsetsLength)
+	public void createBridgePrecedersList(int maxCodaLength)
 	{
-		bridgeFollowers = new ConstituentLibrary(segment.expression, medialOnsetsLength, ConstituentType.ONSET, ConstituentLocation.MEDIAL);
+		bridgePreceders = new ConstituentLibrary(segment.expression, maxCodaLength, ConstituentType.CODA, ConstituentLocation.MEDIAL);
 	}
 	
 	public void normalizeAndSortFollowers(double onsetClusterWeight)
 	{
 		// Normalize probabilities and sort the current coda's interlude list according to them.
-		bridgeFollowers.normalizeAll();
-		bridgeFollowers.sortAll();
+		bridgePreceders.normalizeAll();
+		bridgePreceders.sortAll();
 	}
 	
 	public boolean isConsonant()
