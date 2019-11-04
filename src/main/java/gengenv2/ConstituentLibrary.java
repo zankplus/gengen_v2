@@ -45,7 +45,6 @@ public class ConstituentLibrary
 	
 	// Library information
 	private ArrayList<Constituent> library;
-	private double[] lengthProbabilities;
 	private int memberCount = 0;
 	
 	// Context variables
@@ -57,7 +56,7 @@ public class ConstituentLibrary
 	
 	// Cluster variables
 	private String name;
-	private double clusterChance;
+	private double clusterChance;	// having reached this library, the chance of picking an item from it
 	private int maxClusterLength;
 	private double[] entropy;
 	private boolean[] isEntropySet;
@@ -163,17 +162,6 @@ public class ConstituentLibrary
 	{
 		return library;
 	}
-
-	/**
-	 * Returns the probability of picking a Constituent of the given length from a random call to pick().
-	 * @param 	length	Length of Constituent queried
-	 * @return	The chance of picking a Constituent of the given length 
-	 * @since	1.2
-	 */
-	public double getLengthProbability(int length)
-	{
-		return lengthProbabilities[length - 1];
-	}
 	
 	/**
 	 * Exaggerates the differences between probabilities by raising the probability of every Constituent to the
@@ -211,7 +199,7 @@ public class ConstituentLibrary
 	 */
 	public void add(Constituent c)
 	{
-//		System.out.println("Adding Constituent " + c + " to library " + toString() + " / " + c.getProbability());
+		System.out.println("Adding Constituent " + c + " to library " + toString() + " / " + c.getProbability());
 		library.add(c);
 		memberCount++;
 	}
@@ -221,9 +209,26 @@ public class ConstituentLibrary
 	 * @return	A random Constituent from the library
 	 * @since	1.2
 	 */
-	public Constituent pick()
+	public ArrayList<Constituent> pick()
 	{
-		return pickConstituent();
+		ArrayList<Constituent> result = new ArrayList<Constituent>();
+		ConstituentLibrary lib = this;
+		boolean done = false;
+		
+		while (result.size() < maxClusterLength && !done)
+		{
+			Constituent curr = lib.pickConstituent(); 
+			result.add(curr);
+			ConstituentLibrary nextLib = curr.followers(type); 
+			
+			if (nextLib != null && rng.nextDouble() < nextLib.getClusterChance())
+				lib = nextLib;
+			else
+				done = true;
+			
+		}
+		
+		return result;
 	}
 	
 	/**
@@ -301,6 +306,10 @@ public class ConstituentLibrary
 		return result;
 	}
 
+	public double getEntropy()
+	{
+		return getClusterEntropy(maxClusterLength);
+	}
 	
 	/**
 	 * @return	The first-order entropy measurement for this library
@@ -322,7 +331,7 @@ public class ConstituentLibrary
 	}
 	
 	// Entropy of a cluster beginning with a random selection from this library
-	public void setClusterEntropy(ConstituentType clusterType, int length)
+	public void setClusterEntropy(int length)
 	{
 		double h = 0;
 		
@@ -336,25 +345,25 @@ public class ConstituentLibrary
 				Constituent c = library.get(i);
 				ConstituentLibrary next = null;
 				
-				if (clusterType == ConstituentType.NUCLEUS)
+				if (type == ConstituentType.NUCLEUS)
 					next = ((VowelPhoneme) c.getContent()).getNucleusFollowers();
-				else if (clusterType == ConstituentType.ONSET)
+				else if (type == ConstituentType.ONSET)
 					next = ((ConsonantPhoneme) c.getContent()).getOnsetFollowers();
-				else if (clusterType == ConstituentType.CODA)
+				else if (type == ConstituentType.CODA)
 					next = ((ConsonantPhoneme) c.getContent()).getCodaPreceders();
 				
 				double pAddMore, pStopHere, hAddMore, hStopHere;
 				
 				pAddMore = next.clusterChance;
-				hAddMore = next.getClusterEntropy(clusterType, length - 1);
+				hAddMore = next.getClusterEntropy(length - 1);
 				pStopHere = 1 - pAddMore;
 				hStopHere = pStopHere == 0 ? 0 : -Math.log(pStopHere);
 //				System.out.println(this + " to " + c.getContent().segment.expression + ", length " + length + " / " + pAddMore + " " + hAddMore + " " + pStopHere + " " + hStopHere);
 				pFollowers[i] = c.getProbability();
-				hFollowers[i] = Entropy.decisionEntropy(new double[] { pAddMore, pStopHere }, new double[] { hAddMore, hStopHere }); 
+				hFollowers[i] = Entropy.decision(new double[] { pAddMore, pStopHere }, new double[] { hAddMore, hStopHere }); 
 			}
 			
-			entropy[length - 1] = Entropy.decisionEntropy(pFollowers, hFollowers);
+			entropy[length - 1] = Entropy.decision(pFollowers, hFollowers);
 			isEntropySet[length - 1] = true;
 		}
 		else if (length == 1)
@@ -364,10 +373,10 @@ public class ConstituentLibrary
 		}
 	}
 	
-	public double getClusterEntropy(ConstituentType type, int length)
+	public double getClusterEntropy(int length)
 	{
 		if (!isEntropySet[length - 1])
-			setClusterEntropy(type, length);
+			setClusterEntropy(length);
 		return entropy[length - 1];
 	}
 	
@@ -405,8 +414,7 @@ public class ConstituentLibrary
 		System.out.println("Members of " + toString());
 		for (int j = 0; j < library.size(); j++)
 		{
-			System.out.println(library.get(j) + "\t" + library.get(j).getProbability() +
-								(library.get(j).getContent().isValidInPosition(location, type) ? "" : " (invalid in " + location + " " + type + ")"));
+			System.out.println(library.get(j) + "\t" + library.get(j).getProbability());
 		}
 	}
 	

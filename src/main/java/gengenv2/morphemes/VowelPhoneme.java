@@ -24,6 +24,8 @@ public class VowelPhoneme extends Phoneme
 	ConstituentLibrary terminalFollowers;
 	ConstituentLibrary rootFollowers;
 	
+	private double hiatusChance;
+	
 	public VowelPhoneme(Segment segment, 
 						double medialProminence,
 						double wordInitialProminence,
@@ -81,7 +83,7 @@ public class VowelPhoneme extends Phoneme
 		rootFollowers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.ROOT);
 	}
 	
-	public void makeHiatus(ConstituentLibrary lib, double[] leadProbabilities, double[] followProbabilities, double hiatusOffset, double nucleusClusterWeight)
+	public void makeHiatus(ConstituentLibrary lib, double[] leadProbabilities, double[] followProbabilities, double hiatusOffset)
 	{
 		ConstituentLibrary followerLibrary = null;
 		
@@ -194,5 +196,15 @@ public class VowelPhoneme extends Phoneme
 
 	public void setHiatusTerminalCodaChance(double hiatusTerminalCodaChance) {
 		this.hiatusTerminalCodaChance = hiatusTerminalCodaChance;
+	}
+	
+	public void setHiatusChance(double hiatusChance)
+	{
+		this.hiatusChance = hiatusChance;
+	}
+	
+	public double getHiatusChance()
+	{
+		return hiatusChance;
 	}
 }

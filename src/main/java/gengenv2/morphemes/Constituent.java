@@ -91,9 +91,17 @@ public class Constituent implements Comparable<Constituent>
 	public ConstituentLibrary followers()
 	{
 		if (content.isConsonant())
-			return ((ConsonantPhoneme) content).getBridgePreceders();
+			return null;
 		else
 			return ((VowelPhoneme) content).getFollowers();
+	}
+	
+	public ConstituentLibrary getBridgePreceders()
+	{
+		if (content.isConsonant())
+			return ((ConsonantPhoneme) content).getBridgePreceders();
+		else
+			return null;
 	}
 	
 	public ConstituentLibrary followers(ConstituentType type)

@@ -13,6 +13,7 @@ public class ConsonantPhoneme extends Phoneme
 	public final double terminalCodaProminence;
 	public final double codaClusterLeadProminence;
 	public final double codaClusterFollowProminence;
+	private double medialCodaChance; // Chance of a coda appearing before this phoneme in a bridge
 	
 	private double onsetClusterLeadChance;	// Chance that another phoneme will follow this one in an onset (compared to a vowel)
 	private double codaClusterLeadChance;	// Chance that another phoneme will follow this one in a cluster (compared to a vowel)
@@ -23,6 +24,7 @@ public class ConsonantPhoneme extends Phoneme
 	private ConstituentLibrary onsetFollowers;
 	private ConstituentLibrary codaPreceders;
 	private ConstituentLibrary bridgePreceders;
+	
 	
 	public ConsonantPhoneme(Segment segment,
 							double medialProminence,
@@ -79,7 +81,7 @@ public class ConsonantPhoneme extends Phoneme
 		bridgePreceders = new ConstituentLibrary(segment.expression, maxCodaLength, ConstituentType.CODA, ConstituentLocation.MEDIAL);
 	}
 	
-	public void normalizeAndSortFollowers(double onsetClusterWeight)
+	public void normalizeAndSortFollowers()
 	{
 		// Normalize probabilities and sort the current coda's interlude list according to them.
 		bridgePreceders.normalizeAll();
@@ -89,5 +91,17 @@ public class ConsonantPhoneme extends Phoneme
 	public boolean isConsonant()
 	{
 		return true;
+	}
+	
+	public void calculateMedialCodaChance(double baseMedialCodaChance)
+	{
+		if (bridgePreceders == null)
+			medialCodaChance = 0;
+		medialCodaChance = baseMedialCodaChance * Math.log(bridgePreceders.size() + 1);
+	}
+	
+	public double getMedialCodaChance()
+	{
+		return medialCodaChance;
 	}
 }

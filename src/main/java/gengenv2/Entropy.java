@@ -11,7 +11,7 @@ public class Entropy
 	 * @return				The entropy measurement for the decision between subsequent events
 	 * @since				1.1
 	 */
-	public static double decisionEntropy(double[] probabilities, double[] entropies)
+	public static double decision(double[] probabilities, double[] entropies)
 	{
 		if (probabilities.length != entropies.length)
 		{

@@ -174,7 +174,7 @@ public class Phonology
 	private double interludeOffset;
 	private double diphthongOffset;
 	private double geminateVowelOffset;
-	private double hiatusOffset;
+	private double hiatusProminenceOffset;
 	
 	/*
 	 * Specific cluster offsets
@@ -215,17 +215,14 @@ public class Phonology
 	 * likelihood of a certain length of Constituent occurring in a given position is proportionate its
 	 * cluster coefficient raised to the power of that length (minus one). 
 	 */
-	protected double onsetClusterWeight;
-	protected double codaClusterWeight;
-	protected double nucleusClusterWeight;
-	
 	protected double baseEmptyInitialOnsetChance;
-	protected double baseMedialOnsetChance;
+//	protected double baseMedialOnsetChance;
 	protected double baseMedialCodaChance;
 	protected double baseTerminalCodaChance;
 	protected double baseSuffixOnsetChance;
 	protected double baseClusterChance;
 	protected double baseDiphthongChance;
+	protected double baseHiatusChance;
 
 	/*
 	 * Generator properties
@@ -240,6 +237,8 @@ public class Phonology
 	static double baseClusterChanceMean				= 0.09;
 	static double baseDiphthongChanceStdev			= 0.015;
 	static double baseDiphthongChanceMean			= 0.09;
+	static double baseMedialCodaChanceStdev			= 0.015;
+	static double baseMedialCodaChanceMean			= 0.09;
 	static double basicProminenceStdev				= 0.60;
 	static double basicProminenceMean				= 0.85;
 	static double basicCodaStdev					= 0.60;
@@ -299,9 +298,11 @@ public class Phonology
 	static double baseCodaChanceStdev				= 0.5;
 	static double codaLocationBalanceMean			= 0.4;
 	static double codaLocationBalanceStdev			= 0.33;
-	static double baseOnsetChanceMean				= 0;
-	static double baseOnsetChanceStdev				= 0.1;
+	static double baseHiatusChanceMean				= 1;
+	static double baseHiatusChanceStdev				= 0.2;
 	static double baseOnsetChanceOffset				= 0.8;
+	static double baseTerminalCodaChanceMean 		= 0.5;
+	static double baseTerminalCodaChanceStdev		= 0.1;
 	
 	// Name assembly properties
 	static double heavyRimeSuppressionFactor		= 1.5;
@@ -406,6 +407,20 @@ public class Phonology
 		
 //		printClusters(initialOnsets);
 //		printClusters(terminalCodas);
+		
+		for (Constituent c : initialOnsets.getMembers())
+		{
+			c.followers(ConstituentType.ONSET).printMembers();
+			System.out.println("Cluster chance: " + c.followers(ConstituentType.ONSET).getClusterChance());
+		}
+		
+		for (int i = 0; i < 100; i++)
+		{
+			ArrayList<Constituent> clusterTest = initialOnsets.pick();
+			for (Constituent c : clusterTest)
+				System.out.print(c.getContent().segment.expression);
+			System.out.println();
+		}
 	}
 	
 	/**
@@ -493,7 +508,12 @@ public class Phonology
 		if (features.onsetClusters == Feature.YES || features.codaClusters == Feature.YES)
 		{
 			baseClusterChance = rng.nextGaussian() * baseClusterChanceStdev + baseClusterChanceMean;
-			System.out.println("base cluster chance: " + baseClusterChance);
+			System.out.println("Base cluster chance: " + baseClusterChance);
+		}
+		if (features.medialCodas == Feature.YES)
+		{
+			baseMedialCodaChance = rng.nextGaussian() * baseMedialCodaChanceStdev + baseMedialCodaChanceMean;
+			System.out.println("Base medial coda chance: " + baseMedialCodaChance);
 		}
 		
 		// Codas
@@ -520,21 +540,17 @@ public class Phonology
 		// Determine weights and offsets
 		if (features.onsetClusters == Feature.YES)
 		{
-			onsetClusterWeight = Math.max(rng.nextGaussian() * onsetClusterProminenceStdev
-										+ onsetClusterProminenceMean, minimumOnsetClusterProminence);
 			onsetClusterOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
 
 		if (features.diphthongs == Feature.YES || features.geminateVowels == Feature.YES)
 		{
-			nucleusClusterWeight = Math.max(rng.nextGaussian() * 0.05 + 0.15, minimumNucleusClusterProminence);
 			diphthongOffset = rng.nextGaussian() * 0.25 + 0.5;
 			geminateVowelOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
 		
 		if (features.codaClusters == Feature.YES)
 		{
-			codaClusterWeight = Math.max(rng.nextGaussian() * 0.1 + 0.25, minimumCodaClusterProminence);
 			codaClusterOffset = rng.nextGaussian() * 0.25 + 0.5;
 		}
 	}
@@ -669,6 +685,8 @@ public class Phonology
 		codaGlottalStopOffset = Math.max(rng.nextGaussian() * codaGlottalStopOffsetStdev + codaGlottalStopOffsetMean, 0);
 		nasalDissonanceOffset = Math.max(rng.nextGaussian() * nasalDissonanceOffsetStdev + nasalDissonanceOffsetMean, 0);
 		unequalVoicingOffset  = Math.max(rng.nextGaussian() * unequalVoicingOffsetStdev + unequalVoicingOffsetMean, 0);
+		
+		
 	}
 	
 	/**
@@ -824,8 +842,10 @@ public class Phonology
 		initialOnsets.sortAll();
 		
 		// Add clusters 
-		if (features.initialOnsets == Feature.YES)
+		if (features.onsetClusters == Feature.YES)
+		{
 			generateOnsetClusterLists();
+		}
 	}
 	
 	/**
@@ -989,29 +1009,40 @@ public class Phonology
 	 */
 	private void makeHiatus()
 	{
-		// Create follower lists for all vowels in inventory
-		for (VowelPhoneme vp : vowelInventory)
+		if (features.hiatus != Feature.NO)
 		{
-			vp.createFollowerLists(maxNucleusLength);
-		}
-		
-		hiatusOffset = rng.nextGaussian() * hiatusOffsetStdev;
+			// Create follower lists for all vowels in inventory
+			for (VowelPhoneme vp : vowelInventory)
+			{
+				vp.createFollowerLists(maxNucleusLength);
+			}
+			
+			hiatusProminenceOffset = rng.nextGaussian() * hiatusOffsetStdev;
+			baseHiatusChance = rng.nextGaussian() * baseHiatusChanceStdev + baseHiatusChanceMean;
 
-		// Roll lead and follow probabilities.
-		// -1 to count ignores the 'lengthener' segment
-		double[] leadProbabilities = new double[VowelSegment.count() - 1], followProbabilities = new double[VowelSegment.count() - 1];
-		for (int i = 0; i < leadProbabilities.length; i++)
-		{
-			leadProbabilities[i] = rng.nextDouble();
-			followProbabilities[i] = rng.nextDouble();
+			// Roll lead and follow probabilities.
+			// -1 to count ignores the 'lengthener' segment
+			double[] leadProbabilities = new double[VowelSegment.count() - 1], followProbabilities = new double[VowelSegment.count() - 1];
+			for (int i = 0; i < leadProbabilities.length; i++)
+			{
+				leadProbabilities[i] = rng.nextDouble();
+				followProbabilities[i] = rng.nextDouble();
+			}
+			
+			// Medial hiatus
+			for (VowelPhoneme v1 : vowelInventory)
+			{
+				v1.makeHiatus(medialNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);
+				v1.setHiatusChance(baseHiatusChance * v1.getFollowers().size() / (medialOnsets.size() + v1.getFollowers().size()));
+				
+				v1.makeHiatus(terminalNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);
+				v1.makeHiatus(rootNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);
+			}
 		}
-		
-		// Medial hiatus
-		for (VowelPhoneme v1 : vowelInventory)
+		else
 		{
-			v1.makeHiatus(medialNuclei, leadProbabilities, followProbabilities, hiatusOffset, nucleusClusterWeight);
-			v1.makeHiatus(terminalNuclei, leadProbabilities, followProbabilities, hiatusOffset, nucleusClusterWeight);
-			v1.makeHiatus(rootNuclei, leadProbabilities, followProbabilities, hiatusOffset, nucleusClusterWeight);
+			baseHiatusChance = 0;
+			hiatusProminenceOffset = 0;
 		}
 	}
 	
@@ -1071,7 +1102,8 @@ public class Phonology
 		for (Constituent c : medialOnsets.getMembers())
 		{
 			ConsonantPhoneme coda = (ConsonantPhoneme) c.getContent();
-			coda.normalizeAndSortFollowers(onsetClusterWeight);
+			coda.normalizeAndSortFollowers();
+			coda.calculateMedialCodaChance(baseMedialCodaChance);
 			coda.getBridgePreceders().printMembers();
 		}
 			
@@ -1129,44 +1161,17 @@ public class Phonology
 		else
 			baseEmptyInitialOnsetChance = 0;
 		
-		double baseCodaChance, codaLocationBalance;
-		LogNormalDistribution logNormal;
 		
-		// Base medial onset chance		
-		logNormal = new LogNormalDistribution(baseOnsetChanceMean, baseOnsetChanceStdev);
-		logNormal.reseedRandomGenerator(rng.nextLong());
-		
-		// C
-		if (hasHiatus())
-			baseMedialOnsetChance = 1 - (logNormal.sample() - baseOnsetChanceOffset);
-		else
-			baseMedialOnsetChance = 1;
-		
-		baseMedialOnsetChance = Math.max(Math.min(baseMedialOnsetChance, 1), 0);
-		
-		// Base medial and terminal coda chances
-		if (maxCodaLength > 0)
-		{
-			baseCodaChance = logNormal.sample();
-			logNormal = new LogNormalDistribution(baseCodaChanceMean, baseCodaChanceStdev);
-			logNormal.reseedRandomGenerator(rng.nextLong());
-		}
-		else
-			baseCodaChance = 0;
-		
-		if (features.medialCodas != Feature.NO)
-			baseMedialCodaChance =   Math.max(rng.nextGaussian() * 0.05 + 0.20, 0);
+	
 		if (features.terminalCodas == Feature.NO)
 			baseTerminalCodaChance = 0;
 		else if (features.terminalCodas == Feature.REQUIRED)
 			baseTerminalCodaChance = 1;
 		else
-			baseTerminalCodaChance = Math.max(Math.min(rng.nextGaussian() * 0.3 + 0.5, 1), 0.01);
-		
-		// Correct cluster chances
-		if (maxOnsetLength < 2)	onsetClusterWeight = 0;
-		if (maxNucleusLength < 2)	nucleusClusterWeight = 0;
-		if (maxCodaLength < 2)		codaClusterWeight = 0;
+		{
+			baseTerminalCodaChance = rng.nextGaussian() * baseTerminalCodaChanceStdev + baseTerminalCodaChanceMean;
+			baseTerminalCodaChance = Math.max(Math.min(baseTerminalCodaChance, 1), 0); // Clamp to [0, 1]
+		}
 		
 //		baseSuffixOnsetChance = Math.min(Math.max(rng.nextDouble() * 2 - 0.5, 0), 1);
 		baseSuffixOnsetChance = 0;
@@ -1563,7 +1568,7 @@ public class Phonology
 			
 			// Set diphthong chance
 			nucleus.getNucleusFollowers().setClusterChance(baseDiphthongChance);
-			nucleus.getNucleusFollowers().setClusterEntropy(ConstituentType.NUCLEUS, maxNucleusLength);
+			nucleus.getNucleusFollowers().setClusterEntropy(maxNucleusLength);
 
 		}
 	}
@@ -1638,7 +1643,7 @@ public class Phonology
 			coda.getCodaPreceders().normalizeAll();
 			coda.getCodaPreceders().sortAll();
 			coda.getCodaPreceders().setClusterChance(baseClusterChance);
-			coda.getCodaPreceders().setClusterEntropy(ConstituentType.CODA, maxCodaLength);
+			coda.getCodaPreceders().setClusterEntropy(maxCodaLength);
 		}
 	}
 
@@ -1917,7 +1922,17 @@ public class Phonology
 		
 	}
 	
+	public int getMaxOnsetLength() {
+		return maxOnsetLength;
+	}
 	
+	public int getMaxNucleusLength() {
+		return maxNucleusLength;
+	}
+	
+	public int getMaxCodaLength() {
+		return maxCodaLength;
+	}	
 }
 	
 	
