@@ -93,7 +93,7 @@ public class Constituent implements Comparable<Constituent>
 		if (content.isConsonant())
 			return null;
 		else
-			return ((VowelPhoneme) content).getFollowers();
+			return ((VowelPhoneme) content).getMedialFollowers();
 	}
 	
 	public ConstituentLibrary getBridgePreceders()

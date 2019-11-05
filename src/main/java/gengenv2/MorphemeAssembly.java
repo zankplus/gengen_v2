@@ -19,6 +19,7 @@
 
 package gengenv2;
 
+import java.util.ArrayList;
 import java.util.Random;
 
 import gengenv2.enums.ConstituentType;
@@ -26,7 +27,6 @@ import gengenv2.morphemes.ConsonantPhoneme;
 import gengenv2.morphemes.Constituent;
 import gengenv2.morphemes.Feature;
 import gengenv2.morphemes.Morpheme;
-import gengenv2.morphemes.Phoneme;
 import gengenv2.morphemes.Root;
 import gengenv2.morphemes.VowelPhoneme;
 
@@ -338,12 +338,12 @@ public class MorphemeAssembly
 		// General entropy measurements (for syllables not beginning with a hiatus)
 		private double initialSyllableEntropy;			// entropy for an initial, non-final syllable beginning with a nucleus
 		private double medialSyllableEntropy;			// entropy for a medial syllable starting after a consonant
-		private double freeRootSyllableEntropy;			// entropy for a final syllable starting after a consonant
+		private double terminalSyllableEntropy;			// entropy for a final syllable starting after a consonant
 		private double boundRootSyllableEntropy;		// entropy for a root-ending syllable starting after a consonant
 	
 		private double[] hiatusMedialSyllableEntropies;		// Entropies for syllables starting with word-medial nucleus beginning after each hiatus vowel
 		private double[] hiatusBoundRootSyllableEntropies;	// Entropies for terminal syllables beginning after each hiatus vowel, ending with a bound root
-		private double[] hiatusFreeRootSyllableEntropies;	// Entropies for terminal syllables beginning after each hiatus vowel, ending with a free root
+		private double[] hiatusTerminalSyllableEntropies;	// Entropies for terminal syllables beginning after each hiatus vowel, ending with a free root
 		
 		private double nonemptyBridgeEntropy;			// Entropy for the selection of a medial onset, plus potentially a medial coda, between two nuclei
 		
@@ -367,14 +367,14 @@ public class MorphemeAssembly
 			boundRootSyllableEntropy = p.rootNuclei.getEntropy();
 			
 			// terminal (free root)
-			freeRootSyllableEntropy = getFinalSyllableEntropy(p.medialNuclei, p.terminalNuclei);
+			terminalSyllableEntropy = getFinalSyllableEntropy(p.medialNuclei, p.terminalNuclei, p.closedFinalSyllableChance);
 			
 			System.out.println("General syllable entropies");
 			System.out.printf("\t%.3f Initial syllable (vowel-initial only)\n", initialSyllableEntropy);
 			System.out.printf("\t%.3f Medial syllable\n", medialSyllableEntropy);
 //			System.out.printf("\t%.3f Terminal syllable with coda\n", consonantTerminationEntropy);
 //			System.out.printf("\t%.3f Terminal syllable, no coda\n", vowelTerminationEntropy);
-			System.out.printf("\t%.3f Free root terminal syllable (either)\n", freeRootSyllableEntropy);
+			System.out.printf("\t%.3f Free root terminal syllable (either)\n", terminalSyllableEntropy);
 			System.out.printf("\t%.3f Bound root terminal syllable\n", boundRootSyllableEntropy);
 			
 			// 2. non-terminal hiatus entropies for each vowel
@@ -388,20 +388,21 @@ public class MorphemeAssembly
 					VowelPhoneme vp = p.vowelInventory[i];
 				
 					// medial
-					hiatusMedialSyllableEntropies[i] = getNonfinalSyllableEntropy(vp.getFollowers());
+					hiatusMedialSyllableEntropies[i] = getNonfinalSyllableEntropy(vp.getMedialFollowers());
 					
 					// terminal (bound root)
 					hiatusBoundRootSyllableEntropies[i] = vp.getRootFollowers().getEntropy();
 					
 					// terminal (free root)
-					hiatusFreeRootSyllableEntropies[i] = getFinalSyllableEntropy(vp.getFollowers(), vp.getTerminalFollowers());
+					hiatusTerminalSyllableEntropies[i] = getFinalSyllableEntropy(vp.getMedialFollowers(), vp.getTerminalFollowers(), 
+															vp.getClosedFinalSyllableChance());
 				} 
 			}		
 			else
 			{
 				hiatusMedialSyllableEntropies = new double[0];
 				hiatusBoundRootSyllableEntropies = new double[0];
-				hiatusFreeRootSyllableEntropies = new double[0];
+				hiatusTerminalSyllableEntropies = new double[0];
 			}
 		}
 		
@@ -411,138 +412,57 @@ public class MorphemeAssembly
 		 */
 		public Node nextNode()
 		{			
+			if (morpheme.phonemes.size() == 0)
+				return inNode;
 			
-			// For suffixes
-//			if (name.getWordType() == WordType.SUFFIX)
-//			{
-//				double hMedial, hTerminal;
-//				
-//				// Get entropy measurements
-//				if (prev != null && prev.type == ConstituentType.NUCLEUS)
-//				{
-//					VowelPhoneme v = ((VowelPhoneme) prev.lastPhoneme());
-//					hMedial = v.hiatusMedialSyllableEntropy;
-//					hTerminal = v.hiatusTerminalSyllableEntropy;
-//				}
-//				else
-//				{
-//					hMedial = medialSyllableEntropy;
-//					hTerminal = terminalSyllableEntropy;
-//				}
-//				
-//				double currentIC = -Math.log(pName);
-//				double hMedialDiff = Math.abs(hMedial + currentIC - icTarget);
-//				double hTerminalDiff = Math.abs(hTerminal + currentIC - icTarget);
-//				
-//				// Use entropy measurements to decide what kind of syllable will bring us closest to the target
-//				return (hTerminal < hMedialDiff || currentIC > icTarget || name.sylCount() > 0) ? tsNode : mnNode;
-//			}
-			
-			// For in-progress names ending in roots
-//			else
+			double hMedial, hEnding;
+
+			// Get entropy measurements
+			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 			{
-				if (morpheme.phonemes.size() == 0)
-					return inNode;
+				VowelPhoneme v = ((VowelPhoneme) prev.getContent());
+				hMedial = v.getHiatusMedialSyllableEntropy();
 				
-				double hMedial, hEnding;
-
-				// Get entropy measurements
-				if (prev != null && prev.type == ConstituentType.NUCLEUS)
-				{
-					VowelPhoneme v = ((VowelPhoneme) prev.getContent());
-					hMedial = v.getHiatusMedialSyllableEntropy();
-					
-					if (morpheme instanceof Root && ((Root) morpheme).isBound())
-						hEnding = v.getHiatusRootSyllableEntropy();
-					else
-						hEnding = v.getHiatusTerminalSyllableEntropy();
-				}
+				if (morpheme instanceof Root && ((Root) morpheme).isBound())
+					hEnding = v.getHiatusRootSyllableEntropy();
 				else
-				{
-					hMedial = medialSyllableEntropy;
-					if (morpheme instanceof Root && ((Root) morpheme).isBound())
-						hEnding = boundRootSyllableEntropy;
-					else
-						hEnding = terminalSyllableEntropy;
-				}
-				
-				double hEndingDiff = Math.abs(hEnding + -Math.log(pName) - icTarget);
-				double hMedialDiff = Math.abs(hMedial + hEnding + -Math.log(pName) - icTarget);
-				
-				// Use entropy measurements to decide what kind of syllable will bring us closest to the target
-				if (hEndingDiff < hMedialDiff && -Math.log(pName) >= morpheme.minimumInformationContent())
-				{
-					// If we're adding a root but the previous nucleus doesn't can't undergo hiatus with
-					// any of the root nuclei, add a simple onset
-					if (hEnding == 0)
-					{
-						Constituent next = p.medialOnsets.pick();
-						pName *= next.getProbability();
-						addConstituent(next);
-					}
-					
-					if (morpheme instanceof Root && ((Root) morpheme).isBound())
-						return rnNode;
-					else
-						return tsNode;
-				}
-				else
-					return mnNode;
+					hEnding = v.getHiatusTerminalSyllableEntropy();
 			}
-		}
-
-		/**
-		 * Calculates the medial syllable entropy for a library of medial nuclei
-		 * @param 	nuclei					A library of medial nuclei
-		 * @param 	interludeEntropies		The interlude entropy for each vowel in the NameAssembly's Phonology
-		 * @param 	nucleusWeightings		Weightings for the probability of each vowel starting a syllable
-		 * @return	The medial syllable entropy for this nucleus library
-		 */
-		private double getMedialEntropy(ConstituentLibrary nuclei, double[] interludeEntropies,
-										double[] nucleusWeightings)
-		{
-			if (nuclei == null || nuclei.size() == 0)
-				return 0;
+			else
+			{
+				hMedial = medialSyllableEntropy;
+				if (morpheme instanceof Root && ((Root) morpheme).isBound())
+					hEnding = boundRootSyllableEntropy;
+				else
+					hEnding = terminalSyllableEntropy;
+			}
 			
-			double[] nucleusEntropies = new double[nuclei.size()];
-			double[] nucleusProbabilities = new double[nuclei.size()];
-			double sum = 0;
+			double hEndingDiff = Math.abs(hEnding + -Math.log(pName) - icTarget);
+			double hMedialDiff = Math.abs(hMedial + hEnding + -Math.log(pName) - icTarget);
 			
-			// Obtain the entropy and probability for each nucleus in the library
-			int index = 0;
-			for (int i = 1; i <= nuclei.maxLength(); i++)
-				for (Constituent curr : nuclei.getMembersOfLength(i))
+			// Use entropy measurements to decide what kind of syllable will bring us closest to the target
+			if (hEndingDiff < hMedialDiff && -Math.log(pName) >= morpheme.minimumInformationContent())
+			{
+				// If we're adding a root but the previous nucleus doesn't can't undergo hiatus with
+				// any of the root nuclei, add a simple onset
+				if (hEnding == 0)
 				{
-					Phoneme ph = curr.lastPhoneme();
-					
-					// Entropy and probability weight depend solely on the final vowel phoneme, so for each 
-					// Constituent we can obtain these values from interludeEntropies and nucleusWeightings
-					// entries corresponding to the Constituent's final phoneme
-					for (int j = 0; j < p.vowelInventory.length; j++)
-						if (ph == p.vowelInventory[j])
-						{
-							nucleusEntropies[index] = interludeEntropies[j];
-							nucleusProbabilities[index] = nucleusWeightings[j]
-									* curr.getProbability() * nuclei.getLengthProbability(curr.size());
-							sum += nucleusProbabilities[index];
-							break;
-						}
-					index++;
+					Constituent next = p.medialOnsets.pickSingle();
+					pName *= next.getProbability();
+					addConstituent(next);
 				}
+				
+				if (morpheme instanceof Root && ((Root) morpheme).isBound())
+					return rnNode;
+				else
+					return tsNode;
+			}
+			else
+				return mnNode;
 		
-			// Normalize probabilities
-			for (int i = 0; i < nucleusProbabilities.length; i++)
-				nucleusProbabilities[i] /= sum;
-			
-			return decision(nucleusProbabilities, nucleusEntropies);
 		}
 
-		private double getConsonantTerminationChance(ConstituentLibrary medialLib, ConstituentLibrary terminalLib)
-		{
-			
-		}
-		
-		private double getMedialOnsetEntropy()
+		private double getNonemptyBridgeEntropy()
 		{
 			if (nonemptyBridgeEntropy > 0)
 				return nonemptyBridgeEntropy;
@@ -621,36 +541,16 @@ public class MorphemeAssembly
 			return Entropy.decision(pForEachNucleus, hForEachNucleus);
 		}
 		
-		private double getFinalSyllableEntropy(ConstituentLibrary medialNuclei, ConstituentLibrary terminalNuclei)
+		private double getFinalSyllableEntropy(ConstituentLibrary medialNuclei, ConstituentLibrary terminalNuclei, double pConsonantTermination)
 		{
 			if (medialNuclei.size() == 0 && terminalNuclei.size() == 0)	// For hiatus libraries with neither medial nor terminal followers
 				return -1;
 			
 			double hConsonantTermination, hVowelTermination;
-			double pConsonantTermination, pVowelTermination;
+			double pVowelTermination;
 			
 			// Calculate chance of ending the syllable with a consonant
-			if (p.features.terminalCodas == Feature.NO)
-				pConsonantTermination = 0;
-			else if (p.features.terminalCodas == Feature.REQUIRED || terminalNuclei.size() == 0)
-				pConsonantTermination = 1;
-			else
-			{
-				pConsonantTermination = p.baseTerminalCodaChance;
-				pVowelTermination = 1 - pConsonantTermination;
-				
-				int qtyCodas= (p.features.terminalCodas != Feature.NO) ? p.terminalCodas.size() : 0;
-				int qtyNuclei = (p.features.terminalCodas != Feature.REQUIRED) ? terminalNuclei.size() : 0;
-				
-				// Scale pConsonantTermination toward 0 or 1 according to the proportions of terminal consonants to terminal nuclei
-				if (qtyCodas < qtyNuclei)
-					pConsonantTermination *= qtyCodas / qtyNuclei;
-				else if (qtyCodas > qtyNuclei)
-					pConsonantTermination = 1 - pVowelTermination * qtyNuclei / qtyCodas;
-			}
-			
 			pVowelTermination = 1 - pConsonantTermination;
-			
 			
 			// Calculate entropy
 			if (p.features.terminalCodas == Feature.NO)
@@ -670,13 +570,11 @@ public class MorphemeAssembly
 		
 		private double getNucleusEntropy(VowelPhoneme nucleus)
 		{
-			int followerCount = nucleus.getFollowers().size();
-			
 			System.out.println("\tbaseHiatusChance: " + p.baseHiatusChance);
-			double pAddNoOnset = p.baseHiatusChance * followerCount / (p.medialOnsets.size() + followerCount);
+			double pAddNoOnset = nucleus.getHiatusChance();
 			double hAddNoOnset = 0;
 			double pAddOnset = 1 - pAddNoOnset;
-			double hAddOnset = getMedialOnsetEntropy();
+			double hAddOnset = getNonemptyBridgeEntropy();
 			
 			return Entropy.decision(new double[] { pAddOnset,  pAddNoOnset }, new double[] { hAddOnset, hAddNoOnset });
 		}
@@ -713,10 +611,6 @@ public class MorphemeAssembly
 		 */
 		Node nextNode()
 		{
-			Constituent next;
-			
-			// Add nucleus
-			ConstituentLibrary lib;
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
 				addConstituentFrom(prev.followers());
 			else
@@ -733,107 +627,40 @@ public class MorphemeAssembly
 	 */
 	private class InterludeNode extends Node 
 	{
-		private double nonemptyCodaWeight;
-		private double nonemptyOnsetWeight;
-		
 		/**
-		 * Constructor calculates and stores reusable weightings for nonempty coda and onsets
-		 */
-		public InterludeNode()
-		{
-			nonemptyCodaWeight = (p.medialCodas == null) ? 0 : Math.log(p.medialCodas.getCompoundSize() + 1);
-			nonemptyCodaWeight *= p.baseMedialCodaChance;
-			nonemptyOnsetWeight = Math.log(p.medialOnsets.size() + 1);
-			nonemptyOnsetWeight *= p.baseMedialOnsetChance;
-			System.out.println("Average medial coda chance: " + getAverageCodaChance());
-		}
-		
-		/**
-		 * Optionally adds a coda and optionally adds an onset before returning to the NucleusLocationNode.
+		 * Optionally adds an onset and coda (before the onset) before returning to the NucleusLocationNode.
 		 */
 		Node nextNode()
 		{
-			addCoda();
-			addOnset();
-			return nlNode;
-		}
-		
-		/**
-		 * Optionally adds a coda to the name
-		 */
-		private void addCoda()
-		{
-			Constituent next;
+			double hiatusChance = ((VowelPhoneme) prev.getContent()).getHiatusChance();
 			
-			double emptyCodaChance = Math.log(p.medialOnsets.size() + prev.followers().size() + 1);
-			emptyCodaChance *= 1 - p.baseMedialCodaChance;
-			emptyCodaChance /= emptyCodaChance + nonemptyCodaWeight;
-			
-			if (rng.nextDouble() < emptyCodaChance)
+			if (rng.nextDouble() < hiatusChance)
 			{
-				pName *= emptyCodaChance;
+				pName *= hiatusChance;
 			}
 			else
 			{
-				addConstituentFrom(p.medialCodas);
-				pName *= 1 - emptyCodaChance;
-			}
-		}
-		
-		/**
-		 * Optionally adds an onset to the name. If a coda was previously added, an onset must be added now.
-		 * Otherwise, the possibility of hiatus remains open.
-		 */
-		private void addOnset()
-		{
-			// Onset following a nucleus: add a medial onset, or add nothing (hiatus)
-			if (prev.type == ConstituentType.NUCLEUS)
-			{
-				double emptyOnsetChance = 0;
-				if (prev.followers() != null && prev.followers().size() > 0)
-				{
-					emptyOnsetChance = Math.log(prev.followers().size() + 1);
-					emptyOnsetChance *= 1 - p.baseMedialOnsetChance;
-					
-					// Normalize
-					emptyOnsetChance /= emptyOnsetChance + nonemptyOnsetWeight;
-				}
+				pName *= 1 - hiatusChance;
 				
-				if (rng.nextDouble() < emptyOnsetChance)
+				// Select a medial onset but do not add it yet
+				ArrayList<Constituent> onset = p.medialOnsets.pick();
+				pName *= getSelectionProbability(onset, ConstituentType.ONSET, p.medialOnsets.getMaxClusterLength());
+				
+				// Pick and add coda from onset's preceders list, if applicable
+				ConsonantPhoneme onsetHead = (ConsonantPhoneme) onset.get(0).getContent();
+				if (rng.nextDouble() < onsetHead.getMedialCodaChance())
 				{
-					pName *= emptyOnsetChance;
+					addConstituentFrom(onsetHead.getBridgePreceders());
+					pName *= onsetHead.getMedialCodaChance();
 				}
 				else
-				{
-					pName *= 1 - emptyOnsetChance;
-					addConstituentFrom(p.medialOnsets);
-				}
+					pName *= 1 - onsetHead.getMedialCodaChance();
+				
+				// Add the chosen medial onset
+				addConstituent(onset);
 			}
 			
-			// Onset following a coda: add an onset from the coda's follower list
-			else
-				addConstituentFrom(prev.followers());
-		}
-		
-		/**
-		 * Calculates the (average) chance of including a medial coda in the interlude. Does not includes
-		 * syllables beginning in hiatus in its considerations. 
-		 * @return	The (rough) (average) chance of a medial coda occurring in a syllable
-		 */
-		public double getAverageCodaChance()
-		{
-			double chance = 0;
-			for (int i = 1; i < p.medialNuclei.maxLength(); i++)
-			{
-				for (Constituent c : p.medialNuclei.getMembersOfLength(i))
-				{
-					double emptyCodaChance = Math.log(p.medialOnsets.size() + c.followers().size() + 1);
-					emptyCodaChance *= 1 - p.baseMedialCodaChance;
-					double nonemptyCodaChance = nonemptyCodaWeight / (emptyCodaChance + nonemptyCodaWeight);
-					chance += c.getProbability() * p.medialNuclei.getLengthProbability(c.size()) * nonemptyCodaChance;
-				}
-			}
-			return chance;
+			return nlNode;
 		}
 	}
 	
@@ -841,22 +668,13 @@ public class MorphemeAssembly
 	{
 		public Node nextNode()
 		{
-			int cFinal, vFinal;
-			if (prev != null && prev.type == ConstituentType.NUCLEUS)
-			{
-				cFinal = prev.followers().size();
-				vFinal = ((VowelPhoneme)prev.lastPhoneme()).getTerminalFollowers().size();
-			}
-			else
-			{
-				cFinal = p.medialNuclei.size();
-				vFinal = p.terminalNuclei.size();
-			}
-			cFinal *= (p.terminalCodas != null) ? p.terminalCodas.size() : 0;
+			double pConsonantTermination;
 			
-			double pConsonantTermination = Math.log(cFinal + 1) * p.baseTerminalCodaChance;
-			double pVowelTermination = Math.log(vFinal + 1) * (1 - p.baseTerminalCodaChance);
-			pConsonantTermination /= pConsonantTermination + pVowelTermination;
+			if (prev != null && prev.type == ConstituentType.NUCLEUS)
+				pConsonantTermination = ((VowelPhoneme) prev.getContent()).getClosedFinalSyllableChance();
+			else
+				pConsonantTermination = p.closedFinalSyllableChance;
+
 			
 			if (rng.nextDouble() < pConsonantTermination)
 			{
@@ -892,10 +710,6 @@ public class MorphemeAssembly
 			// Add coda
 			addConstituentFrom(p.terminalCodas);
 			
-			// Names has completed instead of ending in a root
-//			if (name.getWordType() == WordType.STEM)
-//				name.setWordType(WordType.COMPLETE);
-						
 			return null;
 		}
 	}
@@ -914,7 +728,7 @@ public class MorphemeAssembly
 		{
 			// Add terminal nucleus
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
-				addConstituentFrom(((VowelPhoneme) prev.lastPhoneme()).getTerminalFollowers());
+				addConstituentFrom(((VowelPhoneme) prev.getContent()).getTerminalFollowers());
 			else
 				addConstituentFrom(p.terminalNuclei);
 			
@@ -940,12 +754,18 @@ public class MorphemeAssembly
 		{
 			// Add root nucleus
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
-				addConstituentFrom(((VowelPhoneme)prev.lastPhoneme()).getRootFollowers());
+				addConstituentFrom(((VowelPhoneme)prev.getContent()).getRootFollowers());
 			else
 				addConstituentFrom(p.rootNuclei);
 			
 			return null;
 		}
+	}
+	
+	public void addConstituent(Constituent c)
+	{
+		prev = c;
+		morpheme.add(c.getContent());
 	}
 	
 	/**
@@ -954,34 +774,62 @@ public class MorphemeAssembly
 	 * @param	lib	The library from which to pick & add a Constituent
 	 * @since	1.2
 	 */
+	private void addConstituent(ArrayList<Constituent> seq)
+	{
+		if (seq.size() == 1)
+		{
+			addConstituent(seq.get(0));
+		}
+		else
+		{
+			// Reverse order of codas
+			ArrayList<Constituent> constituents;
+			if (seq.get(0).type == ConstituentType.CODA)
+			{
+				constituents = new ArrayList<Constituent>();
+				for (int i = seq.size() - 1; i >= 0; i--)
+					constituents.add(seq.get(i));
+			}
+			else
+				constituents = seq;
+			
+			// Add sequence to morpheme in progress
+			for (int i = 0; i < constituents.size(); i++)
+				addConstituent(constituents.get(i));
+		}
+	}
+	
+	// Picks a constituent (sequence) from a library, adds it to the morpheme in progress, and updates pName with the chance of selecting that sequence
 	private void addConstituentFrom(ConstituentLibrary lib)
 	{
-		ArrayList<Constituent> next = lib.pick();
-		pName *= next.getProbability();
-		pName *= lib.getLengthProbability(next.size());
-		addConstituent(next);
+		ArrayList<Constituent> constituents = lib.pick();
+		addConstituent(constituents);
+		pName *= getSelectionProbability(constituents, lib.getType(), lib.getMaxClusterLength());
 	}
 	
-	/**
-	 * Adds a Constituent to the end of the current Name, while updating the preference to the
-	 * previous Constituent.
-	 * @param 	c	The Constituent to append
-	 * @since	1.1
-	 */
-	private void addConstituent(Constituent c)
+	// The chance of generating a given constituent sequence (single constituent or constituent cluster)
+	private double getSelectionProbability(ArrayList<Constituent> constituents, ConstituentType type, int maxClusterLength)
 	{
-//		if (pName == 0)
-//			try {
-//				throw new Exception();
-//			} catch (Exception e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//				System.exit(0);
-//			}
-		prev = c;
-		for (int i = 0; i < c.getLength(); i++)
-			morpheme.add(c.getContent(i));
+		// Calculate probability of picking this constituent sequence
+		double prob = 1;
+		if (type == ConstituentType.CODA)
+		
+		for (int i = 0; i < constituents.size(); i++)
+		{
+			Constituent curr = constituents.get(i);
+			prob *= curr.getProbability();
+			
+			if (i == constituents.size() - 1)
+			{
+				if (i < maxClusterLength - 1)
+					prob *= 1 - curr.followers(type).getClusterChance();  
+			}
+			else
+			{
+				prob *= curr.followers(type).getClusterChance(); 
+			}
+		}
+		
+		return prob;
 	}
-	
-	
 }

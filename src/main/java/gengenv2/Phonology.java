@@ -223,6 +223,7 @@ public class Phonology
 	protected double baseClusterChance;
 	protected double baseDiphthongChance;
 	protected double baseHiatusChance;
+	protected double closedFinalSyllableChance;
 
 	/*
 	 * Generator properties
@@ -1033,7 +1034,7 @@ public class Phonology
 			for (VowelPhoneme v1 : vowelInventory)
 			{
 				v1.makeHiatus(medialNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);
-				v1.setHiatusChance(baseHiatusChance * v1.getFollowers().size() / (medialOnsets.size() + v1.getFollowers().size()));
+				v1.setHiatusChance(baseHiatusChance * v1.getMedialFollowers().size() / (medialOnsets.size() + v1.getMedialFollowers().size()));
 				
 				v1.makeHiatus(terminalNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);
 				v1.makeHiatus(rootNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);
@@ -1171,13 +1172,39 @@ public class Phonology
 		{
 			baseTerminalCodaChance = rng.nextGaussian() * baseTerminalCodaChanceStdev + baseTerminalCodaChanceMean;
 			baseTerminalCodaChance = Math.max(Math.min(baseTerminalCodaChance, 1), 0); // Clamp to [0, 1]
+			
+			closedFinalSyllableChance = getTerminalCodaChance(medialNuclei, terminalNuclei);
+			
+			if (features.hiatus != Feature.NO)
+				for (VowelPhoneme vp : vowelInventory)
+					if (!vp.segment.expression.equals(":"))
+						vp.setClosedFinalSyllableChance(getTerminalCodaChance(vp.getMedialFollowers(), vp.getTerminalFollowers()));
+			
 		}
 		
 //		baseSuffixOnsetChance = Math.min(Math.max(rng.nextDouble() * 2 - 0.5, 0), 1);
 		baseSuffixOnsetChance = 0;
 	}
 	
-	
+	private double getTerminalCodaChance(ConstituentLibrary medialLib, ConstituentLibrary terminalLib)
+	{
+		if ((medialLib == null || medialLib.size() == 0) && (terminalLib == null || terminalLib.size() == 0))
+			return -1;
+		
+		double pConsonantTermination = baseTerminalCodaChance;
+		double pVowelTermination = 1 - pConsonantTermination;
+		
+		int qtyCodas= (features.terminalCodas != Feature.NO) ? terminalCodas.size() : 0;
+		int qtyNuclei = (features.terminalCodas != Feature.REQUIRED) ? terminalLib.size() : 0;
+		
+		// Scale pConsonantTermination toward 0 or 1 according to the proportions of terminal consonants to terminal nuclei
+		if (qtyCodas < qtyNuclei)
+			pConsonantTermination *= qtyCodas / qtyNuclei;
+		else if (qtyCodas > qtyNuclei)
+			pConsonantTermination = 1 - pVowelTermination * qtyNuclei / qtyCodas;
+		
+		return pConsonantTermination;
+	}
 	
 //	private void makeSuffixes()
 //	{

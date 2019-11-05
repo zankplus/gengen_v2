@@ -18,8 +18,6 @@ public class ConsonantPhoneme extends Phoneme
 	private double onsetClusterLeadChance;	// Chance that another phoneme will follow this one in an onset (compared to a vowel)
 	private double codaClusterLeadChance;	// Chance that another phoneme will follow this one in a cluster (compared to a vowel)
 	
-	
-	
 	// Interlude properties
 	private ConstituentLibrary onsetFollowers;
 	private ConstituentLibrary codaPreceders;
@@ -58,6 +56,7 @@ public class ConsonantPhoneme extends Phoneme
 		if (maxCodaLength > 1)
 			codaPreceders = new ConstituentLibrary(segment.expression, maxCodaLength, ConstituentType.CODA, ConstituentLocation.CLUSTER);
 		
+		medialCodaChance = 0;
 		bridgePreceders = null;
 	}
 	
@@ -95,9 +94,8 @@ public class ConsonantPhoneme extends Phoneme
 	
 	public void calculateMedialCodaChance(double baseMedialCodaChance)
 	{
-		if (bridgePreceders == null)
-			medialCodaChance = 0;
-		medialCodaChance = baseMedialCodaChance * Math.log(bridgePreceders.size() + 1);
+		if (bridgePreceders != null)
+			medialCodaChance = baseMedialCodaChance * Math.log(bridgePreceders.size() + 1);
 	}
 	
 	public double getMedialCodaChance()

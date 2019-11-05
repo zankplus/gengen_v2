@@ -217,7 +217,7 @@ public class ConstituentLibrary
 		
 		while (result.size() < maxClusterLength && !done)
 		{
-			Constituent curr = lib.pickConstituent(); 
+			Constituent curr = lib.pickSingle(); 
 			result.add(curr);
 			ConstituentLibrary nextLib = curr.followers(type); 
 			
@@ -238,7 +238,7 @@ public class ConstituentLibrary
 	 * @return	Constituent	A syllable Constituent from the given list 
 	 * @since	1.0
 	 */
-	private Constituent pickConstituent()
+	public Constituent pickSingle()
 	{
 		/*Generate a random number between 0 and 1 and subtract probability values in order (the  lists are sorted
 		largest to smallest) until we reach a number lower than 0. The syllable segment whose probability value

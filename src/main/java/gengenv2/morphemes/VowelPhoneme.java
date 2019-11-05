@@ -19,12 +19,13 @@ public class VowelPhoneme extends Phoneme
 	private double hiatusRootSyllableEntropy;
 	private double hiatusTerminalCodaChance;
 	
-	ConstituentLibrary followers;
+	ConstituentLibrary medialFollowers;
 	ConstituentLibrary nucleusFollowers;
 	ConstituentLibrary terminalFollowers;
 	ConstituentLibrary rootFollowers;
 	
 	private double hiatusChance;
+	private double closedFinalSyllableChance;
 	
 	public VowelPhoneme(Segment segment, 
 						double medialProminence,
@@ -64,7 +65,7 @@ public class VowelPhoneme extends Phoneme
 	public void printHiatus()
 	{
 		System.out.println(segment.expression + ":");
-		ConstituentLibrary[] libs = new ConstituentLibrary[] { followers, terminalFollowers, 
+		ConstituentLibrary[] libs = new ConstituentLibrary[] { medialFollowers, terminalFollowers, 
 				rootFollowers };
 		
 		for (int j = 0; j < libs.length; j++)
@@ -78,7 +79,7 @@ public class VowelPhoneme extends Phoneme
 	
 	public void createFollowerLists(int maxNucleusLength)
 	{
-		followers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.MEDIAL);
+		medialFollowers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.MEDIAL);
 		terminalFollowers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.TERMINAL);
 		rootFollowers = new ConstituentLibrary(segment.expression, maxNucleusLength, ConstituentType.NUCLEUS, ConstituentLocation.ROOT);
 	}
@@ -88,7 +89,7 @@ public class VowelPhoneme extends Phoneme
 		ConstituentLibrary followerLibrary = null;
 		
 		if (lib.getLocation() == ConstituentLocation.MEDIAL)
-			followerLibrary = followers;
+			followerLibrary = medialFollowers;
 		else if (lib.getLocation() == ConstituentLocation.TERMINAL)
 			followerLibrary = terminalFollowers;
 		else if (lib.getLocation() == ConstituentLocation.ROOT)
@@ -146,9 +147,9 @@ public class VowelPhoneme extends Phoneme
 //		System.out.printf("%.3f (%.3f + %,3f)", probability, p.interludeFollowProminence, p.onsetInitialProminence);
 	}
 	
-	public ConstituentLibrary getFollowers()
+	public ConstituentLibrary getMedialFollowers()
 	{
-		return followers;
+		return medialFollowers;
 	}
 	
 	public ConstituentLibrary getNucleusFollowers()
@@ -206,5 +207,15 @@ public class VowelPhoneme extends Phoneme
 	public double getHiatusChance()
 	{
 		return hiatusChance;
+	}
+	
+	public double getClosedFinalSyllableChance()
+	{
+		return closedFinalSyllableChance;
+	}
+	
+	public void setClosedFinalSyllableChance(double chance)
+	{
+		closedFinalSyllableChance = chance;
 	}
 }
