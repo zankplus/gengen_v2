@@ -41,7 +41,7 @@ public class App
 	 */
     public static void main(String[] args)
     {   
-    	Phonology p = new Phonology(-229759024514719470L);
+    	Phonology p = new Phonology();
 //    	Phonology p = new Phonology(6689165834100475041L);
 //    	Phonology p = new Phonology(-2360869903237111562L);
 //		Phonology p = new Phonology(1443048374146254679L);// good luck language
@@ -63,7 +63,7 @@ public class App
 //    	p.compareOnsets();
 //    	p.printHiatus();
 //    	
-//    	testRoots(p);
+    	testRoots(p);
 //    	System.out.println();
 //    	p.compareNuclei();
 //    	p.printHiatus();

@@ -311,6 +311,8 @@ public class MorphemeAssembly
 		{	
 			double rand = p.rng.nextDouble();
 			
+			System.out.println("Empty onset chance = " + emptyOnsetChance);
+			
 			// Option 1: Empty onset
 			if (rand < emptyOnsetChance)
 				pName *= emptyOnsetChance;
@@ -382,6 +384,8 @@ public class MorphemeAssembly
 			{
 				// medial
 				hiatusMedialSyllableEntropies = new double[p.vowelInventory.length];
+				hiatusBoundRootSyllableEntropies = new double[p.vowelInventory.length];
+				hiatusTerminalSyllableEntropies = new double[p.vowelInventory.length];
 				
 				for (int i = 0; i < p.vowelInventory.length; i++)
 				{
@@ -412,6 +416,8 @@ public class MorphemeAssembly
 		 */
 		public Node nextNode()
 		{			
+			System.out.println("[" + morpheme + " " + -Math.log(pName) + " / " + pName + "]");
+			
 			if (morpheme.phonemes.size() == 0)
 				return inNode;
 			
@@ -482,8 +488,9 @@ public class MorphemeAssembly
 				System.out.println("Entropy for onset head " + onsetHead.segment.expression);
 				
 				// event: add a coda from the onset head's bridge preceders list?
-				double hCoda = onsetHead.getBridgePreceders().getEntropy();
 				double pCoda = onsetHead.getMedialCodaChance();
+				double hCoda = pCoda > 0 ? onsetHead.getBridgePreceders().getEntropy() : 0;
+				
 				double hNoCoda = 0;
 				double pNoCoda = 1 - pCoda;
 				double hAddCoda = Entropy.decision(new double[] { pCoda, pNoCoda }, new double[] { hCoda, hNoCoda });
@@ -497,8 +504,9 @@ public class MorphemeAssembly
 				
 				
 				// event: expand the onset head into a cluster?
-				double hCluster = onsetHead.getOnsetFollowers().getClusterEntropy(p.getMaxOnsetLength() - 1);
-				double pCluster = onsetHead.getOnsetFollowers().getClusterChance();
+				double pCluster = onsetHead.getOnsetFollowers() != null ? onsetHead.getOnsetFollowers().getClusterChance() : 0;
+				double hCluster = pCluster > 0 ? onsetHead.getOnsetFollowers().getClusterEntropy(p.getMaxOnsetLength() - 1) : 0;
+				
 				double hNoCluster = 0;
 				double pNoCluster = 1 - pCluster;
 				double hAddCluster = Entropy.decision(new double[] { pCluster,  pNoCluster }, new double[] { hCluster, hNoCluster });
@@ -570,7 +578,6 @@ public class MorphemeAssembly
 		
 		private double getNucleusEntropy(VowelPhoneme nucleus)
 		{
-			System.out.println("\tbaseHiatusChance: " + p.baseHiatusChance);
 			double pAddNoOnset = nucleus.getHiatusChance();
 			double hAddNoOnset = 0;
 			double pAddOnset = 1 - pAddNoOnset;
@@ -675,6 +682,7 @@ public class MorphemeAssembly
 			else
 				pConsonantTermination = p.closedFinalSyllableChance;
 
+			System.out.println("Closed final syllable chance: " + pConsonantTermination);
 			
 			if (rng.nextDouble() < pConsonantTermination)
 			{
@@ -804,7 +812,10 @@ public class MorphemeAssembly
 	{
 		ArrayList<Constituent> constituents = lib.pick();
 		addConstituent(constituents);
-		pName *= getSelectionProbability(constituents, lib.getType(), lib.getMaxClusterLength());
+		double p = getSelectionProbability(constituents, lib.getType(), lib.getMaxClusterLength()); 
+		
+		pName *= p;
+		
 	}
 	
 	// The chance of generating a given constituent sequence (single constituent or constituent cluster)
@@ -812,7 +823,6 @@ public class MorphemeAssembly
 	{
 		// Calculate probability of picking this constituent sequence
 		double prob = 1;
-		if (type == ConstituentType.CODA)
 		
 		for (int i = 0; i < constituents.size(); i++)
 		{
@@ -829,6 +839,12 @@ public class MorphemeAssembly
 				prob *= curr.followers(type).getClusterChance(); 
 			}
 		}
+		
+		// Print result
+//		System.out.print("Selection probability for " + type + " ");
+//		for (Constituent c : constituents)
+//			System.out.print(c.getContent().segment.expression);
+//		System.out.println(": " + prob);
 		
 		return prob;
 	}

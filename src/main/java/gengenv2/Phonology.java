@@ -366,7 +366,7 @@ public class Phonology
 		System.out.println(morphology);
 		
 		// Create flowchart
-//		assembly = new MorphemeAssembly(this);
+		assembly = new MorphemeAssembly(this);
 		
 
 		
@@ -409,19 +409,12 @@ public class Phonology
 //		printClusters(initialOnsets);
 //		printClusters(terminalCodas);
 		
-		for (Constituent c : initialOnsets.getMembers())
-		{
-			c.followers(ConstituentType.ONSET).printMembers();
-			System.out.println("Cluster chance: " + c.followers(ConstituentType.ONSET).getClusterChance());
-		}
-		
-		for (int i = 0; i < 100; i++)
-		{
-			ArrayList<Constituent> clusterTest = initialOnsets.pick();
-			for (Constituent c : clusterTest)
-				System.out.print(c.getContent().segment.expression);
-			System.out.println();
-		}
+		initialOnsets.printMembers();
+		rootNuclei.printMembers();
+		System.out.println(rootNuclei + " ENTROPY (Max length: " + maxNucleusLength + "), " + rootNuclei.size() + " members");
+		rootNuclei.setClusterEntropy(maxNucleusLength);
+		for (int i = 0; i < maxNucleusLength; i++)
+			System.out.println("Length " + (i + 1) + ": " + rootNuclei.getClusterEntropy(i + 1));
 	}
 	
 	/**
@@ -495,7 +488,8 @@ public class Phonology
 	private void determineClusterStatistics()
 	{
 		// Determine max lengths
-		maxOnsetLength = maxNucleusLength = maxCodaLength = 1;
+		maxOnsetLength = maxNucleusLength = 1;
+		maxCodaLength = 0;
 		
 		// Onsets
 		if (features.onsetClusters == Feature.YES)
@@ -505,6 +499,8 @@ public class Phonology
 			else
 				maxOnsetLength = 3;
 		}
+		
+		System.out.println("Max onset length: " + maxOnsetLength);
 		
 		if (features.onsetClusters == Feature.YES || features.codaClusters == Feature.YES)
 		{
@@ -1167,13 +1163,21 @@ public class Phonology
 		if (features.terminalCodas == Feature.NO)
 			baseTerminalCodaChance = 0;
 		else if (features.terminalCodas == Feature.REQUIRED)
+		{
 			baseTerminalCodaChance = 1;
+			closedFinalSyllableChance = 1;
+			if (features.hiatus != Feature.NO)
+				for (VowelPhoneme vp : vowelInventory)
+					if (!vp.segment.expression.equals(":") && vp.getTerminalFollowers().size() > 0)
+						vp.setClosedFinalSyllableChance(1);
+		}
 		else
 		{
 			baseTerminalCodaChance = rng.nextGaussian() * baseTerminalCodaChanceStdev + baseTerminalCodaChanceMean;
 			baseTerminalCodaChance = Math.max(Math.min(baseTerminalCodaChance, 1), 0); // Clamp to [0, 1]
 			
 			closedFinalSyllableChance = getTerminalCodaChance(medialNuclei, terminalNuclei);
+			System.out.println("Closed final syllable chance = " + closedFinalSyllableChance);
 			
 			if (features.hiatus != Feature.NO)
 				for (VowelPhoneme vp : vowelInventory)
@@ -1511,10 +1515,11 @@ public class Phonology
 					}
 				
 				// Set cluster chance
+				onset.getOnsetFollowers().removeUnusedMembers();
 				onset.getOnsetFollowers().normalizeAll();
 				onset.getOnsetFollowers().sortAll();
-				onset.getOnsetFollowers().removeUnusedMembers();
 				onset.getOnsetFollowers().setClusterChance(baseClusterChance);
+				onset.getOnsetFollowers().setClusterEntropy(maxOnsetLength);
 			}
 		}
 	}
@@ -1594,6 +1599,9 @@ public class Phonology
 				}
 			
 			// Set diphthong chance
+			nucleus.getNucleusFollowers().removeUnusedMembers();
+			nucleus.getNucleusFollowers().normalizeAll();
+			nucleus.getNucleusFollowers().sortAll();
 			nucleus.getNucleusFollowers().setClusterChance(baseDiphthongChance);
 			nucleus.getNucleusFollowers().setClusterEntropy(maxNucleusLength);
 
@@ -1667,6 +1675,7 @@ public class Phonology
 		// Normalize, sort, and set clustering chances
 		for (ConsonantPhoneme coda : consonantInventory)
 		{
+			coda.getCodaPreceders().removeUnusedMembers();
 			coda.getCodaPreceders().normalizeAll();
 			coda.getCodaPreceders().sortAll();
 			coda.getCodaPreceders().setClusterChance(baseClusterChance);

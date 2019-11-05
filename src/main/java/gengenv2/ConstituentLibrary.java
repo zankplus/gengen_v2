@@ -258,7 +258,7 @@ public class ConstituentLibrary
 		catch (Exception e) 
 		{
 			System.out.println("Failed to select syllable segment; were the inventory's prominence values not normalized?");
-			System.out.println(getName());
+			System.out.println(toString());
 			for (Constituent c : library)
 				System.out.println(c + " " + c.getProbability());
 			e.printStackTrace();
