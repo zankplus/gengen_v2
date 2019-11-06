@@ -60,7 +60,7 @@ public class ConsonantSegment extends Segment
 /* 6*/	new ConsonantSegment("g" ,  "g",	2,	0.259,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE,		ConsonantProperty.VELAR, 		ConsonantProperty.VOICED}),
 /* 7*/	new ConsonantSegment("'" ,  "ʔ", 	5,	0.357,	new ConsonantProperty[] {ConsonantProperty.PLOSIVE, 	ConsonantProperty.GLOTTAL}),
 
-/* 8*/	new ConsonantSegment("c" ,  "ts",	4, 0.452,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
+/* 8*/	new ConsonantSegment("ts" ,  "ts",	4, 0.452,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.ALVEOLAR, 	ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
 /* 9*/	new ConsonantSegment("ch",  "tʃ",	4, 0,		new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR,	ConsonantProperty.VOICELESS,	ConsonantProperty.SIBILANT}),
 /*10*/	new ConsonantSegment("j" ,  "dʒ",	4, 0.025,	new ConsonantProperty[] {ConsonantProperty.AFFRICATE,	ConsonantProperty.POSTALVEOLAR, ConsonantProperty.VOICED,		ConsonantProperty.SIBILANT}),
 

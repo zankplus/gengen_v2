@@ -2,6 +2,8 @@ package gengenv2;
 
 import java.util.Random;
 
+import gengenv2.enums.SuffixType;
+
 public class Morphology
 {
 	double[] suffixPreferences;	// Chance of generating each type of suffix
@@ -11,6 +13,7 @@ public class Morphology
 	Random rng;
 	Phonology parent;
 	
+	SuffixLibrary nounClasses;
 	
 	public Morphology(Phonology p)
 	{
@@ -81,5 +84,3 @@ public class Morphology
 		return result;
 	}
 }
-
-enum SuffixType { SYLLABIC, NUCLEIC, CAUDAL }

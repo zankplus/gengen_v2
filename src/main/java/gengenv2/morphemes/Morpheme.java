@@ -44,5 +44,22 @@ public abstract class Morpheme
 		return result;
 	}
 	
+	public int size()
+	{
+		return phonemes.size();
+	}
+	
+	public boolean equals(Morpheme other)
+	{
+		if (other.size() != this.size())
+			return false;
+		
+		for (int i = 0; i < size(); i++)
+			if (phonemes.get(i) != other.phonemes.get(i))
+				return false;
+		
+		return true;
+	}
+	
 	public abstract double minimumInformationContent();
 }

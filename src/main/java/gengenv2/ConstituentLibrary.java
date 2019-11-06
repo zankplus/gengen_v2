@@ -225,7 +225,6 @@ public class ConstituentLibrary
 				lib = nextLib;
 			else
 				done = true;
-			
 		}
 		
 		return result;

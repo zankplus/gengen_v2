@@ -415,6 +415,8 @@ public class Phonology
 		rootNuclei.setClusterEntropy(maxNucleusLength);
 		for (int i = 0; i < maxNucleusLength; i++)
 			System.out.println("Length " + (i + 1) + ": " + rootNuclei.getClusterEntropy(i + 1));
+		
+		medialNuclei.printMembers();
 	}
 	
 	/**
@@ -1693,6 +1695,11 @@ public class Phonology
 			return assembly.makeBoundRoot();
 		else
 			return assembly.makeFreeRoot();
+	}
+	
+	public Morpheme makeSuffix()
+	{
+		return assembly.makeSuffix();
 	}
 	
 	/**

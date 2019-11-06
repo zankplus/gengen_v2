@@ -23,11 +23,13 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import gengenv2.enums.ConstituentType;
+import gengenv2.enums.SuffixType;
 import gengenv2.morphemes.ConsonantPhoneme;
 import gengenv2.morphemes.Constituent;
 import gengenv2.morphemes.Feature;
 import gengenv2.morphemes.Morpheme;
 import gengenv2.morphemes.Root;
+import gengenv2.morphemes.Suffix;
 import gengenv2.morphemes.VowelPhoneme;
 
 /**
@@ -56,8 +58,11 @@ public class MorphemeAssembly
 	private InterludeNode ilNode;
 	private TerminalSyllableNode tsNode;
 	private ConsonantTerminationNode ctNode;
+	private FinalCodaNode fcNode;
 	private VowelTerminationNode vtNode;
 	private RootNucleusNode rnNode;
+	private SuffixLengthNode slNode;
+	private SyllabicSuffixNode ssNode;
 	
 	// Current name variables
 	Morpheme morpheme;				// The name currently being generated
@@ -90,8 +95,11 @@ public class MorphemeAssembly
 		ilNode		= new InterludeNode();
 		tsNode		= new TerminalSyllableNode();
 		ctNode		= new ConsonantTerminationNode();
+		fcNode		= new FinalCodaNode();
 		vtNode		= new VowelTerminationNode();
 		rnNode		= new RootNucleusNode();
+		slNode		= new SuffixLengthNode();
+		ssNode		= new SyllabicSuffixNode();
 	}
 	
 //	/**
@@ -126,7 +134,7 @@ public class MorphemeAssembly
 	 */
 	private Morpheme makeWord(double icStdev, double icMean)
 	{
-		return makeWord(rng.nextGaussian() * icStdev + icMean);
+		return makeWord(rng.nextGaussian() * icStdev + icMean, ioNode);
 	}
 	
 	public Morpheme makeBoundRoot()
@@ -141,6 +149,11 @@ public class MorphemeAssembly
 		return makeWord(freeRootInfoConStdev, freeRootInfoConMean);
 	}
 	
+	public Morpheme makeSuffix()
+	{
+		morpheme = new Suffix();
+		return makeWord(20, slNode);
+	}
 	
 	/**
 	 * Generates a name by first resetting the naming variables and then invoking a particular Node's nextNode()
@@ -151,7 +164,7 @@ public class MorphemeAssembly
 	 * @return	The completed name
 	 * @since	1.0
 	 */
-	protected Morpheme makeWord(double icTarget)
+	protected Morpheme makeWord(double icTarget, Node firstNode)
 	{
 		// Initialize naming variables
 		this.icTarget = icTarget;
@@ -159,7 +172,7 @@ public class MorphemeAssembly
 		pName = 1;
 		
 		// Propagate through the flowchart until one of the nodes returns null
-		Node node = ioNode;
+		Node node = firstNode;
 
 		int nodesTraversed = 0;
 		try
@@ -468,6 +481,7 @@ public class MorphemeAssembly
 		
 		}
 
+		// Calculates the entropy of the event where a medial onset is generated (plus, optionally, a medial coda)
 		private double getNonemptyBridgeEntropy()
 		{
 			if (nonemptyBridgeEntropy > 0)
@@ -534,6 +548,7 @@ public class MorphemeAssembly
 			return hMedialOnset;
 		}
 		
+		// Calculates the entropy of an event where a medial nucleus is chosen, followed by (optionally) a medial onset
 		private double getNonfinalSyllableEntropy(ConstituentLibrary nuclei)
 		{
 			double[] pForEachNucleus = new double[nuclei.size()];
@@ -551,6 +566,7 @@ public class MorphemeAssembly
 			return Entropy.decision(pForEachNucleus, hForEachNucleus);
 		}
 		
+		// Calculates the entropy of an event where a choice is made between generating an open or closed final syllable
 		private double getFinalSyllableEntropy(ConstituentLibrary medialNuclei, ConstituentLibrary terminalNuclei, double pConsonantTermination)
 		{
 			if (medialNuclei.size() == 0 && terminalNuclei.size() == 0)	// For hiatus libraries with neither medial nor terminal followers
@@ -578,6 +594,7 @@ public class MorphemeAssembly
 			return terminalSyllableEntropy;
 		}
 		
+		// Calculates the entropy of an event where a decision is made between adding an empty or nonempty medial onset to nucleus in a nonfinal syllable
 		private double getNucleusEntropy(VowelPhoneme nucleus)
 		{
 			double pAddNoOnset = nucleus.getHiatusChance();
@@ -586,6 +603,11 @@ public class MorphemeAssembly
 			double hAddOnset = getNonemptyBridgeEntropy();
 			
 			return Entropy.decision(new double[] { pAddOnset,  pAddNoOnset }, new double[] { hAddOnset, hAddNoOnset });
+		}
+		
+		public double getTerminalSyllableEntropy()
+		{
+			return terminalSyllableEntropy;
 		}
 	}
 	
@@ -684,8 +706,6 @@ public class MorphemeAssembly
 			else
 				pConsonantTermination = p.closedFinalSyllableChance;
 
-			System.out.println("Closed final syllable chance: " + pConsonantTermination);
-			
 			if (rng.nextDouble() < pConsonantTermination)
 			{
 				pName *= pConsonantTermination;
@@ -717,9 +737,16 @@ public class MorphemeAssembly
 			else
 				addConstituentFrom(p.medialNuclei);
 			
+			return fcNode;
+		}
+	}
+	
+	private class FinalCodaNode extends Node
+	{
+		Node nextNode()
+		{
 			// Add coda
 			addConstituentFrom(p.terminalCodas);
-			
 			return null;
 		}
 	}
@@ -769,6 +796,74 @@ public class MorphemeAssembly
 				addConstituentFrom(p.rootNuclei);
 			
 			return null;
+		}
+	}
+	
+	private class SuffixLengthNode extends Node
+	{
+		double hSyllabicSuffix;
+		double hNucleicSuffix;
+		double hCaudalSuffix;
+		
+		public SuffixLengthNode()
+		{
+			hCaudalSuffix = p.features.terminalCodas != Feature.NO ? p.terminalCodas.getEntropy() : 0;
+			hNucleicSuffix = nlNode.getTerminalSyllableEntropy();
+			hSyllabicSuffix = hNucleicSuffix + p.medialOnsets.size();
+			
+			if (hCaudalSuffix > hNucleicSuffix)
+				System.err.println("Warning: hCaudalSuffix > hNucleicSuffix");
+			if (hCaudalSuffix > hSyllabicSuffix)
+				System.err.println("Warning: hCaudalSuffix > hSyllabicSuffix");
+			if (hNucleicSuffix > hSyllabicSuffix)
+				System.err.println("Warning: hNucleicSuffix > hSyllabicSuffix");	
+		}
+		
+		Node nextNode()
+		{
+			double diff = icTarget;
+			SuffixType bestFit = SuffixType.NULL;
+			
+			// Find the suffix type that will result in the smallest difference
+			if (Math.abs(hCaudalSuffix - icTarget) < diff)
+			{
+				diff = Math.abs(hCaudalSuffix - icTarget);
+				bestFit = SuffixType.CAUDAL;
+			}
+			
+			if (Math.abs(hNucleicSuffix - icTarget) < diff)
+			{
+				diff = Math.abs(hNucleicSuffix - icTarget);
+				bestFit = SuffixType.NUCLEIC;
+			}
+			
+			if (Math.abs(hSyllabicSuffix - icTarget) < diff)
+			{
+				diff = Math.abs(hSyllabicSuffix - icTarget);
+				bestFit = SuffixType.SYLLABIC;
+			}
+			
+			// Advance to the whichever node kicks off the suffix type with the smallest gap
+			switch (bestFit)
+			{
+				case CAUDAL:
+					return fcNode;
+				case NUCLEIC:
+					return tsNode;
+				case SYLLABIC:
+					return ssNode;
+				default:
+					return null;
+			}
+		}
+	}
+	
+	private class SyllabicSuffixNode extends Node
+	{
+		Node nextNode()
+		{
+			addConstituentFrom(p.medialOnsets);
+			return tsNode;
 		}
 	}
 	

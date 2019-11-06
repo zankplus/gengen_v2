@@ -22,9 +22,13 @@ package gengenv2;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import gengenv2.morphemes.Morpheme;
+import gengenv2.morphemes.Suffix;
 
 /**
  * Maven's default program for demonstrating Gengen. Mostly used for testing.
@@ -41,7 +45,21 @@ public class App
 	 */
     public static void main(String[] args)
     {   
-    	Phonology p = new Phonology();
+    	Phonology p = new Phonology(6364196562398134747L);
+    	
+    	SuffixLibrary lib = new SuffixLibrary();
+    	for (int i = 0; i < 5; i++)
+    	{
+    		Suffix m = (Suffix) p.makeSuffix();
+    		lib.addSuffix(m);
+    	}
+    	
+    	lib.exaggerate(2);
+    	lib.sort();
+    	lib.zipfScale();
+    	lib.normalize();
+    	lib.printMembers();
+    	
 //    	Phonology p = new Phonology(6689165834100475041L);
 //    	Phonology p = new Phonology(-2360869903237111562L);
 //		Phonology p = new Phonology(1443048374146254679L);// good luck language
@@ -63,7 +81,7 @@ public class App
 //    	p.compareOnsets();
 //    	p.printHiatus();
 //    	
-    	testRoots(p);
+//    	testRoots(p);
 //    	System.out.println();
 //    	p.compareNuclei();
 //    	p.printHiatus();
