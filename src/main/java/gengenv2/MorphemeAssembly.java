@@ -489,7 +489,9 @@ public class MorphemeAssembly
 				
 				// event: add a coda from the onset head's bridge preceders list?
 				double pCoda = onsetHead.getMedialCodaChance();
+				System.out.println("the medial coda chance is : " + onsetHead.getMedialCodaChance() + " ~ " + p.getMaxCodaLength());
 				double hCoda = pCoda > 0 ? onsetHead.getBridgePreceders().getEntropy() : 0;
+				
 				
 				double hNoCoda = 0;
 				double pNoCoda = 1 - pCoda;

@@ -489,7 +489,7 @@ public class Phonology
 	{
 		// Determine max lengths
 		maxOnsetLength = maxNucleusLength = 1;
-		maxCodaLength = 0;
+		maxCodaLength = 1;
 		
 		// Onsets
 		if (features.onsetClusters == Feature.YES)
@@ -515,7 +515,7 @@ public class Phonology
 		
 		// Codas
 		if (features.medialCodas == Feature.NO && features.terminalCodas == Feature.NO 
-				&& features.geminateConsonants == Feature.NO)
+				/*&& features.geminateConsonants == Feature.NO*/)
 		{
 			maxCodaLength = 0;
 		}
