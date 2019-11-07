@@ -1,27 +1,33 @@
 package gengenv2;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Random;
 
 import gengenv2.enums.SuffixType;
+import gengenv2.morphemes.NounClass;
+import gengenv2.morphemes.Suffix;
 
 public class Morphology
 {
-	double[] suffixPreferences;	// Chance of generating each type of suffix
 	double boundRootChance;
 	double freeRootChance;
 	
 	Random rng;
 	Phonology parent;
 	
-	SuffixLibrary nounClasses;
+	SuffixLibrary allSuffixes;
+	Suffix[] nounClasses;
 	
 	public Morphology(Phonology p)
 	{
 		parent = p;
 		rng = PublicRandom.getRNG();
+		allSuffixes = new SuffixLibrary(true);
 		
 		setRootPreferences();
-		setSuffixPreferences();
+//		makeSuffixes();
+//		generateNounClasses();
 	}
 	
 	private void setRootPreferences()
@@ -34,40 +40,107 @@ public class Morphology
 		freeRootChance = 1 - boundRootChance;
 	}
 	
-	private void setSuffixPreferences()
+	public void makeSuffixes()
 	{
-		if (parent.terminalCodas == null)
-			suffixPreferences = new double[2];
-		else
-			suffixPreferences = new double[3];
+		System.out.println("all suffixes");
 		
+		int nounTypes = 15 + rng.nextInt(11);
+		ArrayList<Double> weights = generateWeights(nounTypes, 0.5);
+	
+		for (int i = 0; i < weights.size(); i++)
+			allSuffixes.addSuffix(parent.makeSuffix(-Math.log(weights.get(i))), weights.get(i));
 		
+		allSuffixes.printMembers();
+	}
+	
+	public void generateNounClasses()
+	{
+		int qty = Math.min(Math.max(rng.nextInt(6) + rng.nextInt(6) - 2, 1), allSuffixes.size());
+		generateNounClasses(qty);
+	}
+	
+	public void generateNounClasses(int nounClasses)
+	{
+		// Generate noun classes
+		int qtyNounClasses = Math.min(Math.max(rng.nextInt(6) + rng.nextInt(6) - 4, 1), allSuffixes.size());
+		ArrayList<SuffixLibrary> genders = new ArrayList<SuffixLibrary>();
+		ArrayList<Double> weights = generateWeights(qtyNounClasses, 0.25);
 		
-		// Set base chances for each type of suffix randomly between -0.5 and 1	
-		int max = 0;
-		for (int i = 0; i < suffixPreferences.length; i++)
+		System.out.println("Noun classes");
+		
+		for (int i = 0; i < weights.size(); i++)
 		{
-			suffixPreferences[i] = rng.nextDouble() * 1.5 - 1;
-			if (suffixPreferences[i] > suffixPreferences[max])
-				max = i;
+			genders.add(new SuffixLibrary(true));
+			System.out.println(weights.get(i));
 		}
 		
-		// If all the base chances are negative, set the highest one to 1
-		if (suffixPreferences[max] <= 0)
-			suffixPreferences[max] = 1;
+		// Make copy of suffixes list
+		ArrayList<SuffixEntry> suffixes = new ArrayList<SuffixEntry>();
+		for (SuffixEntry se : allSuffixes.getLibrary())
+			suffixes.add(se);
+		
+		double[] diff = new double[qtyNounClasses];
+		for (int i = 0; i < diff.length; i++)
+			diff[i] = weights.get(i);
+		
+		// Populate each noun class. for in suffix in descending order of probability, add it to the class with the highest 'diff'
+		// (and then update the diff)
+		while (suffixes.size() < 0)
+		{
+			double max = diff[0];
+			int maxIndex = 0;
+			
+			for (int i = 1; i < diff.length; i++)
+				if (diff[i] > diff[maxIndex])
+				{
+					max = diff[i];
+					maxIndex = i;
+				}
+			
+			SuffixEntry se = suffixes.get(0);
+			genders.get(maxIndex).addSuffix(se.getSuffix(), se.getProbability());
+			diff[maxIndex] - se.getProbability();
+		}
+		
+		for (int i = 0; i < genders.size(); i++)
+		{
+			System.out.println("Class " + (i + 1) + " (" + weights.get(index))
+		}
 		
 		
-		// Set any negative values to 0 and normalize the base chances.
+		// Any remaining syllables should be added to the noun class with the highest remaining diff
+		
+	}
+	
+	private ArrayList<Double> generateWeights(int count, double stdev)
+	{
+		// generates a list of normalized, zipf-scaled weights
+		ArrayList<Double> weights = new ArrayList<Double>();
+		
+		for (int i = 0; i < count; i++)
+		{
+			double value = 1 + rng.nextGaussian() * stdev; 
+			if (value > 0)
+				weights.add(value);
+		}
+		
+		Collections.sort(weights);
+		Collections.reverse(weights);
+		
+		// Zipf scale weights and calculate sum for normalization
 		double sum = 0;
-		for (int i = 0; i < suffixPreferences.length; i++)
+		for (int i = 0; i < weights.size(); i++)
 		{
-			if (suffixPreferences[i] < 0)
-				suffixPreferences[i] = 0;
-			sum += suffixPreferences[i];
+			double value = weights.get(i) / (i + 1);
+			weights.set(i, value);
+			sum += value;
 		}
 		
-		for (int i = 0; i < suffixPreferences.length; i++)
-			suffixPreferences[i] /= sum;
+		// Normalize
+		for (int i = 0; i < weights.size(); i++)
+			weights.set(i, weights.get(i) / sum);
+		
+		return weights;
 	}
 	
 	public String toString()
@@ -76,10 +149,6 @@ public class Morphology
 		result += "ROOTS\n";
 		result += "Bound root chance:\t" + boundRootChance + "\n";
 		result += "Free root chance:\t" + freeRootChance + "\n";
-		result += "\n";
-		result += "SUFFIXES\n";
-		for (int i = 0; i < suffixPreferences.length; i++)
-			result += SuffixType.values()[i] + ": \t" + suffixPreferences[i] + "\n"; 
 		result += "\n";
 		return result;
 	}

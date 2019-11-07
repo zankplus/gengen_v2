@@ -45,20 +45,24 @@ public class App
 	 */
     public static void main(String[] args)
     {   
-    	Phonology p = new Phonology(6364196562398134747L);
+    	Phonology p = new Phonology(-8078100937449443877L);
     	
-    	SuffixLibrary lib = new SuffixLibrary();
-    	for (int i = 0; i < 5; i++)
-    	{
-    		Suffix m = (Suffix) p.makeSuffix();
-    		lib.addSuffix(m);
-    	}
+    	p.morphology.makeSuffixes();
+    	p.morphology.generateNounClasses();
     	
-    	lib.exaggerate(2);
-    	lib.sort();
-    	lib.zipfScale();
-    	lib.normalize();
-    	lib.printMembers();
+//    	SuffixLibrary lib = new SuffixLibrary();
+//    	for (int i = 0; i < 5; i++)
+//    	{
+//    		Suffix m = (Suffix) p.makeSuffix();
+//    		lib.addSuffix(m);
+//    	}
+//    	
+//    	lib.exaggerate(2);
+//    	lib.sort();
+//    	lib.zipfScale();
+//    	lib.normalize();
+//    	System.out.println("Suffixes");
+//    	lib.printMembers();
     	
 //    	Phonology p = new Phonology(6689165834100475041L);
 //    	Phonology p = new Phonology(-2360869903237111562L);
@@ -81,7 +85,7 @@ public class App
 //    	p.compareOnsets();
 //    	p.printHiatus();
 //    	
-//    	testRoots(p);
+    	testRoots(p);
 //    	System.out.println();
 //    	p.compareNuclei();
 //    	p.printHiatus();

@@ -1179,7 +1179,7 @@ public class Phonology
 			baseTerminalCodaChance = Math.max(Math.min(baseTerminalCodaChance, 1), 0); // Clamp to [0, 1]
 			
 			closedFinalSyllableChance = getTerminalCodaChance(medialNuclei, terminalNuclei);
-			System.out.println("Closed final syllable chance = " + closedFinalSyllableChance);
+			System.out.println("Closed final syllable chance = " + closedFinalSyllableChance + " (Base: " + baseTerminalCodaChance + ")");
 			
 			if (features.hiatus != Feature.NO)
 				for (VowelPhoneme vp : vowelInventory)
@@ -1689,7 +1689,7 @@ public class Phonology
 	 * Generates and returns a random name from this Phonology.
 	 * @since	1.0
 	 */
-	public Morpheme makeName()
+	public Root makeName()
 	{
 		if (rng.nextDouble() < morphology.boundRootChance)
 			return assembly.makeBoundRoot();
@@ -1697,9 +1697,9 @@ public class Phonology
 			return assembly.makeFreeRoot();
 	}
 	
-	public Morpheme makeSuffix()
+	public Suffix makeSuffix(double icTarget)
 	{
-		return assembly.makeSuffix();
+		return assembly.makeSuffix(icTarget);
 	}
 	
 	/**

@@ -12,27 +12,35 @@ public class SuffixLibrary
 	private Random rng;
 	private ArrayList<SuffixEntry> library;
 	private int count;
+	private boolean allowDuplicates;
 	
 	private static double baseProbabilityStdev = 0.25;
 	
-	public SuffixLibrary()
+	public SuffixLibrary(boolean allowDuplicates)
 	{
 		rng = PublicRandom.getRNG();
 		library = new ArrayList<SuffixEntry>();
 		count = 0;
+		this.allowDuplicates = allowDuplicates;
 	}
 	
 	public void addSuffix(Suffix name)
 	{
-		SuffixEntry entry = new SuffixEntry(name, rng.nextGaussian() * baseProbabilityStdev + 1);
+		addSuffix(name, rng.nextGaussian() * baseProbabilityStdev + 1);
+	}
+	
+	public void addSuffix(Suffix name, double probability)
+	{
+		SuffixEntry entry = new SuffixEntry(name, probability);	
 		
 		boolean duplicate = false;
-		for (SuffixEntry se : library)
-			if (se.getSuffix().equals(name))
-			{
-				duplicate = true;
-				break;
-			}
+		if (!allowDuplicates)
+			for (SuffixEntry se : library)
+				if (se.getSuffix().equals(name))
+				{
+					duplicate = true;
+					break;
+				}
 		
 		if (!duplicate)
 		{
@@ -100,42 +108,6 @@ public class SuffixLibrary
 	public void printMembers()
 	{
 		for (SuffixEntry se : library)
-			System.out.printf("%s\t%.3f\n", se.getSuffix(), se.getProbability());
-	}
-}
-
-class SuffixEntry implements Comparable<SuffixEntry>
-{
-	private Suffix suffix;
-	private double probability;
-	
-	public SuffixEntry(Suffix suffix, double probability)
-	{
-		this.suffix = suffix;;
-		this.probability = probability;
-	}
-	
-	public Suffix getSuffix()
-	{
-		return suffix;
-	}
-	
-	public double getProbability()
-	{
-		return probability;
-	}
-	
-	public void setProbability(double probability)
-	{
-		this.probability = probability;
-	}
-	
-	public int compareTo(SuffixEntry se)
-	{
-		if (probability > se.probability)
-			return 1;
-		else if (probability < se.probability)
-			return -1;
-		return 0;
+			System.out.printf("%s\t%.4f\n", se.getSuffix(), se.getProbability());
 	}
 }

@@ -137,22 +137,22 @@ public class MorphemeAssembly
 		return makeWord(rng.nextGaussian() * icStdev + icMean, ioNode);
 	}
 	
-	public Morpheme makeBoundRoot()
+	public Root makeBoundRoot()
 	{
 		morpheme = new Root(true);
-		return makeWord(boundRootInfoConStdev, boundRootInfoConMean);
+		return (Root) makeWord(boundRootInfoConStdev, boundRootInfoConMean);
 	}
 	
-	public Morpheme makeFreeRoot()
+	public Root makeFreeRoot()
 	{
 		morpheme = new Root(false);
-		return makeWord(freeRootInfoConStdev, freeRootInfoConMean);
+		return (Root) makeWord(freeRootInfoConStdev, freeRootInfoConMean);
 	}
 	
-	public Morpheme makeSuffix()
+	public Suffix makeSuffix(double icTarget)
 	{
 		morpheme = new Suffix();
-		return makeWord(20, slNode);
+		return (Suffix) makeWord(icTarget, slNode);
 	}
 	
 	/**
@@ -324,8 +324,6 @@ public class MorphemeAssembly
 		{	
 			double rand = p.rng.nextDouble();
 			
-			System.out.println("Empty onset chance = " + emptyOnsetChance);
-			
 			// Option 1: Empty onset
 			if (rand < emptyOnsetChance)
 				pName *= emptyOnsetChance;
@@ -429,8 +427,6 @@ public class MorphemeAssembly
 		 */
 		public Node nextNode()
 		{			
-			System.out.println("[" + morpheme + " " + -Math.log(pName) + " / " + pName + "]");
-			
 			if (morpheme.phonemes.size() == 0)
 				return inNode;
 			
@@ -490,11 +486,6 @@ public class MorphemeAssembly
 			double[] pForEachOnset = new double[p.medialOnsets.size()];
 			double[] hForEachOnset = new double[p.medialOnsets.size()];
 			
-			System.out.println("BRIDGE ENTROPY");
-			for (Constituent c : p.medialOnsets.getMembers())
-				System.out.print(c.getContent().segment.expression + " ");
-			System.out.println();
-			
 			for (int i = 0; i < p.medialOnsets.size(); i++)
 			{
 				ConsonantPhoneme onsetHead = (ConsonantPhoneme) p.medialOnsets.getMembers().get(i).getContent();
@@ -503,7 +494,6 @@ public class MorphemeAssembly
 				
 				// event: add a coda from the onset head's bridge preceders list?
 				double pCoda = onsetHead.getMedialCodaChance();
-				System.out.println("the medial coda chance is : " + onsetHead.getMedialCodaChance() + " ~ " + p.getMaxCodaLength());
 				double hCoda = pCoda > 0 ? onsetHead.getBridgePreceders().getEntropy() : 0;
 				
 				
@@ -587,11 +577,7 @@ public class MorphemeAssembly
 			pVowelTermination = 1 - pConsonantTermination;
 			hVowelTermination = terminalNuclei.getEntropy();
 			
-			terminalSyllableEntropy = Entropy.decision(
-										new double[] { pConsonantTermination, pVowelTermination },
-										new double[] { hConsonantTermination, hVowelTermination });
-			
-			return terminalSyllableEntropy;
+			return Entropy.decision(new double[] { pConsonantTermination, pVowelTermination }, new double[] { hConsonantTermination, hVowelTermination });
 		}
 		
 		// Calculates the entropy of an event where a decision is made between adding an empty or nonempty medial onset to nucleus in a nonfinal syllable
@@ -809,7 +795,11 @@ public class MorphemeAssembly
 		{
 			hCaudalSuffix = p.features.terminalCodas != Feature.NO ? p.terminalCodas.getEntropy() : 0;
 			hNucleicSuffix = nlNode.getTerminalSyllableEntropy();
-			hSyllabicSuffix = hNucleicSuffix + p.medialOnsets.size();
+			hSyllabicSuffix = hNucleicSuffix + p.medialOnsets.getEntropy();
+			
+			System.out.println("hCaudalSuffix: " + hCaudalSuffix);
+			System.out.println("hNucleicSuffix: " + hNucleicSuffix);
+			System.out.println("hSyllabicSuffix: " + hSyllabicSuffix);
 			
 			if (hCaudalSuffix > hNucleicSuffix)
 				System.err.println("Warning: hCaudalSuffix > hNucleicSuffix");

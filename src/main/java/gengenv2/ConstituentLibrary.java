@@ -307,8 +307,6 @@ public class ConstituentLibrary
 
 	public double getEntropy()
 	{
-		System.out.println(this + " max cluster length: " + maxClusterLength);
-		System.out.println("Members: " + size());
 		return getClusterEntropy(maxClusterLength);
 	}
 	
