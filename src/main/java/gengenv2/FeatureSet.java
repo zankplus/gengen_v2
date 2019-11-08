@@ -1,6 +1,6 @@
 package gengenv2;
 
-import gengenv2.morphemes.Feature;
+import gengenv2.structures.Feature;
 
 public class FeatureSet
 {

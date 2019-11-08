@@ -27,8 +27,7 @@ import java.util.Random;
 import org.apache.commons.math3.distribution.LogNormalDistribution;
 
 import gengenv2.enums.*;
-import gengenv2.morphemes.*;
-import gengenv2.morphemes.Segment;
+import gengenv2.structures.*;
 
 
 /**
@@ -87,6 +86,8 @@ public class Phonology
 	protected ConstituentLibrary terminalCodas;
 	protected ConstituentLibrary terminalNuclei;
 	protected ConstituentLibrary rootNuclei;
+	
+	protected MorphemeLibrary roots;
 	
 	/* Prominence ratings
 	 * 
@@ -417,6 +418,14 @@ public class Phonology
 			System.out.println("Length " + (i + 1) + ": " + rootNuclei.getClusterEntropy(i + 1));
 		
 		medialNuclei.printMembers();
+
+		// Generate roots
+		makeRoots();
+		
+		// Generate noun classes 
+		morphology.generateNounClasses();
+		
+
 	}
 	
 	/**
@@ -1685,16 +1694,26 @@ public class Phonology
 		}
 	}
 
+	private void makeRoots()
+	{
+		roots = new MorphemeLibrary(false);
+		
+		for (int i = 0; i < 240; i++)
+			roots.addMorpheme(makeRoot());
+		
+		roots.sort();
+		roots.exaggerate(2);
+		roots.normalize();
+		roots.printMembers();
+	}
+	
 	/**
 	 * Generates and returns a random name from this Phonology.
 	 * @since	1.0
 	 */
-	public Root makeName()
+	public Root makeRoot()
 	{
-		if (rng.nextDouble() < morphology.boundRootChance)
-			return assembly.makeBoundRoot();
-		else
-			return assembly.makeFreeRoot();
+		return assembly.makeBoundRoot();
 	}
 	
 	public Suffix makeSuffix(double icTarget)
@@ -1702,27 +1721,17 @@ public class Phonology
 		return assembly.makeSuffix(icTarget);
 	}
 	
-	/**
-	 * Generates and returns a list of random names from this Phonology.
-	 * 
-	 * @param	number	The number of names to generate
-	 * @return	A List of names, as strings
-	 * @since	1.0
-	 */
-	public List<Morpheme> makeRoots(int number)
+	public void makeName(NounClass nc)
 	{
-		ArrayList<Morpheme> roots = new ArrayList<Morpheme>();
+		Name name = new Name();
 		
-		for (int i = 0; i < number; i++)
-		{
-			Morpheme root = makeName();
-			roots.add(root);
-		}
+		Root root = (Root) roots.pick();
+		Suffix suffix = nc.pickSuffix();
 		
-		// Sort the names alphabetically
-//		Collections.sort(names);
+		name.addMorpheme(root);
+		name.addMorpheme(suffix);
 		
-		return roots;
+		System.out.println(name);
 	}
 	
 	/**

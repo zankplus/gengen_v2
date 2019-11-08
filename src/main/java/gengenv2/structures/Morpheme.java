@@ -1,4 +1,4 @@
-package gengenv2.morphemes;
+package gengenv2.structures;
 
 import java.util.ArrayList;
 
@@ -60,6 +60,4 @@ public abstract class Morpheme
 		
 		return true;
 	}
-	
-	public abstract double minimumInformationContent();
 }

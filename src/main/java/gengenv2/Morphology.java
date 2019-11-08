@@ -5,8 +5,10 @@ import java.util.Collections;
 import java.util.Random;
 
 import gengenv2.enums.SuffixType;
-import gengenv2.morphemes.NounClass;
-import gengenv2.morphemes.Suffix;
+import gengenv2.structures.MorphemeEntry;
+import gengenv2.structures.MorphemeLibrary;
+import gengenv2.structures.NounClass;
+import gengenv2.structures.Suffix;
 
 public class Morphology
 {
@@ -16,41 +18,17 @@ public class Morphology
 	Random rng;
 	Phonology parent;
 	
-	SuffixLibrary allSuffixes;
-	Suffix[] nounClasses;
+	MorphemeLibrary allSuffixes;
+	NounClass[] nounClasses;
 	
 	public Morphology(Phonology p)
 	{
 		parent = p;
 		rng = PublicRandom.getRNG();
-		allSuffixes = new SuffixLibrary(true);
+		allSuffixes = new MorphemeLibrary(true);
 		
-		setRootPreferences();
 //		makeSuffixes();
 //		generateNounClasses();
-	}
-	
-	private void setRootPreferences()
-	{
-		// 20% chance purely bound, 40% purely free, 40% somewhere in between
-		boundRootChance = rng.nextDouble() * 2.5 - 0.5;
-		boundRootChance = Math.min(boundRootChance, 1);
-		boundRootChance = Math.max(boundRootChance, 0);
-		
-		freeRootChance = 1 - boundRootChance;
-	}
-	
-	public void makeSuffixes()
-	{
-		System.out.println("all suffixes");
-		
-		int nounTypes = 15 + rng.nextInt(11);
-		ArrayList<Double> weights = generateWeights(nounTypes, 0.5);
-	
-		for (int i = 0; i < weights.size(); i++)
-			allSuffixes.addSuffix(parent.makeSuffix(-Math.log(weights.get(i))), weights.get(i));
-		
-		allSuffixes.printMembers();
 	}
 	
 	public void generateNounClasses()
@@ -59,24 +37,30 @@ public class Morphology
 		generateNounClasses(qty);
 	}
 	
-	public void generateNounClasses(int nounClasses)
+	public void generateNounClasses(int nounClassCount)
 	{
 		// Generate noun classes
-		int qtyNounClasses = Math.min(Math.max(rng.nextInt(6) + rng.nextInt(6) - 4, 1), allSuffixes.size());
-		ArrayList<SuffixLibrary> genders = new ArrayList<SuffixLibrary>();
+		int qtyNounClasses = Math.max(rng.nextInt(6) + rng.nextInt(6) - 4, 1);
+		int qtySuffixes = Math.max(qtyNounClasses * rng.nextInt(3) + rng.nextInt(6) + 1, qtyNounClasses);
+		
+		makeSuffixes(qtySuffixes);
+		
+		ArrayList<MorphemeLibrary> genders = new ArrayList<MorphemeLibrary>();
 		ArrayList<Double> weights = generateWeights(qtyNounClasses, 0.25);
+		
+		
 		
 		System.out.println("Noun classes");
 		
 		for (int i = 0; i < weights.size(); i++)
 		{
-			genders.add(new SuffixLibrary(true));
+			genders.add(new MorphemeLibrary(false));
 			System.out.println(weights.get(i));
 		}
 		
 		// Make copy of suffixes list
-		ArrayList<SuffixEntry> suffixes = new ArrayList<SuffixEntry>();
-		for (SuffixEntry se : allSuffixes.getLibrary())
+		ArrayList<MorphemeEntry> suffixes = new ArrayList<MorphemeEntry>();
+		for (MorphemeEntry se : allSuffixes.getLibrary())
 			suffixes.add(se);
 		
 		double[] diff = new double[qtyNounClasses];
@@ -85,7 +69,7 @@ public class Morphology
 		
 		// Populate each noun class. for in suffix in descending order of probability, add it to the class with the highest 'diff'
 		// (and then update the diff)
-		while (suffixes.size() < 0)
+		while (suffixes.size() > 0)
 		{
 			double max = diff[0];
 			int maxIndex = 0;
@@ -97,19 +81,38 @@ public class Morphology
 					maxIndex = i;
 				}
 			
-			SuffixEntry se = suffixes.get(0);
-			genders.get(maxIndex).addSuffix(se.getSuffix(), se.getProbability());
-			diff[maxIndex] - se.getProbability();
+			MorphemeEntry se = suffixes.remove(0);
+			genders.get(maxIndex).addMorpheme(se.getMorpheme(), se.getProbability());
+			diff[maxIndex] -= se.getProbability();
 		}
 		
 		for (int i = 0; i < genders.size(); i++)
 		{
-			System.out.println("Class " + (i + 1) + " (" + weights.get(index))
+			System.out.println("Class " + (i + 1) + " (" + weights.get(i) + ")");
+			genders.get(i).normalize();
+			genders.get(i).sort();
+			genders.get(i).printMembers();
 		}
 		
+		nounClasses = new NounClass[genders.size()];
+		for (int i = 0; i < genders.size(); i++)
+			nounClasses[i] = new NounClass(genders.get(i), weights.get(i));
+	}
+	
+	private void makeSuffixes(int suffixCount)
+	{
+		System.out.println("all suffixes");
+		ArrayList<Double> weights = generateWeights(suffixCount, 0.5);
+	
+		for (int i = 0; i < weights.size(); i++)
+		{
+			Suffix suffix = parent.makeSuffix(-Math.log(weights.get(i)));
+			
+			allSuffixes.addMorpheme(suffix, weights.get(i));
+			System.out.println("for target " + -Math.log(weights.get(i)) + " generated " + suffix);
+		}
 		
-		// Any remaining syllables should be added to the noun class with the highest remaining diff
-		
+		allSuffixes.printMembers();
 	}
 	
 	private ArrayList<Double> generateWeights(int count, double stdev)

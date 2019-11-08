@@ -1,4 +1,4 @@
-package gengenv2.morphemes;
+package gengenv2.structures;
 
 public enum Feature {
 	NO, 	

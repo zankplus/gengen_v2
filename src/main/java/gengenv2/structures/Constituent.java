@@ -17,9 +17,8 @@
  * 
  */
 
-package gengenv2.morphemes;
+package gengenv2.structures;
 
-import gengenv2.ConstituentLibrary;
 import gengenv2.enums.ConstituentType;
 
 /**

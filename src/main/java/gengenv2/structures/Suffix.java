@@ -1,4 +1,4 @@
-package gengenv2.morphemes;
+package gengenv2.structures;
 
 import gengenv2.enums.SuffixType;
 
@@ -14,12 +14,6 @@ public class Suffix extends Morpheme
 	public SuffixType getType()
 	{
 		return type;
-	}
-	
-	@Override
-	public double minimumInformationContent()
-	{
-		return 0;
 	}
 	
 	public String toString()

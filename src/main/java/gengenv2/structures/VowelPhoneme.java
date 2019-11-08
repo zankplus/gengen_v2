@@ -1,6 +1,5 @@
-package gengenv2.morphemes;
+package gengenv2.structures;
 
-import gengenv2.ConstituentLibrary;
 import gengenv2.PhoneticRatings;
 import gengenv2.Phonotactics;
 import gengenv2.enums.ConstituentLocation;

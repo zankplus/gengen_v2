@@ -17,17 +17,16 @@
  * 
  */
 
-package gengenv2;
+package gengenv2.structures;
 
 import java.awt.List;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
-import gengenv2.morphemes.ConsonantPhoneme;
-import gengenv2.morphemes.Constituent;
-import gengenv2.morphemes.VowelPhoneme;
 import gengenv2.enums.ConstituentType;
+import gengenv2.Entropy;
+import gengenv2.PublicRandom;
 import gengenv2.enums.ConstituentLocation;
 
 /**

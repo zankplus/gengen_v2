@@ -1,35 +1,23 @@
-package gengenv2.morphemes;
+package gengenv2.structures;
 
 import java.util.Random;
 
 import gengenv2.PublicRandom;
-import gengenv2.SuffixLibrary;
 
 public class NounClass implements Comparable<NounClass>
 {
 	private Random rng;
 	private double probability;
-	private SuffixLibrary suffixes;
+	private MorphemeLibrary suffixes;
 	
-	public NounClass(double probability)
+	public NounClass(MorphemeLibrary suffixes, double probability)
 	{
 		rng = PublicRandom.getRNG();
-		initialize(probability);
-	}
-	
-	public NounClass()
-	{
-		rng = PublicRandom.getRNG();
-		initialize(rng.nextDouble());
-	}
-	
-	private void initialize(double probability)
-	{
+		this.suffixes = suffixes;
 		this.probability = probability;
-		suffixes = new SuffixLibrary(false);
 	}
 	
-	public void setSuffixLibrary(SuffixLibrary suffixLibrary)
+	public void setSuffixLibrary(MorphemeLibrary suffixLibrary)
 	{
 		this.suffixes = suffixLibrary;
 	}
@@ -42,6 +30,11 @@ public class NounClass implements Comparable<NounClass>
 			return -1;
 		else
 			return 0;
+	}
+	
+	public Suffix pickSuffix()
+	{
+		return (Suffix) suffixes.pick();
 	}
 
 }

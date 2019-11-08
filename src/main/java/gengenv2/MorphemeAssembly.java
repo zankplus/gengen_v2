@@ -24,13 +24,14 @@ import java.util.Random;
 
 import gengenv2.enums.ConstituentType;
 import gengenv2.enums.SuffixType;
-import gengenv2.morphemes.ConsonantPhoneme;
-import gengenv2.morphemes.Constituent;
-import gengenv2.morphemes.Feature;
-import gengenv2.morphemes.Morpheme;
-import gengenv2.morphemes.Root;
-import gengenv2.morphemes.Suffix;
-import gengenv2.morphemes.VowelPhoneme;
+import gengenv2.structures.ConsonantPhoneme;
+import gengenv2.structures.Constituent;
+import gengenv2.structures.ConstituentLibrary;
+import gengenv2.structures.Feature;
+import gengenv2.structures.Morpheme;
+import gengenv2.structures.Root;
+import gengenv2.structures.Suffix;
+import gengenv2.structures.VowelPhoneme;
 
 /**
  * A sort of flowchart or state machine for generating names according to a Phonology's inventory, phonotactics, 
@@ -65,8 +66,9 @@ public class MorphemeAssembly
 	private SyllabicSuffixNode ssNode;
 	
 	// Current name variables
-	Morpheme morpheme;				// The name currently being generated
+	Morpheme morpheme;		// The name currently being generated
 	double icTarget;		// Intended information content of the current name
+	double minimumIC;		// Minimum information content a name must reach before it is finished
 	double pName;			// Probability of generating the current name
 	Constituent prev;		// The most recent syllable constituent added to the name
 	
@@ -139,6 +141,7 @@ public class MorphemeAssembly
 	
 	public Root makeBoundRoot()
 	{
+		minimumIC = 5;
 		morpheme = new Root(true);
 		return (Root) makeWord(boundRootInfoConStdev, boundRootInfoConMean);
 	}
@@ -456,7 +459,7 @@ public class MorphemeAssembly
 			double hMedialDiff = Math.abs(hMedial + hEnding + -Math.log(pName) - icTarget);
 			
 			// Use entropy measurements to decide what kind of syllable will bring us closest to the target
-			if (hEndingDiff < hMedialDiff && -Math.log(pName) >= morpheme.minimumInformationContent())
+			if (hEndingDiff < hMedialDiff && -Math.log(pName) >= minimumIC)
 			{
 				// If we're adding a root but the previous nucleus doesn't can't undergo hiatus with
 				// any of the root nuclei, add a simple onset
@@ -787,64 +790,74 @@ public class MorphemeAssembly
 	
 	private class SuffixLengthNode extends Node
 	{
-		double hSyllabicSuffix;
-		double hNucleicSuffix;
-		double hCaudalSuffix;
+		double hCVCSuffix;
+		double hVSuffix;
+		double hVCSuffix;
+		double hCSuffix;
 		
 		public SuffixLengthNode()
 		{
-			hCaudalSuffix = p.features.terminalCodas != Feature.NO ? p.terminalCodas.getEntropy() : 0;
-			hNucleicSuffix = nlNode.getTerminalSyllableEntropy();
-			hSyllabicSuffix = hNucleicSuffix + p.medialOnsets.getEntropy();
+			if (p.features.terminalCodas != Feature.NO)
+			{
+				hCSuffix = p.terminalCodas.getEntropy();
+				hVCSuffix = p.medialNuclei.getEntropy() + hCSuffix;
+			}
+			else
+			{
+				hCSuffix = 0;
+				hVCSuffix = 0;
+			}
 			
-			System.out.println("hCaudalSuffix: " + hCaudalSuffix);
-			System.out.println("hNucleicSuffix: " + hNucleicSuffix);
-			System.out.println("hSyllabicSuffix: " + hSyllabicSuffix);
+			hVSuffix = p.features.terminalCodas != Feature.REQUIRED ? p.terminalNuclei.getEntropy() : 0;
+			hCVCSuffix = hVSuffix + p.medialOnsets.getEntropy();
 			
-			if (hCaudalSuffix > hNucleicSuffix)
-				System.err.println("Warning: hCaudalSuffix > hNucleicSuffix");
-			if (hCaudalSuffix > hSyllabicSuffix)
-				System.err.println("Warning: hCaudalSuffix > hSyllabicSuffix");
-			if (hNucleicSuffix > hSyllabicSuffix)
-				System.err.println("Warning: hNucleicSuffix > hSyllabicSuffix");	
+			System.out.println("hCSuffix: " + hCSuffix);
+			System.out.println("hVSuffix: " + hVSuffix);
+			System.out.println("hVCSuffix: " + hVCSuffix);
+			System.out.println("hCVCSuffix: " + hCVCSuffix);	
 		}
 		
 		Node nextNode()
 		{
 			double diff = icTarget;
-			SuffixType bestFit = SuffixType.NULL;
+			String bestFit = "null";
 			
 			// Find the suffix type that will result in the smallest difference
-			if (Math.abs(hCaudalSuffix - icTarget) < diff)
+			if (Math.abs(hCSuffix - icTarget) < diff)
 			{
-				diff = Math.abs(hCaudalSuffix - icTarget);
-				bestFit = SuffixType.CAUDAL;
+				diff = Math.abs(hCSuffix - icTarget);
+				bestFit = "C";
 			}
 			
-			if (Math.abs(hNucleicSuffix - icTarget) < diff)
+			if (Math.abs(hVSuffix - icTarget) < diff)
 			{
-				diff = Math.abs(hNucleicSuffix - icTarget);
-				bestFit = SuffixType.NUCLEIC;
+				diff = Math.abs(hVSuffix - icTarget);
+				bestFit = "V";
 			}
 			
-			if (Math.abs(hSyllabicSuffix - icTarget) < diff)
+			if (Math.abs(hVCSuffix - icTarget) < diff)
 			{
-				diff = Math.abs(hSyllabicSuffix - icTarget);
-				bestFit = SuffixType.SYLLABIC;
+				diff = Math.abs(hVCSuffix - icTarget);
+				bestFit = "VC";
+			}
+			
+			if (Math.abs(hCVCSuffix - icTarget) < diff)
+			{
+				diff = Math.abs(hCVCSuffix - icTarget);
+				bestFit = "CV";
 			}
 			
 			// Advance to the whichever node kicks off the suffix type with the smallest gap
-			switch (bestFit)
-			{
-				case CAUDAL:
-					return fcNode;
-				case NUCLEIC:
-					return tsNode;
-				case SYLLABIC:
-					return ssNode;
-				default:
-					return null;
-			}
+			if (bestFit.equals("null"))
+				return null;
+			else if (bestFit.equals("C"))
+				return fcNode;
+			else if (bestFit.equals("V"))
+				return vtNode;
+			else if (bestFit.equals("VC"))
+				return ctNode;
+			else
+				return ssNode;
 		}
 	}
 	

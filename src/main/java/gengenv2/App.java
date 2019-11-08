@@ -27,8 +27,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import gengenv2.morphemes.Morpheme;
-import gengenv2.morphemes.Suffix;
+import gengenv2.structures.Morpheme;
+import gengenv2.structures.Suffix;
 
 /**
  * Maven's default program for demonstrating Gengen. Mostly used for testing.
@@ -45,10 +45,19 @@ public class App
 	 */
     public static void main(String[] args)
     {   
-    	Phonology p = new Phonology(-8078100937449443877L);
+    	Phonology p = new Phonology(-956763732658690744L);
     	
-    	p.morphology.makeSuffixes();
-    	p.morphology.generateNounClasses();
+    	System.out.println();
+    	for (int i = 0; i < p.morphology.nounClasses.length; i++)
+    	{
+    		System.out.println("Noun class " + (i + 1));
+    		for (int j = 0; j < 10; j++)
+    		{
+    			p.makeName(p.morphology.nounClasses[i]);
+    		}
+    		System.out.println();
+    	}
+    	
     	
 //    	SuffixLibrary lib = new SuffixLibrary();
 //    	for (int i = 0; i < 5; i++)
@@ -85,7 +94,6 @@ public class App
 //    	p.compareOnsets();
 //    	p.printHiatus();
 //    	
-    	testRoots(p);
 //    	System.out.println();
 //    	p.compareNuclei();
 //    	p.printHiatus();
@@ -100,42 +108,7 @@ public class App
 //		testNames(p);
 //    	showOffRoots(p);
     }
-    
-    public static void testRoots(Phonology p)
-    {
-    	List<Morpheme> roots = p.makeRoots(60);
-		Collections.sort(roots, new Comparator<Morpheme>() {
-			public int compare(Morpheme a, Morpheme b)
-			{
-				// return toString().compareTo(other.toString());
-				if (a.getInformationContent() > b.getInformationContent())
-					return 1;
-				else if (a.getInformationContent() < b.getInformationContent())
-					return -1;
-				else
-					return 0; 
-			}
-		});
-		
-//		Name langName = p.makeName();
-//		System.out.println("Language: " + langName.getDefault().toUpperCase());
-		
-		int columns = 3;
-		for (int j = 0; j < roots.size() / columns; j++)
-		{
-			for (int k = 0; k < columns; k++)
-			{
-				Morpheme root = roots.get(k * roots.size() / columns + j);    				
-				System.out.printf("%.3f\t", root.getInformationContent());
-				System.out.print(padString(root.toString(), 40));
-//				System.out.print(padString(root.getDefault(), 16) + padString(name.getIPA(), 24));
-				
-			}
-			System.out.println();
-		}
-
-    }
-    
+   
     /**
      * Pads the given string with tabs and whitespaces until it reaches the given length. Used to format
      * console output.
@@ -143,25 +116,7 @@ public class App
      * @param len	The length to which the string should be padded
      * @return
      */
-    public static String padString(String s, int len)
-    {
-    	StringBuilder result = new StringBuilder();
-    	result.append(s);
-    	
-    	len -= s.length();
-		while (len % 8 > 0)
-		{
-			result.append(" ");
-			len--;
-		}
-		while (len > 0)
-		{
-			result.append("\t");
-			len -= 8;
-		}
-		
-		return result.toString();
-    }
+   
 
 //	public static void showOffRoots(Phonology p)
 //	{

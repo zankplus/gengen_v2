@@ -1,4 +1,4 @@
-package gengenv2.morphemes;
+package gengenv2.structures;
 
 public class Root extends Morpheme
 {
@@ -20,11 +20,5 @@ public class Root extends Morpheme
 		if (isBound)
 			result += "-";
 		return result;
-	}
-	
-	@Override
-	public double minimumInformationContent()
-	{
-		return 5;
 	}
 }
