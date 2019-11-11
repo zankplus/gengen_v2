@@ -1721,17 +1721,17 @@ public class Phonology
 		return assembly.makeSuffix(icTarget);
 	}
 	
-	public void makeName(NounClass nc)
+	public Name makeName(NounClass nc)
 	{
 		Name name = new Name();
 		
 		Root root = (Root) roots.pick();
 		Suffix suffix = nc.pickSuffix();
 		
-		name.addMorpheme(root);
-		name.addMorpheme(suffix);
+		name.addRoot(root);
+		name.addSuffix(suffix);
 		
-		System.out.println(name);
+		return name;
 	}
 	
 	/**

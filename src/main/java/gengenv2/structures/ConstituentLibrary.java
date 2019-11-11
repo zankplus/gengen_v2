@@ -425,4 +425,12 @@ public class ConstituentLibrary
 	{
 		return maxClusterLength;
 	}
+
+	public boolean contains(Phoneme p2)
+	{
+		for (Constituent c : library)
+			if (c.getContent() == p2)
+				return true;
+		return false;
+	}
 }

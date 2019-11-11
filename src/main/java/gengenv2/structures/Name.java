@@ -30,9 +30,10 @@ import gengenv2.structures.Segment;
  * @version	1.2
  * @since	1.1
  */
-public class Name extends Morpheme
+public class Name
 {
 	private ArrayList<Morpheme> constituentMorphemes;
+	private ArrayList<Integer> syllableHeads;
 	private NounClass nounClass;
 	
 	private String defaultRep;				// Recommended representation with diacritics and symbols for clarity
@@ -48,11 +49,22 @@ public class Name extends Morpheme
 	public Name()
 	{
 		constituentMorphemes = new ArrayList<Morpheme>();
+		syllableHeads = new ArrayList<Integer>();
 	}
 	
-	public void addMorpheme(Morpheme m)
+	public void addRoot(Root root)
 	{
-		constituentMorphemes.add(m);
+		constituentMorphemes.add(root);
+	}
+	
+	public void addSuffix(Suffix suffix)
+	{
+		constituentMorphemes.add(suffix);
+	}
+	
+	public void addConstituent(Constituent e)
+	{
+		
 	}
 	
 	/**

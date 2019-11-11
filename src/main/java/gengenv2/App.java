@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Set;
 
 import gengenv2.structures.Morpheme;
+import gengenv2.structures.MorphemeLibrary;
 import gengenv2.structures.Suffix;
 
 /**
@@ -45,15 +46,21 @@ public class App
 	 */
     public static void main(String[] args)
     {   
-    	Phonology p = new Phonology(-956763732658690744L);
+    	Phonology p = new Phonology();
+//    	Phonology p = new Phonology(-956763732658690744L); // this is the one i posted on twitter about
     	
     	System.out.println();
     	for (int i = 0; i < p.morphology.nounClasses.length; i++)
-    	{
-    		System.out.println("Noun class " + (i + 1));
-    		for (int j = 0; j < 10; j++)
+		{
+			System.out.print(MorphemeLibrary.padString("Noun class " + (i + 1), 24));
+		}
+    	System.out.println();
+    	
+    	for (int j = 0; j < 10; j++)
+		{
+    		for (int i = 0; i < p.morphology.nounClasses.length; i++)
     		{
-    			p.makeName(p.morphology.nounClasses[i]);
+    			System.out.print(MorphemeLibrary.padString(p.makeName(p.morphology.nounClasses[i]).toString(), 24));
     		}
     		System.out.println();
     	}
