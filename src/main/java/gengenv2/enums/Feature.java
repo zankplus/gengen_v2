@@ -1,4 +1,4 @@
-package gengenv2.structures;
+package gengenv2.enums;
 
 public enum Feature {
 	NO, 	

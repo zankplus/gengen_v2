@@ -23,11 +23,11 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import gengenv2.enums.ConstituentType;
+import gengenv2.enums.Feature;
 import gengenv2.enums.SuffixType;
 import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.Constituent;
 import gengenv2.structures.ConstituentLibrary;
-import gengenv2.structures.Feature;
 import gengenv2.structures.Morpheme;
 import gengenv2.structures.Root;
 import gengenv2.structures.Suffix;
@@ -614,6 +614,7 @@ public class MorphemeAssembly
 		Node nextNode()
 		{
 			// Add initial nucleus
+			morpheme.add(ConsonantPhoneme.emptyOnset);
 			addConstituentFrom(p.initialNuclei);
 			return ilNode;
 		}
@@ -632,7 +633,10 @@ public class MorphemeAssembly
 		Node nextNode()
 		{
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
+			{
+				morpheme.add(ConsonantPhoneme.emptyOnset);
 				addConstituentFrom(prev.followers());
+			}
 			else
 				addConstituentFrom(p.medialNuclei);
 			
@@ -691,7 +695,10 @@ public class MorphemeAssembly
 			double pConsonantTermination;
 			
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
+			{
+				morpheme.add(ConsonantPhoneme.emptyOnset);
 				pConsonantTermination = ((VowelPhoneme) prev.getContent()).getClosedFinalSyllableChance();
+			}
 			else
 				pConsonantTermination = p.closedFinalSyllableChance;
 
@@ -754,7 +761,10 @@ public class MorphemeAssembly
 		{
 			// Add terminal nucleus
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
+			{
+				morpheme.add(ConsonantPhoneme.emptyOnset);
 				addConstituentFrom(((VowelPhoneme) prev.getContent()).getTerminalFollowers());
+			}
 			else
 				addConstituentFrom(p.terminalNuclei);
 			
@@ -853,9 +863,15 @@ public class MorphemeAssembly
 			else if (bestFit.equals("C"))
 				return fcNode;
 			else if (bestFit.equals("V"))
+			{
+				morpheme.add(ConsonantPhoneme.emptyOnset);
 				return vtNode;
+			}
 			else if (bestFit.equals("VC"))
+			{
+				morpheme.add(ConsonantPhoneme.emptyOnset);
 				return ctNode;
+			}	
 			else
 				return ssNode;
 		}

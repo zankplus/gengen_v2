@@ -62,7 +62,10 @@ public abstract class Phoneme
 	
 	public String toString()
 	{
-		return "[" + segment.expression + "]";
+		if (segment != null)
+			return "[" + segment.expression + "]";
+		else
+			return "";
 	}
 	
 	/**

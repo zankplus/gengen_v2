@@ -20,8 +20,13 @@
 
 import java.util.ArrayList;
 
+import gengenv2.Phonology;
 import gengenv2.structures.Constituent;
 import gengenv2.structures.Segment;
+import hiatusResolution.DiphthongFormation;
+import hiatusResolution.Heterosyllabification;
+import hiatusResolution.HiatusResolutionMethod;
+import hiatusResolution.VowelElision;
 
 /**
  * The underlying representation for a phonological word produced by a Phonology. In addition to containing
@@ -30,10 +35,11 @@ import gengenv2.structures.Segment;
  * @version	1.2
  * @since	1.1
  */
-public class Name
+public class GengenName
 {
+	private Phonology parentLanguage;
 	private ArrayList<Morpheme> constituentMorphemes;
-	private ArrayList<Integer> syllableHeads;
+	private ArrayList<PhonemeInstance> phonemes;
 	private NounClass nounClass;
 	
 	private String defaultRep;				// Recommended representation with diacritics and symbols for clarity
@@ -46,24 +52,45 @@ public class Name
 	 * Creates a new Name with an empty list of Syllables and specifies whether or not it's a suffix.
 	 * @since	1.1
 	 */
-	public Name()
+	public GengenName(Phonology parentLanguage)
 	{
+		this.parentLanguage = parentLanguage;
 		constituentMorphemes = new ArrayList<Morpheme>();
-		syllableHeads = new ArrayList<Integer>();
+		phonemes = new ArrayList<PhonemeInstance>();
 	}
 	
 	public void addRoot(Root root)
 	{
 		constituentMorphemes.add(root);
+		for (Phoneme p : root.phonemes)
+			addPhoneme(p);
 	}
 	
 	public void addSuffix(Suffix suffix)
 	{
+		
 		constituentMorphemes.add(suffix);
+		for (Phoneme p : suffix.phonemes)
+			addPhoneme(p);
+
+		
+		if (suffix.phonemes.size() > 1 && suffix.phonemes.get(0) == ConsonantPhoneme.emptyOnset && !suffix.phonemes.get(1).isConsonant())
+		{
+			int v2Index = phonemes.size() - suffix.phonemes.size() + 1;
+			parentLanguage.getMorphology().resolveHiatus(phonemes, v2Index);
+			
+			
+		}
 	}
 	
-	public void addConstituent(Constituent e)
+	public void addPhoneme(Phoneme p)
 	{
+		phonemes.add(new PhonemeInstance(p));
+	}
+	
+	public void syllabify()
+	{
+		
 		
 	}
 	
@@ -314,13 +341,21 @@ public class Name
 		return result;
 	}
 	
+	public String phonemesToString()
+	{
+		String result = "";
+		for (PhonemeInstance p : phonemes)
+			result += p.getPhoneme().segment.expression;
+		return result;
+	}
+	
 	/**
 	 * Returns true if the given Name contains the same sequence of Phonemes as this one
 	 * @param 	The Name against which to be compared
 	 * @return	True if both names contain the same sequence of Phonemes, otherwise false
 	 * @since	1.2
 	 */
-	public boolean equals(Name other)
+	public boolean equals(GengenName other)
 	{
 		return this.getIPA().equals(other.getIPA()); 
 	}

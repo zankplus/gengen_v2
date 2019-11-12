@@ -109,7 +109,7 @@ public class MorphemeLibrary
 	public void printMembers()
 	{
 		int columns = 4;
-		for (int j = 0; j < library.size() / columns; j++)
+		for (int j = 0; j < Math.ceil(library.size() * 1.0 / columns); j++)
 		{
 			for (int k = 0; k < columns; k++)
 			{

@@ -1,6 +1,6 @@
 package gengenv2;
 
-import gengenv2.structures.Feature;
+import gengenv2.enums.Feature;
 
 public class FeatureSet
 {
@@ -15,6 +15,9 @@ public class FeatureSet
 	public Feature hiatus;
 	public Feature fCombination;
 	
+	// Morphological features
+	public Feature compensatoryLengthening;
+	
 	public FeatureSet()
 	{
 		initialOnsets		= Feature.YES;
@@ -26,5 +29,6 @@ public class FeatureSet
 		geminateVowels		= Feature.NO;
 		diphthongs			= Feature.NO;
 		hiatus				= Feature.NO;
+		compensatoryLengthening	= Feature.NO;
 	}
 }

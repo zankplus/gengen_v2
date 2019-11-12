@@ -22,6 +22,7 @@ public class ConsonantPhoneme extends Phoneme
 	private ConstituentLibrary codaPreceders;
 	private ConstituentLibrary bridgePreceders;
 	
+	public static final ConsonantPhoneme emptyOnset = new ConsonantPhoneme (ConsonantSegment.nullConsonant, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	
 	public ConsonantPhoneme(Segment segment,
 							double medialProminence,

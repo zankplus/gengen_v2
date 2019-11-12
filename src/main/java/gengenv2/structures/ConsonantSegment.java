@@ -92,4 +92,6 @@ public class ConsonantSegment extends Segment
 /*32*/	new ConsonantSegment("y" ,  "j",	14, 0,		new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.PALATAL_APPROX}),
 /*33*/	new ConsonantSegment("w" ,  "w",	14, 0,		new ConsonantProperty[] {ConsonantProperty.GLIDE,	 ConsonantProperty.APPROXIMANT,		ConsonantProperty.LABIOVELAR_APPROX}),
 	};
+	
+	static final ConsonantSegment nullConsonant = new ConsonantSegment(".", "", -1, 0, null);
 }

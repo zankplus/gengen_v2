@@ -8,7 +8,10 @@ import gengenv2.enums.SuffixType;
 import gengenv2.structures.MorphemeEntry;
 import gengenv2.structures.MorphemeLibrary;
 import gengenv2.structures.NounClass;
+import gengenv2.structures.PhonemeInstance;
 import gengenv2.structures.Suffix;
+import gengenv2.structures.VowelPhoneme;
+import hiatusResolution.*;
 
 public class Morphology
 {
@@ -21,6 +24,12 @@ public class Morphology
 	MorphemeLibrary allSuffixes;
 	NounClass[] nounClasses;
 	
+	HiatusResolutionMethod heterosyllabification;
+	HiatusResolutionMethod diphthongFormation;
+	VowelElision vowelElision;
+	Coalescence coalescence;
+	
+	
 	public Morphology(Phonology p)
 	{
 		parent = p;
@@ -29,6 +38,33 @@ public class Morphology
 		
 //		makeSuffixes();
 //		generateNounClasses();
+		
+		heterosyllabification = new Heterosyllabification();
+		diphthongFormation = new DiphthongFormation();
+		vowelElision = new VowelElision();
+		vowelElision.configureCompensatoryLenghtening(true, parent.longVowel);
+		
+		
+		// Coalescence
+		
+		VowelPhoneme frontMidVowel = null, backMidVowel = null;
+		for (VowelPhoneme vp : parent.vowelInventory)
+			if (vp.segment.expression.equals("e"))
+			{
+				frontMidVowel = vp;
+				break;
+			}
+		
+		for (VowelPhoneme vp : parent.vowelInventory)
+			if (vp.segment.expression.equals("o"))
+			{
+				backMidVowel = vp;
+				break;
+			}
+		
+		coalescence = new Coalescence (frontMidVowel, backMidVowel, p.medialNuclei.contains(frontMidVowel), p.terminalNuclei.contains(frontMidVowel),
+										p.medialNuclei.contains(backMidVowel), p.terminalNuclei.contains(backMidVowel));
+		coalescence.configureCompensatoryLenghtening(true, parent.longVowel);
 	}
 	
 	public void generateNounClasses()
@@ -88,7 +124,7 @@ public class Morphology
 		
 		for (int i = 0; i < genders.size(); i++)
 		{
-			System.out.println("Class " + (i + 1) + " (" + weights.get(i) + ")");
+			System.out.println("Class " + (i + 1) + " (" + weights.get(i) + ", " + genders.get(i).size() + " members)");
 			genders.get(i).normalize();
 			genders.get(i).sort();
 			genders.get(i).printMembers();
@@ -97,6 +133,17 @@ public class Morphology
 		nounClasses = new NounClass[genders.size()];
 		for (int i = 0; i < genders.size(); i++)
 			nounClasses[i] = new NounClass(genders.get(i), weights.get(i));
+	}
+	
+	public void resolveHiatus(ArrayList<PhonemeInstance> phonemes, int v2Index)
+	{
+		HiatusResolutionMethod method = coalescence;
+		
+		if (method.applies(phonemes, v2Index))
+		{
+			method.resolve(phonemes, v2Index);
+			System.out.print("(OK) ");
+		}
 	}
 	
 	private void makeSuffixes(int suffixCount)

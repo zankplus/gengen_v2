@@ -2,39 +2,32 @@ package hiatusResolution;
 
 import java.util.ArrayList;
 
-import gengenv2.structures.Morpheme;
-import gengenv2.structures.Name;
-import gengenv2.structures.Phoneme;
+import gengenv2.structures.ConsonantPhoneme;
+import gengenv2.structures.PhonemeInstance;
 import gengenv2.structures.VowelPhoneme;
 
 public class Heterosyllabification extends HiatusResolutionMethod
 {
-	boolean hiatusAllowed;
-	boolean diphthongsAllowed;
-	
-	public Heterosyllabification(boolean hiatusAllowed, boolean diphthongsAllowed)
+
+	@Override
+	public boolean applies(ArrayList<PhonemeInstance> phonemes, int v2Index)
 	{
-		this.hiatusAllowed = hiatusAllowed;
-		this.diphthongsAllowed = diphthongsAllowed;
-	}
-	
-	public boolean applies(VowelPhoneme v1, VowelPhoneme v2)
-	{
-		if (!hiatusAllowed)
-			return false;
-		else if (diphthongsAllowed && v1.getNucleusFollowers() != null && v1.getNucleusFollowers().contains(v2))
-			return false;
+		VowelPhoneme v1 = (VowelPhoneme) phonemes.get(getV1Index(phonemes, v2Index)).getPhoneme();
+		VowelPhoneme v2 = (VowelPhoneme) phonemes.get(v2Index).getPhoneme();
 		
-		if ((v1.getMedialFollowers() != null && v1.getMedialFollowers().contains(v2)))
-			return true;
-		else if (v1.getTerminalFollowers() != null && v1.getTerminalFollowers().contains(v2))
+		if ((v1.getMedialFollowers() != null && v1.getMedialFollowers().contains(v2)) ||
+				(v1.getTerminalFollowers() != null && v1.getTerminalFollowers().contains(v2)))
 			return true;
 		
 		return false;
 	}
-	
-	public void resolve(ArrayList<Phoneme> phonemes, int v2Index)
+
+	@Override
+	public void resolve(ArrayList<PhonemeInstance> phonemes, int v2Index)
 	{
-		// No action necessary to resolve
+		if (v2Index - getV1Index(phonemes, v2Index) == 1)
+			phonemes.add(v2Index, new PhonemeInstance(ConsonantPhoneme.emptyOnset));
 	}
+	
+	
 }

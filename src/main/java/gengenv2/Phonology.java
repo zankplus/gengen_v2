@@ -470,7 +470,9 @@ public class Phonology
 		
 		// Feature: Vowel gemination
 		if (rng.nextInt(4) < 1)
+		{
 			features.geminateVowels = Feature.YES;
+		}
 		
 		// Feature: Diphthongs
 		if (rng.nextInt(4) < 3)
@@ -482,6 +484,10 @@ public class Phonology
 			features.hiatus = Feature.RESTRICTED;
 		else if (roll < 4)
 			features.hiatus = Feature.UNRESTRICTED;
+		
+		// Feature: Compensatory lengthening
+//		if (features.geminateVowels == Feature.YES && rng.nextInt(2) < 1)
+			features.compensatoryLengthening = Feature.YES;
 		
 		System.out.println("FEATURES");
 		System.out.println("Initial onsets:      " + features.initialOnsets);
@@ -759,21 +765,31 @@ public class Phonology
 		// Populate vowel inventory in the same fashion as the consonant array
 		for (int i = 0; i < vowels.length; i++)
 		{
-			boolean add = true;
-			
-			for (int j = 0; j < vowels[i].properties.length; j++)
-				if (baseVowelRatings.getRating(((VowelProperty) vowels[i].properties[j]).ordinal()) == 0)
-				{
-					add = false;
-					j = vowels[i].properties.length;
-				}
-			
-			if (add)
+			if (vowels[i].expression.equals(":"))
 			{
-				inv.add(makeVowelPhoneme(VowelSegment.segments[i]));
-				if (vowels[i].expression.equals(":"))
-					longVowel = (VowelPhoneme) inv.get(inv.size() - 1);
+				if (features.geminateVowels == Feature.YES)
+				{
+					longVowel = makeVowelPhoneme(VowelSegment.segments[i]);
+					inv.add(longVowel);
+				}
 			}
+			else
+			{
+				boolean add = true;
+				
+				for (int j = 0; j < vowels[i].properties.length; j++)
+					if (baseVowelRatings.getRating(((VowelProperty) vowels[i].properties[j]).ordinal()) == 0)
+					{
+						add = false;
+						j = vowels[i].properties.length;
+					}
+				
+				if (add)
+				{
+					inv.add(makeVowelPhoneme(VowelSegment.segments[i]));
+				}
+			}
+			
 		}
 		
 		vowelInventory = inv.toArray(new VowelPhoneme[inv.size()]);
@@ -1694,6 +1710,11 @@ public class Phonology
 		}
 	}
 
+	public Morphology getMorphology()
+	{
+		return morphology;
+	}
+	
 	private void makeRoots()
 	{
 		roots = new MorphemeLibrary(false);
@@ -1721,9 +1742,9 @@ public class Phonology
 		return assembly.makeSuffix(icTarget);
 	}
 	
-	public Name makeName(NounClass nc)
+	public GengenName makeName(NounClass nc)
 	{
-		Name name = new Name();
+		GengenName name = new GengenName(this);
 		
 		Root root = (Root) roots.pick();
 		Suffix suffix = nc.pickSuffix();
