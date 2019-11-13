@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Random;
 
 import gengenv2.enums.SuffixType;
+import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.MorphemeEntry;
 import gengenv2.structures.MorphemeLibrary;
 import gengenv2.structures.NounClass;
@@ -24,11 +25,13 @@ public class Morphology
 	MorphemeLibrary allSuffixes;
 	NounClass[] nounClasses;
 	
-	HiatusResolutionMethod heterosyllabification;
+	HiatusResolutionMethod dieresis;
 	HiatusResolutionMethod diphthongFormation;
 	VowelElision vowelElision;
 	Coalescence coalescence;
-	
+	HomorganicGlideEpenthesis homorganicGlideEpenthesis;
+	ConsistentConsonantEpenthesis consistentConsonantEpenthesis;
+	Syneresis syneresis;
 	
 	public Morphology(Phonology p)
 	{
@@ -39,7 +42,7 @@ public class Morphology
 //		makeSuffixes();
 //		generateNounClasses();
 		
-		heterosyllabification = new Heterosyllabification();
+		dieresis = new Dieresis();
 		diphthongFormation = new DiphthongFormation();
 		vowelElision = new VowelElision();
 		vowelElision.configureCompensatoryLenghtening(true, parent.longVowel);
@@ -65,6 +68,42 @@ public class Morphology
 		coalescence = new Coalescence (frontMidVowel, backMidVowel, p.medialNuclei.contains(frontMidVowel), p.terminalNuclei.contains(frontMidVowel),
 										p.medialNuclei.contains(backMidVowel), p.terminalNuclei.contains(backMidVowel));
 		coalescence.configureCompensatoryLenghtening(true, parent.longVowel);
+		
+		ConsonantPhoneme yGlide = null, wGlide = null;
+		for (ConsonantPhoneme cp : parent.consonantInventory)
+			if (cp.segment.expression.equals("y"))
+			{
+				yGlide = cp;
+				break;
+			}
+		for (ConsonantPhoneme cp : parent.consonantInventory)
+			if (cp.segment.expression.equals("w"))
+			{
+				wGlide = cp;
+				break;
+			}
+		
+		homorganicGlideEpenthesis = new HomorganicGlideEpenthesis(yGlide, wGlide, true, true, true, true);
+		
+		String[] leastMarkedConsonants = new String[] { "'", "h", "t", "y", "r", "w" };
+		ConsonantPhoneme leastMarked = null;
+		for (int i = 0; i < p.medialOnsets.size() && leastMarked == null; i++)
+		{
+			for (int j = 0; j < leastMarkedConsonants.length && leastMarked == null; j++)
+				if (p.medialOnsets.getMembers().get(i).getContent().segment.expression.equals(leastMarkedConsonants[j]))
+					leastMarked = (ConsonantPhoneme) p.medialOnsets.getMembers().get(i).getContent();
+		}
+		
+		consistentConsonantEpenthesis = new ConsistentConsonantEpenthesis(leastMarked);
+		
+		boolean initialYAllowed = p.initialNuclei != null ? yGlide != null && p.initialNuclei.contains(yGlide) : false;
+		boolean initialWAllowed = p.initialNuclei != null ? wGlide != null && p.initialNuclei.contains(yGlide) : false;
+		boolean medialYAllowed = yGlide != null && p.medialNuclei.contains(yGlide);
+		boolean medialWAllowed = wGlide != null && p.medialNuclei.contains(wGlide);
+		
+		syneresis = new Syneresis(yGlide, wGlide, initialYAllowed, initialWAllowed, medialYAllowed, medialWAllowed,
+									true, true, true);
+		syneresis.configureCompensatoryLenghtening(true, parent.longVowel);
 	}
 	
 	public void generateNounClasses()
@@ -137,13 +176,17 @@ public class Morphology
 	
 	public void resolveHiatus(ArrayList<PhonemeInstance> phonemes, int v2Index)
 	{
-		HiatusResolutionMethod method = coalescence;
+		HiatusResolutionMethod[] methods = new HiatusResolutionMethod[] { syneresis,  diphthongFormation, homorganicGlideEpenthesis, coalescence,
+																			dieresis, vowelElision, consistentConsonantEpenthesis };
 		
-		if (method.applies(phonemes, v2Index))
-		{
-			method.resolve(phonemes, v2Index);
-			System.out.print("(OK) ");
-		}
+		for (HiatusResolutionMethod method : methods)
+			if (method.applies(phonemes, v2Index))
+			{
+				method.resolve(phonemes, v2Index);
+				System.out.print("(OK) ");
+				return;
+			}
+		
 	}
 	
 	private void makeSuffixes(int suffixCount)

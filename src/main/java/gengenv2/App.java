@@ -32,6 +32,7 @@ import gengenv2.structures.GengenName;
 import gengenv2.structures.Morpheme;
 import gengenv2.structures.MorphemeLibrary;
 import gengenv2.structures.Suffix;
+import gengenv2.structures.VowelPhoneme;
 
 /**
  * Maven's default program for demonstrating Gengen. Mostly used for testing.
@@ -48,7 +49,8 @@ public class App
 	 */
     public static void main(String[] args)
     {   
-    	Phonology p = new Phonology(3582677372517196549L);
+    	Phonology p = new Phonology(8724563618997116630L);
+//    	Phonology p = new Phonology(3582677372517196549L); // practice phonology exhibits every method + compensatory lengthening
 //    	Phonology p = new Phonology(-956763732658690744L); // this is the one i posted on twitter about
     	
     	System.out.println();
@@ -68,6 +70,9 @@ public class App
     		System.out.println();
     	}
     	
+    	for (VowelPhoneme vp : p.vowelInventory)
+    		System.out.println(vp + " " + vp.getHiatusChance() + " (" + vp.getMedialFollowers().size() + " to " + p.medialOnsets.size() + ")");
+    	System.out.println(p.baseHiatusChance);
     	
 //    	SuffixLibrary lib = new SuffixLibrary();
 //    	for (int i = 0; i < 5; i++)

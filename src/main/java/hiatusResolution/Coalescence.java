@@ -85,7 +85,7 @@ public class Coalescence extends LengthenableResolution
 		phonemes.remove(v2Index - 1);
 		phonemes.add(v2Index - 1, new PhonemeInstance(target));
 		
-		if (canLengthen && target.getNucleusFollowers().contains(longVowel))
+		if (canLengthen && target.getNucleusFollowers() != null && target.getNucleusFollowers().contains(longVowel))
 			phonemes.add(v2Index, new PhonemeInstance(longVowel));
 	}
 

@@ -6,7 +6,7 @@ import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.PhonemeInstance;
 import gengenv2.structures.VowelPhoneme;
 
-public class Heterosyllabification extends HiatusResolutionMethod
+public class Dieresis extends HiatusResolutionMethod
 {
 
 	@Override

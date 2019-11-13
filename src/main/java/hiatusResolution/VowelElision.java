@@ -32,7 +32,7 @@ public class VowelElision extends LengthenableResolution
 		// Delete V1
 		phonemes.remove(getV1Index(phonemes, v2Index));
 		
-		if (canLengthen && v2.getNucleusFollowers().contains(longVowel))
+		if (canLengthen && v2.getNucleusFollowers() != null && v2.getNucleusFollowers().contains(longVowel))
 			phonemes.add(v2Index, new PhonemeInstance(longVowel));
 	}
 	
