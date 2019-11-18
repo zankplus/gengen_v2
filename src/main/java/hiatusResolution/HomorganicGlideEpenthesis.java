@@ -2,6 +2,7 @@ package hiatusResolution;
 
 import java.util.ArrayList;
 
+import gengenv2.enums.Constraint;
 import gengenv2.enums.VowelProperty;
 import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.Phoneme;
@@ -20,12 +21,25 @@ public class HomorganicGlideEpenthesis extends LengthenableResolution
 	public HomorganicGlideEpenthesis(ConsonantPhoneme yGlide, ConsonantPhoneme wGlide, boolean homorganicWithV1, boolean homorganicWithV2,
 										boolean midVowelsTrigger, boolean v1MustNotMatchV2)
 	{
+		super();
+		
 		this.yGlide = yGlide;
 		this.wGlide = wGlide;
 		this.homorganicWithV1 = homorganicWithV1;
 		this.homorganicWithV2 = homorganicWithV2;
 		this.midVowelsTrigger = midVowelsTrigger;
 		this.v1MustNotMatchV2 = v1MustNotMatchV2;
+		
+		// Constraints	
+		constraintSatisfaction[Constraint.MAX.ordinal()] 			= true;
+		constraintSatisfaction[Constraint.DEP.ordinal()]			= false;
+		constraintSatisfaction[Constraint.ISOLATION.ordinal()]	 	= true;
+		constraintSatisfaction[Constraint.TIDY.ordinal()] 			= false;
+		constraintSatisfaction[Constraint.ENCROACHING.ordinal()]	= true;
+		constraintSatisfaction[Constraint.SYL_MAX.ordinal()]		= true;
+		constraintSatisfaction[Constraint.SYL_MIN.ordinal()] 		= false;
+		constraintSatisfaction[Constraint.NUCLEI_MAX.ordinal()]		= true;
+		constraintSatisfaction[Constraint.NUCLEI_MIN.ordinal()]		= false;
 	}
 
 	public ConsonantPhoneme getEpentheticGlide(ArrayList<PhonemeInstance> phonemes, int v2Index)

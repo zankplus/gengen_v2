@@ -49,7 +49,8 @@ public class App
 	 */
     public static void main(String[] args)
     {   
-    	Phonology p = new Phonology(8724563618997116630L);
+    	Phonology p = new Phonology();
+//    	Phonology p = new Phonology(8724563618997116630L);	// lots of hiatus
 //    	Phonology p = new Phonology(3582677372517196549L); // practice phonology exhibits every method + compensatory lengthening
 //    	Phonology p = new Phonology(-956763732658690744L); // this is the one i posted on twitter about
     	

@@ -2,12 +2,29 @@ package hiatusResolution;
 
 import java.util.ArrayList;
 
+import gengenv2.enums.Constraint;
 import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.PhonemeInstance;
 import gengenv2.structures.VowelPhoneme;
 
 public class VowelElision extends LengthenableResolution
 {
+	public VowelElision()
+	{
+		super();
+		
+		// Constraints	
+		constraintSatisfaction[Constraint.MAX.ordinal()] 			= false;
+		constraintSatisfaction[Constraint.DEP.ordinal()]			= true;
+		constraintSatisfaction[Constraint.ISOLATION.ordinal()]	 	= true;
+		constraintSatisfaction[Constraint.TIDY.ordinal()] 			= true;
+		constraintSatisfaction[Constraint.ENCROACHING.ordinal()]	= false;
+		constraintSatisfaction[Constraint.SYL_MAX.ordinal()]		= false;
+		constraintSatisfaction[Constraint.SYL_MIN.ordinal()] 		= true;
+		constraintSatisfaction[Constraint.NUCLEI_MAX.ordinal()]		= false;
+		constraintSatisfaction[Constraint.NUCLEI_MIN.ordinal()]		= true;
+	}
+	
 	@Override
 	public boolean applies(ArrayList<PhonemeInstance> phonemes, int v2Index)
 	{

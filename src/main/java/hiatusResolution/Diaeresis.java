@@ -2,13 +2,30 @@ package hiatusResolution;
 
 import java.util.ArrayList;
 
+import gengenv2.enums.Constraint;
 import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.PhonemeInstance;
 import gengenv2.structures.VowelPhoneme;
 
-public class Dieresis extends HiatusResolutionMethod
+public class Diaeresis extends HiatusResolutionMethod
 {
 
+	public Diaeresis()
+	{
+		super();
+		
+		// Constraints
+		constraintSatisfaction[Constraint.MAX.ordinal()] 			= true;
+		constraintSatisfaction[Constraint.DEP.ordinal()]			= true;
+		constraintSatisfaction[Constraint.ISOLATION.ordinal()]	 	= false;
+		constraintSatisfaction[Constraint.TIDY.ordinal()] 			= true;
+		constraintSatisfaction[Constraint.ENCROACHING.ordinal()]	= false;
+		constraintSatisfaction[Constraint.SYL_MAX.ordinal()]		= true;
+		constraintSatisfaction[Constraint.SYL_MIN.ordinal()] 		= false;
+		constraintSatisfaction[Constraint.NUCLEI_MAX.ordinal()]		= true;
+		constraintSatisfaction[Constraint.NUCLEI_MIN.ordinal()]		= false;
+	}
+	
 	@Override
 	public boolean applies(ArrayList<PhonemeInstance> phonemes, int v2Index)
 	{

@@ -2,6 +2,7 @@ package hiatusResolution;
 
 import java.util.ArrayList;
 
+import gengenv2.enums.Constraint;
 import gengenv2.enums.VowelProperty;
 import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.ConstituentLibrary;
@@ -20,12 +21,25 @@ public class Coalescence extends LengthenableResolution
 	public Coalescence(VowelPhoneme frontMidVowel, VowelPhoneme backMidVowel, boolean frontMidMedial, boolean frontMidTerminal, boolean backMidMedial,
 						boolean backMidTerminal)
 	{
+		super();
+		
 		this.frontMidVowel = frontMidVowel;
 		this.backMidVowel = backMidVowel;
 		this.frontMidMedial = frontMidMedial;
 		this.frontMidTerminal = frontMidTerminal;
 		this.backMidMedial = backMidMedial;
-		this.backMidTerminal = backMidTerminal; 
+		this.backMidTerminal = backMidTerminal;
+		
+		// Constraints	
+		constraintSatisfaction[Constraint.MAX.ordinal()] 			= false;
+		constraintSatisfaction[Constraint.DEP.ordinal()]			= true;
+		constraintSatisfaction[Constraint.ISOLATION.ordinal()]	 	= true;
+		constraintSatisfaction[Constraint.TIDY.ordinal()] 			= false;
+		constraintSatisfaction[Constraint.ENCROACHING.ordinal()]	= true;
+		constraintSatisfaction[Constraint.SYL_MAX.ordinal()]		= false;
+		constraintSatisfaction[Constraint.SYL_MIN.ordinal()] 		= true;
+		constraintSatisfaction[Constraint.NUCLEI_MAX.ordinal()]		= false;
+		constraintSatisfaction[Constraint.NUCLEI_MIN.ordinal()]		= true;
 	}
 	
 	public boolean applies(ArrayList<PhonemeInstance> phonemes, int v2Index)

@@ -24,7 +24,7 @@ import gengenv2.Phonology;
 import gengenv2.structures.Constituent;
 import gengenv2.structures.Segment;
 import hiatusResolution.DiphthongFormation;
-import hiatusResolution.Dieresis;
+import hiatusResolution.Diaeresis;
 import hiatusResolution.HiatusResolutionMethod;
 import hiatusResolution.VowelElision;
 

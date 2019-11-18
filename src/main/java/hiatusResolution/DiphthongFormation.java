@@ -2,6 +2,7 @@ package hiatusResolution;
 
 import java.util.ArrayList;
 
+import gengenv2.enums.Constraint;
 import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.ConstituentLibrary;
 import gengenv2.structures.Phoneme;
@@ -10,6 +11,22 @@ import gengenv2.structures.VowelPhoneme;
 
 public class DiphthongFormation extends HiatusResolutionMethod 
 {
+	public DiphthongFormation()
+	{
+		super();
+		
+		// Constraints
+		constraintSatisfaction[Constraint.MAX.ordinal()] 			= true;
+		constraintSatisfaction[Constraint.DEP.ordinal()]			= true;
+		constraintSatisfaction[Constraint.ISOLATION.ordinal()]	 	= false;
+		constraintSatisfaction[Constraint.TIDY.ordinal()] 			= false;
+		constraintSatisfaction[Constraint.ENCROACHING.ordinal()]	= true;
+		constraintSatisfaction[Constraint.SYL_MAX.ordinal()]		= false;
+		constraintSatisfaction[Constraint.SYL_MIN.ordinal()] 		= true;
+		constraintSatisfaction[Constraint.NUCLEI_MAX.ordinal()]		= true;
+		constraintSatisfaction[Constraint.NUCLEI_MIN.ordinal()]		= false;
+	}
+	
 	public boolean canFormDiphthong(VowelPhoneme v1, VowelPhoneme v2)
 	{
 		ConstituentLibrary lib = v1.getNucleusFollowers();

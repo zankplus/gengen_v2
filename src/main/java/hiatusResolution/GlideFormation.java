@@ -2,13 +2,14 @@ package hiatusResolution;
 
 import java.util.ArrayList;
 
+import gengenv2.enums.Constraint;
 import gengenv2.enums.VowelProperty;
 import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.Phoneme;
 import gengenv2.structures.PhonemeInstance;
 import gengenv2.structures.VowelPhoneme;
 
-public class Syneresis extends LengthenableResolution
+public class GlideFormation extends LengthenableResolution
 {
 	private ConsonantPhoneme yGlide;
 	private ConsonantPhoneme wGlide;
@@ -20,9 +21,11 @@ public class Syneresis extends LengthenableResolution
 	private boolean blockedBySameFrontness;
 	private boolean blockedByIdentity;
 	
-	public Syneresis(ConsonantPhoneme yGlide, ConsonantPhoneme wGlide, boolean initialYAllowed, boolean initialWAllowed, boolean medialYAllowed, 
+	public GlideFormation(ConsonantPhoneme yGlide, ConsonantPhoneme wGlide, boolean initialYAllowed, boolean initialWAllowed, boolean medialYAllowed, 
 						boolean medialWAllowed, boolean midVowelsTrigger, boolean blockedBySameFrontness, boolean blockedByIdentity)
 	{
+		super();
+		
 		this.yGlide = yGlide;
 		this.wGlide = wGlide;
 		this.initialYAllowed = initialYAllowed;
@@ -32,6 +35,17 @@ public class Syneresis extends LengthenableResolution
 		this.midVowelsTrigger = midVowelsTrigger;
 		this.blockedBySameFrontness = blockedBySameFrontness;
 		this.blockedByIdentity = blockedByIdentity;
+		
+		// Constraints	
+		constraintSatisfaction[Constraint.MAX.ordinal()] 			= true;
+		constraintSatisfaction[Constraint.DEP.ordinal()]			= true;
+		constraintSatisfaction[Constraint.ISOLATION.ordinal()]	 	= true;
+		constraintSatisfaction[Constraint.TIDY.ordinal()] 			= false;
+		constraintSatisfaction[Constraint.ENCROACHING.ordinal()]	= true;
+		constraintSatisfaction[Constraint.SYL_MAX.ordinal()]		= false;
+		constraintSatisfaction[Constraint.SYL_MIN.ordinal()] 		= true;
+		constraintSatisfaction[Constraint.NUCLEI_MAX.ordinal()]		= false;
+		constraintSatisfaction[Constraint.NUCLEI_MIN.ordinal()]		= false;
 	}
 
 	private ConsonantPhoneme getGlide(ArrayList<PhonemeInstance> phonemes, int v2Index)

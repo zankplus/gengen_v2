@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
+import gengenv2.enums.Constraint;
 import gengenv2.enums.SuffixType;
 import gengenv2.structures.ConsonantPhoneme;
 import gengenv2.structures.MorphemeEntry;
@@ -25,13 +26,7 @@ public class Morphology
 	MorphemeLibrary allSuffixes;
 	NounClass[] nounClasses;
 	
-	HiatusResolutionMethod dieresis;
-	HiatusResolutionMethod diphthongFormation;
-	VowelElision vowelElision;
-	Coalescence coalescence;
-	HomorganicGlideEpenthesis homorganicGlideEpenthesis;
-	ConsistentConsonantEpenthesis consistentConsonantEpenthesis;
-	Syneresis syneresis;
+	HiatusResolutionMethod[] hiatusResolutionMethods;
 	
 	public Morphology(Phonology p)
 	{
@@ -42,14 +37,13 @@ public class Morphology
 //		makeSuffixes();
 //		generateNounClasses();
 		
-		dieresis = new Dieresis();
-		diphthongFormation = new DiphthongFormation();
-		vowelElision = new VowelElision();
-		vowelElision.configureCompensatoryLenghtening(true, parent.longVowel);
-		
-		
-		// Coalescence
-		
+		generateHiatusResolutionMethods();
+		rankHiatusResolutionConstraints();
+	}
+	
+	private void generateHiatusResolutionMethods()
+	{
+		// Get references to mid-front and mid-back vowels (E and O)
 		VowelPhoneme frontMidVowel = null, backMidVowel = null;
 		for (VowelPhoneme vp : parent.vowelInventory)
 			if (vp.segment.expression.equals("e"))
@@ -65,10 +59,7 @@ public class Morphology
 				break;
 			}
 		
-		coalescence = new Coalescence (frontMidVowel, backMidVowel, p.medialNuclei.contains(frontMidVowel), p.terminalNuclei.contains(frontMidVowel),
-										p.medialNuclei.contains(backMidVowel), p.terminalNuclei.contains(backMidVowel));
-		coalescence.configureCompensatoryLenghtening(true, parent.longVowel);
-		
+		// Get references to Y- and W-glides
 		ConsonantPhoneme yGlide = null, wGlide = null;
 		for (ConsonantPhoneme cp : parent.consonantInventory)
 			if (cp.segment.expression.equals("y"))
@@ -83,27 +74,135 @@ public class Morphology
 				break;
 			}
 		
-		homorganicGlideEpenthesis = new HomorganicGlideEpenthesis(yGlide, wGlide, true, true, true, true);
 		
+		
+		// Get "least marked" consonant
 		String[] leastMarkedConsonants = new String[] { "'", "h", "t", "y", "r", "w" };
 		ConsonantPhoneme leastMarked = null;
-		for (int i = 0; i < p.medialOnsets.size() && leastMarked == null; i++)
+		for (int i = 0; i < parent.medialOnsets.size() && leastMarked == null; i++)
 		{
 			for (int j = 0; j < leastMarkedConsonants.length && leastMarked == null; j++)
-				if (p.medialOnsets.getMembers().get(i).getContent().segment.expression.equals(leastMarkedConsonants[j]))
-					leastMarked = (ConsonantPhoneme) p.medialOnsets.getMembers().get(i).getContent();
+				if (parent.medialOnsets.getMembers().get(i).getContent().segment.expression.equals(leastMarkedConsonants[j]))
+					leastMarked = (ConsonantPhoneme) parent.medialOnsets.getMembers().get(i).getContent();
 		}
 		
-		consistentConsonantEpenthesis = new ConsistentConsonantEpenthesis(leastMarked);
+		// Initialize each method
+		// Diaeresis
+		Diaeresis diaeresis = new Diaeresis();
 		
-		boolean initialYAllowed = p.initialNuclei != null ? yGlide != null && p.initialNuclei.contains(yGlide) : false;
-		boolean initialWAllowed = p.initialNuclei != null ? wGlide != null && p.initialNuclei.contains(yGlide) : false;
-		boolean medialYAllowed = yGlide != null && p.medialNuclei.contains(yGlide);
-		boolean medialWAllowed = wGlide != null && p.medialNuclei.contains(wGlide);
+		// Diphthong Formation
+		DiphthongFormation diphthongFormation = new DiphthongFormation();
 		
-		syneresis = new Syneresis(yGlide, wGlide, initialYAllowed, initialWAllowed, medialYAllowed, medialWAllowed,
-									true, true, true);
-		syneresis.configureCompensatoryLenghtening(true, parent.longVowel);
+		// Vowel Elision
+		VowelElision vowelElision = new VowelElision();
+		
+		// Coalescence
+		Coalescence coalescence = new Coalescence (frontMidVowel, backMidVowel, parent.medialNuclei.contains(frontMidVowel), parent.terminalNuclei.contains(frontMidVowel),
+										parent.medialNuclei.contains(backMidVowel), parent.terminalNuclei.contains(backMidVowel));
+		
+		// Homorganic Glide Epenthesis
+		boolean homorganicWithV1 = true;
+		boolean homorganicWithV2 = false;
+		boolean midVowelsTrigger = (rng.nextBoolean()); 
+		boolean v1MustNotMatchV2 = (rng.nextBoolean());
+		HomorganicGlideEpenthesis homorganicGlideEpenthesis = new HomorganicGlideEpenthesis(yGlide, wGlide, homorganicWithV1, homorganicWithV2, midVowelsTrigger, v1MustNotMatchV2);
+		
+		// Consistent Consonant Epenthesis
+		ConsistentConsonantEpenthesis consistentConsonantEpenthesis = new ConsistentConsonantEpenthesis(leastMarked);
+		
+		// Glide formation
+		boolean initialYAllowed = parent.initialNuclei != null ? yGlide != null && parent.initialNuclei.contains(yGlide) : false;
+		boolean initialWAllowed = parent.initialNuclei != null ? wGlide != null && parent.initialNuclei.contains(yGlide) : false;
+		boolean medialYAllowed = yGlide != null && parent.medialNuclei.contains(yGlide);
+		boolean medialWAllowed = wGlide != null && parent.medialNuclei.contains(wGlide);
+		boolean blockedBySameFrontness = rng.nextBoolean();
+		GlideFormation glideFormation = new GlideFormation(yGlide, wGlide, initialYAllowed, initialWAllowed, medialYAllowed, medialWAllowed, midVowelsTrigger,
+												blockedBySameFrontness, v1MustNotMatchV2);
+		
+		// Configure compensatory lengthening, if relevant
+		vowelElision.configureCompensatoryLenghtening(true, parent.longVowel);
+		glideFormation.configureCompensatoryLenghtening(true, parent.longVowel);
+		coalescence.configureCompensatoryLenghtening(true, parent.longVowel);
+		
+		// Add to array
+		hiatusResolutionMethods = new HiatusResolutionMethod[] { diaeresis, diphthongFormation, vowelElision, coalescence,
+																	homorganicGlideEpenthesis, consistentConsonantEpenthesis, glideFormation };
+		
+	}
+	
+	public void rankHiatusResolutionConstraints()
+	{
+		
+		ArrayList<Constraint> constraints = new ArrayList<Constraint>();
+		for (Constraint c : Constraint.values())
+			constraints.add(c);
+		
+		ArrayList<Constraint> ranked = new ArrayList<Constraint>();
+		ArrayList<Constraint> rankedLowest = new ArrayList<Constraint>();
+		
+		
+		// Create a randomly ranked list of constraints
+		while (constraints.size() > 0)
+		{
+			int rand = rng.nextInt(constraints.size());
+			Constraint target = constraints.remove(rand);
+			
+			if (target == Constraint.NUCLEI_MAX)
+				rankedLowest.add(constraints.remove(constraints.indexOf(Constraint.NUCLEI_MIN)));
+			else if (target == Constraint.NUCLEI_MIN)
+				rankedLowest.add(constraints.remove(constraints.indexOf(Constraint.NUCLEI_MAX)));
+			else if (target == Constraint.SYL_MAX)
+				rankedLowest.add(constraints.remove(constraints.indexOf(Constraint.SYL_MIN)));
+			else if (target == Constraint.SYL_MIN)
+				rankedLowest.add(constraints.remove(constraints.indexOf(Constraint.SYL_MAX)));
+			else if (target == Constraint.TIDY)
+				rankedLowest.add(constraints.remove(constraints.indexOf(Constraint.ENCROACHING)));
+			else if (target == Constraint.ENCROACHING)
+				rankedLowest.add(constraints.remove(constraints.indexOf(Constraint.TIDY)));
+			
+			ranked.add(target);
+		}
+		
+		for (int i = rankedLowest.size() - 1; i >= 0; i--)
+			ranked.add(rankedLowest.remove(i));
+		
+		for (int i = 0; i < ranked.size(); i++)
+			System.out.println((i + 1) + ": " + ranked.get(i));
+		
+		// Rank hiatus resolution methods according to how well they satisfy the constraints
+		ArrayList<HiatusResolutionMethod> rankedMethods = new ArrayList<HiatusResolutionMethod>();
+		
+		for (HiatusResolutionMethod hrm : hiatusResolutionMethods)
+		{
+			int index = rankedMethods.size();
+			
+			for (int i = 0; i < rankedMethods.size() && index == rankedMethods.size(); i++)
+			{
+				for (Constraint c : ranked)
+				{
+					if (hrm.satisfiesConstraint(c) && !rankedMethods.get(i).satisfiesConstraint(c))
+					{
+						index = i;
+						System.out.println(hrm + " > " + rankedMethods.get(i) + " on " + c);
+						break;
+					}
+					else if (!hrm.satisfiesConstraint(c) && rankedMethods.get(i).satisfiesConstraint(c))
+					{
+						System.out.println(hrm + " < " + rankedMethods.get(i) + " on " + c);
+						break;
+					}
+				}
+			}
+			
+			rankedMethods.add(index, hrm);
+		}
+		
+		System.out.println("Ranked methods:");
+		for (int i = 0; i < rankedMethods.size(); i++)
+			hiatusResolutionMethods[i] = rankedMethods.get(i);
+		
+		for (int i = 0; i < hiatusResolutionMethods.length; i++)
+			System.out.println((i + 1) + ": " + hiatusResolutionMethods[i]);
 	}
 	
 	public void generateNounClasses()
@@ -176,8 +275,7 @@ public class Morphology
 	
 	public void resolveHiatus(ArrayList<PhonemeInstance> phonemes, int v2Index)
 	{
-		HiatusResolutionMethod[] methods = new HiatusResolutionMethod[] { syneresis,  diphthongFormation, homorganicGlideEpenthesis, coalescence,
-																			dieresis, vowelElision, consistentConsonantEpenthesis };
+		HiatusResolutionMethod[] methods = hiatusResolutionMethods;
 		
 		for (HiatusResolutionMethod method : methods)
 			if (method.applies(phonemes, v2Index))
