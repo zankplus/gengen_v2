@@ -170,7 +170,7 @@ public class MorphemeAssembly
 	protected Morpheme makeWord(double icTarget, Node firstNode)
 	{
 		// Initialize naming variables
-		this.icTarget = icTarget;
+		this.icTarget = Math.max(icTarget, minimumIC);
 		prev = null;
 		pName = 1;
 		
@@ -442,9 +442,9 @@ public class MorphemeAssembly
 				hMedial = v.getHiatusMedialSyllableEntropy();
 				
 				if (morpheme instanceof Root && ((Root) morpheme).isBound())
-					hEnding = v.getHiatusRootSyllableEntropy();
+					hEnding = v.getRootFollowers() == null ? 0 : v.getRootFollowers().getEntropy();
 				else
-					hEnding = v.getHiatusTerminalSyllableEntropy();
+					hEnding = v.getTerminalFollowers() == null ? 0 : v.getTerminalFollowers().getEntropy();
 			}
 			else
 			{
@@ -790,7 +790,10 @@ public class MorphemeAssembly
 		{
 			// Add root nucleus
 			if (prev != null && prev.type == ConstituentType.NUCLEUS)
+			{
+				morpheme.add(ConsonantPhoneme.emptyOnset);
 				addConstituentFrom(((VowelPhoneme)prev.getContent()).getRootFollowers());
+			}
 			else
 				addConstituentFrom(p.rootNuclei);
 			

@@ -369,9 +369,20 @@ public class Phonology
 		// Create flowchart
 		assembly = new MorphemeAssembly(this);
 		
-
+		initialOnsets.printMembers();
+		rootNuclei.printMembers();
+		System.out.println(rootNuclei + " ENTROPY (Max length: " + maxNucleusLength + "), " + rootNuclei.size() + " members");
+		rootNuclei.setClusterEntropy(maxNucleusLength);
+		for (int i = 0; i < maxNucleusLength; i++)
+			System.out.println("Length " + (i + 1) + ": " + rootNuclei.getClusterEntropy(i + 1));
 		
-//		makeSuffixes();
+		medialNuclei.printMembers();
+
+		// Generate roots
+		makeRoots();
+		
+		// Generate noun classes 
+		morphology.generateNounClasses();
 		
 		// Create stress rules
 //		stressRules = new StressRules();
@@ -410,20 +421,7 @@ public class Phonology
 //		printClusters(initialOnsets);
 //		printClusters(terminalCodas);
 		
-		initialOnsets.printMembers();
-		rootNuclei.printMembers();
-		System.out.println(rootNuclei + " ENTROPY (Max length: " + maxNucleusLength + "), " + rootNuclei.size() + " members");
-		rootNuclei.setClusterEntropy(maxNucleusLength);
-		for (int i = 0; i < maxNucleusLength; i++)
-			System.out.println("Length " + (i + 1) + ": " + rootNuclei.getClusterEntropy(i + 1));
 		
-		medialNuclei.printMembers();
-
-		// Generate roots
-		makeRoots();
-		
-		// Generate noun classes 
-		morphology.generateNounClasses();
 		
 
 	}
@@ -1056,8 +1054,10 @@ public class Phonology
 			// Medial hiatus
 			for (VowelPhoneme v1 : vowelInventory)
 			{
+				
 				v1.makeHiatus(medialNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);
-				v1.setHiatusChance(baseHiatusChance * v1.getMedialFollowers().size() / (medialOnsets.size() + v1.getMedialFollowers().size()));
+				double logFollowers = Math.log(v1.getMedialFollowers().size() + 1);
+				v1.setHiatusChance(baseHiatusChance * logFollowers / (medialOnsets.size() + logFollowers));
 				
 				v1.makeHiatus(terminalNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);
 				v1.makeHiatus(rootNuclei, leadProbabilities, followProbabilities, hiatusProminenceOffset);

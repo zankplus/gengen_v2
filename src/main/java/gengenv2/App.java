@@ -54,26 +54,7 @@ public class App
 //    	Phonology p = new Phonology(3582677372517196549L); // practice phonology exhibits every method + compensatory lengthening
 //    	Phonology p = new Phonology(-956763732658690744L); // this is the one i posted on twitter about
     	
-    	System.out.println();
-    	for (int i = 0; i < p.morphology.nounClasses.length; i++)
-		{
-			System.out.print(MorphemeLibrary.padString("Noun class " + (i + 1), 40));
-		}
-    	System.out.println();
-    	
-    	for (int j = 0; j < 10; j++)
-		{
-    		for (int i = 0; i < p.morphology.nounClasses.length; i++)
-    		{
-    			GengenName name = p.makeName(p.morphology.nounClasses[i]);
-    			System.out.print(MorphemeLibrary.padString(name.phonemesToString() + " / " + name.toString(), 40));
-    		}
-    		System.out.println();
-    	}
-    	
-    	for (VowelPhoneme vp : p.vowelInventory)
-    		System.out.println(vp + " " + vp.getHiatusChance() + " (" + vp.getMedialFollowers().size() + " to " + p.medialOnsets.size() + ")");
-    	System.out.println(p.baseHiatusChance);
+    	testSuffixes(p);
     	
 //    	SuffixLibrary lib = new SuffixLibrary();
 //    	for (int i = 0; i < 5; i++)
@@ -180,4 +161,24 @@ public class App
 //			System.out.println();
 //		}
 //	}
+    
+    public static void testSuffixes(Phonology p)
+    {
+    	System.out.println();
+    	for (int i = 0; i < p.morphology.nounClasses.length; i++)
+		{
+			System.out.print(MorphemeLibrary.padString("Noun class " + (i + 1), 40));
+		}
+    	System.out.println();
+    	
+    	for (int j = 0; j < 10; j++)
+		{
+    		for (int i = 0; i < p.morphology.nounClasses.length; i++)
+    		{
+    			GengenName name = p.makeName(p.morphology.nounClasses[i]);
+    			System.out.print(MorphemeLibrary.padString(name.phonemesToString() + " / " + name.toString(), 40));
+    		}
+    		System.out.println();
+    	}
+    }
 }
